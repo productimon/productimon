@@ -1,0 +1,19 @@
+syntax = "proto3";
+package productimon.common;
+option go_package = "git.yiad.am/productimon/proto/common";
+
+enum EventType {
+  UNKNOWN = 0;
+  APP_SWITCH_EVENT = 1;
+  KEY_STROKE_EVENT = 2;
+}
+
+message AppSwitchEvent { string app_name = 1; }
+
+message KeyStrokeEvent {
+  // sampling duration in nanoseconds
+  int64 duration = 1;
+
+  // number of keystrokes in sampling duration
+  int64 keystrokes = 2;
+}

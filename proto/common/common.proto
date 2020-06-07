@@ -1,0 +1,38 @@
+syntax = "proto3";
+package productimon.common;
+option go_package = "git.yiad.am/productimon/proto/common";
+
+import "common/events.proto";
+
+message Timestamp {
+  // Nanoseconds since UNIX epoch
+  int64 nanos = 1;
+}
+
+message Device {
+  // globally unique uuid
+  string id = 1;
+
+  enum DeviceType {
+    LINUX = 0;
+    MACOS = 1;
+    WINDOWS = 2;
+    ANDROID = 3;
+    IOS = 4;
+  }
+  DeviceType device_type = 2;
+}
+
+message Event {
+  Device device = 1;
+
+  // increasing id bound to device
+  int64 id = 2;
+
+  Timestamp timestamp = 3;
+
+  oneof kind {
+    AppSwitchEvent app_switch_event = 4;
+    KeyStrokeEvent key_stroke_event = 5;
+  }
+}
