@@ -34,5 +34,6 @@ message Event {
   oneof kind {
     AppSwitchEvent app_switch_event = 4;
     KeyStrokeEvent key_stroke_event = 5;
+    MouseClickEvent mouse_click_event = 6;
   }
 }
