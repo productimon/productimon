@@ -72,3 +72,10 @@ go_repository(
     sum = "h1:tW2bmiBqwgJj/UpqtC8EpXEZVYOwU0yG4iWbprSVAcs=",
     version = "v0.3.2",
 )
+
+# reporter linux libs
+new_local_repository(
+    name = "system_libs",
+    path = "/usr/lib/x86_64-linux-gnu",
+    build_file = "reporter/system_libs.BUILD",
+)
