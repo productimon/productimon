@@ -2,15 +2,20 @@ syntax = "proto3";
 package productimon.svc;
 option go_package = "git.yiad.am/productimon/proto/svc";
 
-import "common/common.proto";
-import "common/events.proto";
+import "proto/common/common.proto";
+import "proto/common/events.proto";
 
-service API {
-  rpc PushEvent(stream common.Event) returns (APIPushEventResponse);
-  rpc GetEvent(APIGetEventRequest) returns (stream common.Event);
+service DataAggregator {
+  rpc Ping(DataAggregatorPingRequest) returns (DataAggregatorPingResponse);
+  rpc PushEvent(stream common.Event) returns (DataAggregatorPushEventResponse);
+  rpc GetEvent(DataAggregatorGetEventRequest) returns (stream common.Event);
 }
 
-message APIPushEventResponse {
+message DataAggregatorPingRequest { string payload = 1; }
+
+message DataAggregatorPingResponse { string payload = 1; }
+
+message DataAggregatorPushEventResponse {
   common.Device device = 1;
 
   // how many events were added in this stream
@@ -20,7 +25,7 @@ message APIPushEventResponse {
   common.Event final_event = 3;
 }
 
-message APIGetEventRequest {
+message DataAggregatorGetEventRequest {
   // returned zero or more events, or an error
   message ByDevice { common.Device device = 1; }
 

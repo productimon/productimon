@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "main.go",
+        "service.go",
+    ],
+    importpath = "git.yiad.am/productimon/aggregator",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//proto/svc:go_default_library",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//reflection:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "aggregator",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

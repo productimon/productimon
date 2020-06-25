@@ -2,7 +2,7 @@ syntax = "proto3";
 package productimon.common;
 option go_package = "git.yiad.am/productimon/proto/common";
 
-import "common/events.proto";
+import "proto/common/events.proto";
 
 message Timestamp {
   // Nanoseconds since UNIX epoch
