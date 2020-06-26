@@ -116,6 +116,9 @@ static void *event_loop(UNUSED void *arg) {
 }
 
 int init_tracking() {
+    if (strcmp(getenv("XDG_SESSION_TYPE"), "x11")) {
+        error("Not using x11 as display server, tracking may not be accurate\n");
+    }
     XSetErrorHandler(xlib_error_handler);
     // open connection to the X server
     display = XOpenDisplay(NULL);
