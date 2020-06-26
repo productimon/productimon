@@ -79,3 +79,10 @@ new_local_repository(
     path = "/usr/lib/x86_64-linux-gnu",
     build_file = "reporter/system_libs.BUILD",
 )
+
+go_repository(
+    name = "com_github_dgrijalva_jwt_go",
+    importpath = "github.com/dgrijalva/jwt-go",
+    sum = "h1:7qlOGliEKZXTDg6OTjfoBKDXWrumCAMpl/TFQ4/5kLM=",
+    version = "v3.2.0+incompatible",
+)

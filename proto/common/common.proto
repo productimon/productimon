@@ -9,6 +9,12 @@ message Timestamp {
   int64 nanos = 1;
 }
 
+message User {
+  string id = 1;
+  string email = 2;
+  string password = 3;
+}
+
 message Device {
   // globally unique uuid
   string id = 1;

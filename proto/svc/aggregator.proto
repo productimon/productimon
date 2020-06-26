@@ -2,11 +2,16 @@ syntax = "proto3";
 package productimon.svc;
 option go_package = "git.yiad.am/productimon/proto/svc";
 
+import "google/protobuf/empty.proto";
 import "proto/common/common.proto";
 import "proto/common/events.proto";
 
 service DataAggregator {
   rpc Ping(DataAggregatorPingRequest) returns (DataAggregatorPingResponse);
+  rpc Login(DataAggregatorLoginRequest) returns (DataAggregatorLoginResponse);
+  rpc ExtendToken(google.protobuf.Empty) returns (DataAggregatorLoginResponse);
+  rpc UserDetails(google.protobuf.Empty)
+      returns (DataAggregatorUserDetailsResponse);
   rpc PushEvent(stream common.Event) returns (DataAggregatorPushEventResponse);
   rpc GetEvent(DataAggregatorGetEventRequest) returns (stream common.Event);
 }
@@ -14,6 +19,15 @@ service DataAggregator {
 message DataAggregatorPingRequest { string payload = 1; }
 
 message DataAggregatorPingResponse { string payload = 1; }
+
+message DataAggregatorLoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message DataAggregatorLoginResponse { string token = 1; }
+
+message DataAggregatorUserDetailsResponse { common.User user = 1; }
 
 message DataAggregatorPushEventResponse {
   common.Device device = 1;

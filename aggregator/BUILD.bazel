@@ -3,15 +3,22 @@ load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
+        "authenticator.go",
         "main.go",
         "service.go",
     ],
     importpath = "git.yiad.am/productimon/aggregator",
     visibility = ["//visibility:private"],
     deps = [
+        "//proto/common:go_default_library",
         "//proto/svc:go_default_library",
+        "@com_github_dgrijalva_jwt_go//:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//codes:go_default_library",
+        "@org_golang_google_grpc//metadata:go_default_library",
         "@org_golang_google_grpc//reflection:go_default_library",
+        "@org_golang_google_grpc//status:go_default_library",
+        "@org_golang_google_protobuf//types/known/emptypb:go_default_library",
     ],
 )
 

@@ -22,5 +22,8 @@ proto_library(
     name = "svc_proto",
     srcs = ["aggregator.proto"],
     visibility = ["//visibility:public"],
-    deps = ["//proto/common:common_proto"],
+    deps = [
+        "//proto/common:common_proto",
+        "@com_google_protobuf//:empty_proto",
+    ],
 )
