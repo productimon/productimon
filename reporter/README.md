@@ -5,6 +5,9 @@
 #### xlib headers
 `sudo apt install libx11-dev`
 
+#### x input headers
+`sudo apt install libxi-dev`
+
 
 ## Build Instructions
 ### CLI
@@ -13,5 +16,15 @@
 #### debug build
 `bazel build -c dbg //reporter:reporter_cli`
 
+## Runtime Dependencies
+### Linux
+#### xlib client
+`sudo apt install libx11-6`
+
+#### x input extension
+`sudo apt install libxi-6`
+
 ## Running Instructions
+### CLI
 `bazel-bin/reporter/reporter_cli HOST:4200 test@productimon.com test`
+

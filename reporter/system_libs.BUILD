@@ -11,3 +11,9 @@ cc_library(
     srcs = ["libpthread.so"],
     visibility = ["//visibility:public"],
 )
+
+cc_library(
+    name = "xi",
+    srcs = ["libXi.so"],
+    visibility = ["//visibility:public"],
+)

@@ -1,6 +1,8 @@
 // TODO check for mem leaks
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/XKBlib.h>
+#include <X11/extensions/XInput2.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +22,10 @@ static Window   root_window;
 static bool             tracking_started = false;
 static pthread_t        tracking_thread;
 static tracking_opt_t  *tracking_opts;
+
+static int              xi_major_opcode;
+static int              tracking_n_clicks;
+static int              tracking_n_keystrokes;
 
 static int xlib_error_handler(Display *display, XErrorEvent *event) {
     char buf[256];
@@ -71,6 +77,13 @@ static int get_current_window_name(Display *display, Window root,
     return 0;
 }
 
+static int send_input_stats() {
+    printf("%d keystrokes in last window session\n", tracking_n_keystrokes);
+    printf("%d mouse clicks in last window session\n", tracking_n_clicks);
+    // TODO insert acutal code to send stats to server
+    return 1;
+}
+
 static void handle_window_change(Display *display, Window window) {
     static char prog_name[512] = {0};
     char new_prog_name[512];
@@ -83,7 +96,43 @@ static void handle_window_change(Display *display, Window window) {
 
     strcpy(prog_name, new_prog_name);
 
+    send_input_stats();
     SendWindowSwitchEvent(prog_name);
+}
+
+// TODO: these event handlers can be defined in the go library
+// and we'll call them from within the plat code
+// the go lib will take care of maintain and regularly send input stats
+static void handle_key_press() {
+    tracking_n_keystrokes++;
+    debug("key press detected\n");
+}
+
+static void handle_button_press() {
+    tracking_n_clicks++;
+    debug("button press detected\n");
+}
+
+static int check_x_input_lib(Display *display) {
+    int unused1, unused2;
+    xi_major_opcode = 0;
+    if (!XQueryExtension(display, "XInputExtension",
+                &xi_major_opcode, &unused1, &unused2)) {
+        error("X Input extension not available\n");
+        return 1;
+    }
+    /* request XI 2.0 */
+    int major = 2, minor = 0;
+    int queryResult = XIQueryVersion(display, &major, &minor);
+    if (queryResult == BadRequest) {
+        error("Need X Input 2.0 (got %d.%d)\n", major, minor);
+        return 1;
+    } else if (queryResult != Success) {
+        error("XIQueryVersion failed\n");
+        return 1;
+    }
+    debug("X Input Extension (%d.%d)\n", major, minor);
+    return 0;
 }
 
 static void *event_loop(UNUSED void *arg) {
@@ -100,28 +149,43 @@ static void *event_loop(UNUSED void *arg) {
         XSelectInput(display, root_window, event_mask);
     }
 
+    XIEventMask xi_event_mask;
+    if (tracking_opts->keystroke || tracking_opts->mouse_click) {
+        tracking_n_clicks = 0;
+        tracking_n_keystrokes = 0;
+        unsigned char xi_mask_val[(XI_LASTEVENT + 7 / 8)] = {0};
+        xi_event_mask.deviceid = XIAllMasterDevices;
+        xi_event_mask.mask_len = sizeof(xi_mask_val);
+        xi_event_mask.mask = xi_mask_val;
+        XISetMask(xi_mask_val, XI_RawKeyPress);
+        XISetMask(xi_mask_val, XI_RawButtonPress);
+        XISelectEvents(display, root_window, &xi_event_mask, 1);
+        /* XSync(display, false); */
+    }
+
     XEvent event;
-    /* drain any outstanding event if present */
-    while (XCheckMaskEvent(display, event_mask, &event));
+    XGenericEventCookie *cookie = (XGenericEventCookie*)&event.xcookie;
 
     while (1) {
         if (!tracking_started) {
             break;
         }
-        XMaskEvent(display, event_mask, &event);
-        if (event.xproperty.atom != active_window_prop)
-            continue;
-        handle_window_change(display, root_window);
+        XNextEvent(display, &event);
+        if (event.type == PropertyNotify &&
+                event.xproperty.atom == active_window_prop)
+            handle_window_change(display, root_window);
+        if (XGetEventData(display, cookie) &&
+                cookie->type == GenericEvent &&
+                cookie->extension == xi_major_opcode) {
+            if (cookie->evtype == XI_RawKeyPress) {
+                handle_key_press();
+            } else if (cookie->evtype == XI_RawButtonPress) {
+                handle_button_press();
+            }
+        }
     }
 
     SendStopTrackingEvent();
-
-    // clear event mask on exit of this function
-    event_mask = 0;
-    XSelectInput(display, root_window, event_mask);
-
-    // TODO clear mouse/keyboard tracking event masks
-
     return NULL;
 }
 
@@ -130,11 +194,23 @@ int init_tracking() {
         error("Not using x11 as display server, tracking may not be accurate\n");
     }
     XSetErrorHandler(xlib_error_handler);
+    return 0;
+}
+
+void exit_tracking() {
+}
+
+int start_tracking(tracking_opt_t *opts) {
     // open connection to the X server
     display = XOpenDisplay(NULL);
     if (display == NULL) {
         error("Cannot open connection to X server\n");
         return 1;
+    }
+
+    if (check_x_input_lib(display)) {
+        xi_major_opcode = 0;
+        error("X Input not available, no mouse/key tracking\n");
     }
 
     // init Atoms
@@ -143,15 +219,6 @@ int init_tracking() {
     // get root window
     root_window = XDefaultRootWindow(display);
 
-    return 0;
-}
-
-void exit_tracking() {
-    XCloseDisplay(display);
-    display = NULL;
-}
-
-int start_tracking(tracking_opt_t *opts) {
 
     if (tracking_started) {
         error("Tracking tracking_started already!\n");
@@ -163,6 +230,13 @@ int start_tracking(tracking_opt_t *opts) {
     if (!(opts->foreground_program || opts->mouse_click || opts->keystroke)) {
         debug("Nothing to be tracked, not doing anything\n");
         return 0;
+    }
+
+
+    if ((opts->mouse_click || opts->keystroke) && !xi_major_opcode) {
+        error("Requested mouse/key stats but X input lib not available!\n");
+        opts->mouse_click = false;
+        opts->keystroke = false;
     }
 
     int ret = pthread_create(&tracking_thread, NULL, event_loop, display);
@@ -188,7 +262,11 @@ void stop_tracking() {
     event.type = PropertyNotify;
     event.xproperty.atom = 0;
     /* manually send a PropertyNotify event to the root window
-     * in case the tracking thread is blocked at XMaskEvent */
+     * in case the tracking thread is blocked at XNextEvent */
+    // TODO currently it sends an event that results in the window change
+    // handler to be called so the program would spit out info about the
+    // last window session, but we will probably change this to
+    // some other event and send an event to signal stracking stopped to the server
     if(!XSendEvent(display, root_window, False, PropertyChangeMask, &event))
         error("Failed to send event to root_window "
                 "to unblock the tracking thread\n");
@@ -200,6 +278,8 @@ void stop_tracking() {
         return;
     }
 
+    XCloseDisplay(display);
+    display = NULL;
     printf("Tracking stopped\n");
 }
 

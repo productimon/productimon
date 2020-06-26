@@ -20,5 +20,6 @@ cc_library(
         "//reporter/core:core.cc",
         "@system_libs//:pthread",
         "@system_libs//:x11",
+        "@system_libs//:xi",
     ],
 )
