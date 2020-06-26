@@ -1,3 +1,5 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
 config_setting(
     name = "debug_build",
     values = {
@@ -7,12 +9,15 @@ config_setting(
 
 cc_library(
     name = "trackinglib-linux",
-    srcs = glob(['linux/*.c']),
-    hdrs = ['tracking.h'],
-    deps = ["@system_libs//:x11", "@system_libs//:pthread"],
+    srcs = glob(["linux/*.c"]),
+    hdrs = ["tracking.h"],
     defines = select({
-        "debug_build": ['DEBUG'],
+        "debug_build": ["DEBUG"],
         "//conditions:default": [],
     }),
     visibility = ["//reporter:__pkg__"],
+    deps = [
+        "@system_libs//:pthread",
+        "@system_libs//:x11",
+    ],
 )

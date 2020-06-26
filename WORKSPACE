@@ -42,7 +42,14 @@ http_archive(
     ],
 )
 
-load("@io_bazel_rules_go//go:deps.bzl", "go_rules_dependencies", "go_register_toolchains")
+http_archive(
+    name = "com_github_bazelbuild_buildtools",
+    sha256 = "f11fc80da0681a6d64632a850346ed2d4e5cbb0908306d9a2a2915f707048a10",
+    strip_prefix = "buildtools-3.3.0",
+    url = "https://github.com/bazelbuild/buildtools/archive/3.3.0.tar.gz",
+)
+
+load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
 
 go_rules_dependencies()
 
@@ -76,8 +83,8 @@ go_repository(
 # reporter linux libs
 new_local_repository(
     name = "system_libs",
-    path = "/usr/lib/x86_64-linux-gnu",
     build_file = "reporter/system_libs.BUILD",
+    path = "/usr/lib/x86_64-linux-gnu",
 )
 
 go_repository(
