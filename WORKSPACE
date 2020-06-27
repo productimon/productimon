@@ -19,12 +19,13 @@ protobuf_deps()
 
 # Go & Gazelle rules
 
+# NOTE(adamyi): we need https://github.com/bazelbuild/rules_go/commit/585a27ad0ab5bdd185aa3bd5b0877a778d4777ad which is not yet in a stable relase
 http_archive(
     name = "io_bazel_rules_go",
-    sha256 = "a8d6b1b354d371a646d2f7927319974e0f9e52f73a2452d2b3877118169eb6bb",
+    sha256 = "a9b874fbb998ca133a7a13699d8df485c49723e1139abffbf0bdf35d453f169e",
+    strip_prefix = "rules_go-66d26131d23e527ebd208db04b4ebbc9b2b4d4c5",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.23.3/rules_go-v0.23.3.tar.gz",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.23.3/rules_go-v0.23.3.tar.gz",
+        "https://github.com/bazelbuild/rules_go/archive/66d26131d23e527ebd208db04b4ebbc9b2b4d4c5.tar.gz",
     ],
 )
 
@@ -42,18 +43,18 @@ http_archive(
     ],
 )
 
-http_archive(
-    name = "com_github_bazelbuild_buildtools",
-    sha256 = "f11fc80da0681a6d64632a850346ed2d4e5cbb0908306d9a2a2915f707048a10",
-    strip_prefix = "buildtools-3.3.0",
-    url = "https://github.com/bazelbuild/buildtools/archive/3.3.0.tar.gz",
-)
-
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
 
 go_rules_dependencies()
 
 go_register_toolchains()
+
+http_archive(
+   name = "com_github_bazelbuild_buildtools",
+    sha256 = "a0e79f5876a1552ae8000882e4189941688f359a80b2bc1d7e3a51cab6257ba1",
+    strip_prefix = "buildtools-3.0.0",
+    url = "https://github.com/bazelbuild/buildtools/archive/3.0.0.tar.gz",
+)
 
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 
