@@ -18,21 +18,13 @@ import Link from '@material-ui/core/Link';
 import MenuIcon from '@material-ui/icons/Menu';
 import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
 import NotificationsIcon from '@material-ui/icons/Notifications';
-import { mainListItems, secondaryListItems } from './listItems';
+//import { mainListItems, secondaryListItems } from './listItems';
 import Chart from './Chart';
 
-function Copyright() {
-  return (
-    <Typography variant="body2" color="textSecondary" align="center">
-      {'Copyright © '}
-      <Link color="inherit" href="https://material-ui.com/">
-        Your Website
-      </Link>{' '}
-      {new Date().getFullYear()}
-      {'.'}
-    </Typography>
-  );
-}
+import ListItem from '@material-ui/core/ListItem';
+import ListItemIcon from '@material-ui/core/ListItemIcon';
+import ListItemText from '@material-ui/core/ListItemText';
+import DashboardIcon from '@material-ui/icons/Dashboard';
 
 const drawerWidth = 240;
 
@@ -116,6 +108,10 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 export default function Dashboard() {
+
+  // state stores what page the main section displays is in, by default we start with dashboard
+  const [state, setState] = React.useState('dashboard')
+
   const classes = useStyles();
   const [open, setOpen] = React.useState(true);
   const handleDrawerOpen = () => {
@@ -124,33 +120,34 @@ export default function Dashboard() {
   const handleDrawerClose = () => {
     setOpen(false);
   };
-  const fixedHeightPaper = clsx(classes.paper, classes.fixedHeight);
 
   return (
     <div className={classes.root}>
       <CssBaseline />
-          <AppBar position="absolute" className={clsx(classes.appBar, open && classes.appBarShift)} style={{backgroundColor: "brown"}}>
-        <Toolbar className={classes.toolbar}>
-          <IconButton
-            edge="start"
-            color="inherit"
-            aria-label="open drawer"
-            onClick={handleDrawerOpen}
-            className={clsx(classes.menuButton, open && classes.menuButtonHidden)}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography component="h1" variant="h6" color="inherit" noWrap className={classes.title}>
-            Productimon
-      </Typography>
-          
-          <IconButton color="inherit">
-            <Badge badgeContent={4} color="secondary">
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
-        </Toolbar>
+        <AppBar position="absolute" className={clsx(classes.appBar, open && classes.appBarShift)} style={{backgroundColor: "brown"}}>
+          <Toolbar className={classes.toolbar}>  
+            <IconButton
+              edge="start"
+              color="inherit"
+              aria-label="open drawer"
+              onClick={handleDrawerOpen}
+              className={clsx(classes.menuButton, open && classes.menuButtonHidden)}
+             >
+           <MenuIcon />
+           </IconButton>
+
+           <Typography component="h1" variant="h6" color="inherit" noWrap className={classes.title}>
+             Productimon
+           </Typography>
+
+           <IconButton color="inherit">
+             <Badge badgeContent={4} color="secondary">
+               <NotificationsIcon />
+             </Badge>
+           </IconButton>
+      </Toolbar>
       </AppBar>
+
       <Drawer
         variant="permanent"
         classes={{
@@ -164,12 +161,51 @@ export default function Dashboard() {
           </IconButton>
         </div>
         <Divider />
-        <List>{mainListItems}</List>
+          <List>
+            <ListItem button onClick={() => setState('dashboard')}>
+               <ListItemIcon>
+                  <DashboardIcon />
+               </ListItemIcon>
+               <ListItemText primary="Dashboard" />
+            </ListItem>
+            <ListItem button onClick={() => setState('goal')}>
+               <ListItemIcon>
+                 <DashboardIcon />
+               </ListItemIcon>
+               <ListItemText primary="Goals"/>
+            </ListItem>
+            <ListItem button onClick={() => setState('histogram')}>
+               <ListItemIcon>
+                 <DashboardIcon />
+               </ListItemIcon>
+               <ListItemText primary="Histogram" />
+            </ListItem>      
+          </List>        
         <Divider />
       </Drawer>
+
       <main className={classes.content}>
         <div className={classes.appBarSpacer} />
-        <Container maxWidth="lg" className={classes.container}>
+
+        <Display page={state}/>
+
+      </main>
+    </div>
+  );
+}
+
+// Based on what page we select on the list (props.page) display specific content
+// I dont think this is how react is supposed to be used, it seems messy, but it'll do for now
+function Display(props) {
+     const classes = useStyles();
+     const state = props.page;
+     const fixedHeightPaper = clsx(classes.paper, classes.fixedHeight);
+     if (state=="histogram") {
+         return (<h1>Histogram</h1>);
+     } else if (state=="dashboard") {
+         return (
+         <div>
+         <Container maxWidth="lg" className={classes.container}>
           <Grid container spacing={3}>
             {/* Chart */}
             <Grid item xs={12} md={8} lg={9}>
@@ -178,11 +214,10 @@ export default function Dashboard() {
               </Paper>
             </Grid>
           </Grid>
-          <Box pt={4}>
-            <Copyright />
-          </Box>
         </Container>
-      </main>
-    </div>
-  );
+        </div>
+        );
+     } else if (state=="goal") {
+         return (<h1>Goal</h1>);
+     }
 }
