@@ -11,6 +11,7 @@ import { makeStyles } from '@material-ui/core/styles';
 import Container from '@material-ui/core/Container';
 
 import ReactDOM from 'react-dom';
+import TopMenu from '../core/TopMenu'
 import SignIn from './SignIn';
 
 function goSignIn() {
@@ -41,8 +42,8 @@ export default function SignUp() {
   const classes = useStyles();
 
   return (
-    <Container component="main" maxWidth="xs">
-      <CssBaseline />
+          <Container component="main" maxWidth="xs">
+          <TopMenu />
       <div className={classes.paper}>
 
         <Avatar className={classes.avatar}>
