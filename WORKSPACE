@@ -94,3 +94,17 @@ go_repository(
     sum = "h1:7qlOGliEKZXTDg6OTjfoBKDXWrumCAMpl/TFQ4/5kLM=",
     version = "v3.2.0+incompatible",
 )
+
+go_repository(
+    name = "com_github_mattn_go_sqlite3",
+    importpath = "github.com/mattn/go-sqlite3",
+    sum = "h1:mLyGNKR8+Vv9CAU7PphKa2hkEqxxhn8i32J6FPj1/QA=",
+    version = "v1.14.0",
+)
+
+go_repository(
+    name = "org_golang_x_crypto",
+    importpath = "golang.org/x/crypto",
+    sum = "h1:psW17arqaxU48Z5kZ0CQnkZWQJsqcURM6tKiBApRjXI=",
+    version = "v0.0.0-20200622213623-75b288015ac9",
+)

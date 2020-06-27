@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"log"
 
 	cpb "git.yiad.am/productimon/proto/common"
 	spb "git.yiad.am/productimon/proto/svc"
+	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -12,6 +15,7 @@ import (
 
 type service struct {
 	auther *Authenticator
+	db     *sql.DB
 }
 
 func (s *service) Ping(ctx context.Context, req *spb.DataAggregatorPingRequest) (*spb.DataAggregatorPingResponse, error) {
@@ -24,7 +28,8 @@ func (s *service) Ping(ctx context.Context, req *spb.DataAggregatorPingRequest) 
 func (s *service) returnToken(ctx context.Context, uid string) (*spb.DataAggregatorLoginResponse, error) {
 	token, err := s.auther.SignToken(uid)
 	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid email/password")
+		log.Println(err)
+		return nil, status.Errorf(codes.Internal, "something went wrong with signing token")
 	}
 	return &spb.DataAggregatorLoginResponse{
 		Token: token,
@@ -32,7 +37,18 @@ func (s *service) returnToken(ctx context.Context, uid string) (*spb.DataAggrega
 }
 
 func (s *service) Login(ctx context.Context, req *spb.DataAggregatorLoginRequest) (*spb.DataAggregatorLoginResponse, error) {
-	return s.returnToken(ctx, req.Email) // TODO(adamyi): use uid instead of email and verify password in db
+	var uid, storedPassword string
+	err := s.db.QueryRow("SELECT id, password FROM users WHERE email = ?", req.Email).Scan(&uid, &storedPassword)
+	if err != nil {
+		log.Println(err)
+		return nil, status.Errorf(codes.Unauthenticated, "invalid email/password")
+	}
+	err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(req.Password))
+	if err != nil {
+		log.Println(err)
+		return nil, status.Errorf(codes.Unauthenticated, "invalid email/password")
+	}
+	return s.returnToken(ctx, uid)
 }
 
 func (s *service) ExtendToken(ctx context.Context, req *emptypb.Empty) (*spb.DataAggregatorLoginResponse, error) {
@@ -48,11 +64,15 @@ func (s *service) UserDetails(ctx context.Context, req *emptypb.Empty) (*spb.Dat
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
 	}
+	var email string
+	err = s.db.QueryRow("SELECT email FROM users WHERE id = ?", uid).Scan(&email)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "User missing from db")
+	}
 	ret := &spb.DataAggregatorUserDetailsResponse{
-		// TODO(adamyi): populate with details from db
 		User: &cpb.User{
 			Id:    uid,
-			Email: uid,
+			Email: email,
 		},
 	}
 	return ret, nil

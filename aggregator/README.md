@@ -8,6 +8,12 @@
 bazel build //aggregator
 ```
 
+### init db
+
+```
+sqlite3 db.sqlite3 < schema.sql
+````
+
 ### init jwt token
 
 ```
@@ -20,7 +26,7 @@ openssl rsa -in jwtRS256.key -pubout -outform PEM -out jwtRS256.key.pub
 ### login
 
 ```
-grpcurl -d '{"email":"i@adamyi.com","password":"123"}' -plaintext 127.0.0.1:4200 productimon.svc.DataAggregator.Login
+grpcurl -d '{"email":"test@productimon.com","password":"test"}' -plaintext 127.0.0.1:4200 productimon.svc.DataAggregator.Login
 ```
 
 ### extend token

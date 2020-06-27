@@ -1,10 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"net"
 
 	spb "git.yiad.am/productimon/proto/svc"
+	_ "github.com/mattn/go-sqlite3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -13,17 +15,23 @@ var (
 	flagListenAddress  string
 	flagPublicKeyPath  string
 	flagPrivateKeyPath string
+	flagDBFilePath     string
 )
 
 func init() {
 	flag.StringVar(&flagListenAddress, "listen_address", "127.0.0.1:4200", "gRPC listen address")
 	flag.StringVar(&flagPublicKeyPath, "jwt_public_key", "jwtRS256.key.pub", "Path to JWT public key")
 	flag.StringVar(&flagPrivateKeyPath, "jwt_private_key", "jwtRS256.key", "Path to JWT private key")
+	flag.StringVar(&flagDBFilePath, "db_path", "db.sqlite3", "Path to SQLite3 database file")
 }
 
 func main() {
 	flag.Parse()
 	auther, err := NewAuthenticator(flagPublicKeyPath, flagPrivateKeyPath)
+	if err != nil {
+		panic(err)
+	}
+	db, err := sql.Open("sqlite3", flagDBFilePath)
 	if err != nil {
 		panic(err)
 	}
@@ -35,6 +43,7 @@ func main() {
 	reflection.Register(grpcServer)
 	s := &service{
 		auther: auther,
+		db:     db,
 	}
 	spb.RegisterDataAggregatorServer(grpcServer, s)
 	grpcServer.Serve(lis)
