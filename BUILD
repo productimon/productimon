@@ -9,7 +9,7 @@ gazelle(
 buildifier(
     name = "buildifier",
     exclude_patterns = [
-        "/viewer/webfe/*",  # add node_modules only when we integrate viewer building with bazel
+        "/node_modules/*",
     ],
     lint_mode = "fix",
     lint_warnings = ["all"],

@@ -1,5 +1,12 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 
+config_setting(
+    name = "debug_build",
+    values = {
+        "compilation_mode": "dbg",
+    },
+)
+
 go_library(
     name = "go_default_library",
     srcs = [
@@ -12,16 +19,26 @@ go_library(
     deps = [
         "//proto/common:go_default_library",
         "//proto/svc:go_default_library",
+        "//viewer/webfe:go_default_library",
         "@com_github_dgrijalva_jwt_go//:go_default_library",
+        "@com_github_improbable_eng_grpc_web//go/grpcweb:go_default_library",
         "@com_github_mattn_go_sqlite3//:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//codes:go_default_library",
         "@org_golang_google_grpc//metadata:go_default_library",
         "@org_golang_google_grpc//reflection:go_default_library",
         "@org_golang_google_grpc//status:go_default_library",
-        "@org_golang_google_protobuf//types/known/emptypb:go_default_library",
         "@org_golang_x_crypto//bcrypt:go_default_library",
     ],
+    x_defs = select({
+        "debug_build": {
+            "jsFilename": "app.dev.js",
+            "mapFilename": "app.dev.js.map",
+        },
+        "//conditions:default": {
+            "jsFilename": "app.bundle.js",
+        },
+    }),
 )
 
 go_binary(

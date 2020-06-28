@@ -28,13 +28,8 @@ import './App.css';
 
 export default function App() {
   return (
-<<<<<<< HEAD
           <div>
           <SignIn />
-=======
-    <div>
-          <Dashboard />
->>>>>>> [PROD-104]viewer:init dashboard
     </div>
   );
 }

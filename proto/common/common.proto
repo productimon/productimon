@@ -4,44 +4,46 @@ option go_package = "git.yiad.am/productimon/proto/common";
 
 import "proto/common/events.proto";
 
+message Empty {}
+
 message Timestamp {
-  // Nanoseconds since UNIX epoch
-  int64 nanos = 1;
+    // Nanoseconds since UNIX epoch
+    int64 nanos = 1;
 }
 
 message User {
-  string id = 1;
-  string email = 2;
-  string password = 3;
+    string id = 1;
+    string email = 2;
+    string password = 3;
 }
 
 message Device {
-  // globally unique uuid
-  string id = 1;
+    // globally unique uuid
+    string id = 1;
 
-  enum DeviceType {
-    LINUX = 0;
-    MACOS = 1;
-    WINDOWS = 2;
-    ANDROID = 3;
-    IOS = 4;
-  }
-  DeviceType device_type = 2;
+    enum DeviceType {
+        LINUX = 0;
+        MACOS = 1;
+        WINDOWS = 2;
+        ANDROID = 3;
+        IOS = 4;
+    }
+    DeviceType device_type = 2;
 }
 
 message Event {
-  Device device = 1;
+    Device device = 1;
 
-  // increasing id bound to device
-  int64 id = 2;
+    // increasing id bound to device
+    int64 id = 2;
 
-  Timestamp timestamp = 3;
+    Timestamp timestamp = 3;
 
-  oneof kind {
-    AppSwitchEvent app_switch_event = 4;
-    KeyStrokeEvent key_stroke_event = 5;
-    MouseClickEvent mouse_click_event = 6;
-    StartTrackingEvent start_tracking_event = 7;
-    StopTrackingEvent stop_tracking_event = 8;
-  }
+    oneof kind {
+        AppSwitchEvent app_switch_event = 4;
+        KeyStrokeEvent key_stroke_event = 5;
+        MouseClickEvent mouse_click_event = 6;
+        StartTrackingEvent start_tracking_event = 7;
+        StopTrackingEvent stop_tracking_event = 8;
+    }
 }

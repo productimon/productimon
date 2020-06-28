@@ -205,10 +205,7 @@ function Display(props) {
      } else if (state=="dashboard") {
          return (
          <div>
-<<<<<<< HEAD
-=======
          <h1>Dashboard</h1>
->>>>>>> [PROD-104]viewer:init dashboard
          <Container maxWidth="lg" className={classes.container}>
           <Grid container spacing={3}>
             {/* Chart */}

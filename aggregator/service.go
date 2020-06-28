@@ -10,7 +10,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type service struct {
@@ -51,7 +50,7 @@ func (s *service) Login(ctx context.Context, req *spb.DataAggregatorLoginRequest
 	return s.returnToken(ctx, uid)
 }
 
-func (s *service) ExtendToken(ctx context.Context, req *emptypb.Empty) (*spb.DataAggregatorLoginResponse, error) {
+func (s *service) ExtendToken(ctx context.Context, req *cpb.Empty) (*spb.DataAggregatorLoginResponse, error) {
 	uid, err := s.auther.AuthenticateRequest(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
@@ -59,7 +58,7 @@ func (s *service) ExtendToken(ctx context.Context, req *emptypb.Empty) (*spb.Dat
 	return s.returnToken(ctx, uid)
 }
 
-func (s *service) UserDetails(ctx context.Context, req *emptypb.Empty) (*spb.DataAggregatorUserDetailsResponse, error) {
+func (s *service) UserDetails(ctx context.Context, req *cpb.Empty) (*spb.DataAggregatorUserDetailsResponse, error) {
 	uid, err := s.auther.AuthenticateRequest(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")

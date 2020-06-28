@@ -11,6 +11,10 @@ import LockOutlinedIcon from '@material-ui/icons/LockOutlined';
 import Typography from '@material-ui/core/Typography';
 import { makeStyles } from '@material-ui/core/styles';
 import Container from '@material-ui/core/Container';
+import { grpc } from '@improbable-eng/grpc-web';
+
+import {DataAggregatorLoginRequest} from 'productimon/proto/svc/aggregator_pb'
+import {DataAggregator} from 'productimon/proto/svc/aggregator_pb_service'
 
 import ReactDOM from 'react-dom';
 import TopMenu from '../core/TopMenu';
@@ -18,6 +22,22 @@ import SignUp from './SignUp';
 
 function goSignUp() {
     ReactDOM.render(<SignUp />, document.getElementById('root'));
+}
+
+function doLogin(e) {
+    e.preventDefault();
+    // TODO: i don't know react, we get username and password here
+    var request = new DataAggregatorLoginRequest();
+    request.setEmail("test@productimon.com");
+    request.setPassword("test");
+    console.log('sending request ', request);
+    grpc.unary(DataAggregator.Login, {
+        host: '/rpc',
+        onEnd: ({status, statusMessage, headers, message}) => {
+            console.log('response ', status, statusMessage, headers, message);
+        },
+        request,
+    });
 }
 
 const useStyles = makeStyles((theme) => ({
@@ -56,7 +76,7 @@ export default function SignIn() {
           Sign in
         </Typography>
 
-        <form className={classes.form} noValidate>
+        <form className={classes.form} noValidate onSubmit={doLogin}>
           <TextField
             variant="outlined"
             margin="normal"

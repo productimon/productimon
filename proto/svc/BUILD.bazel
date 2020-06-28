@@ -1,6 +1,7 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//tools:commonjs_proto_library.bzl", "commonjs_proto_library")
 
 go_proto_library(
     name = "svc_go_proto",
@@ -22,8 +23,11 @@ proto_library(
     name = "svc_proto",
     srcs = ["aggregator.proto"],
     visibility = ["//visibility:public"],
-    deps = [
-        "//proto/common:common_proto",
-        "@com_google_protobuf//:empty_proto",
-    ],
+    deps = ["//proto/common:common_proto"],
+)
+
+commonjs_proto_library(
+    name = "svc_js_proto",
+    proto = ":svc_proto",
+    visibility = ["//visibility:public"],
 )

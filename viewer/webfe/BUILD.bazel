@@ -1,0 +1,70 @@
+load("@io_bazel_rules_go//extras:embed_data.bzl", "go_embed_data")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@npm//webpack-cli:index.bzl", webpack = "webpack_cli")
+
+config_setting(
+    name = "debug_build",
+    values = {
+        "compilation_mode": "dbg",
+    },
+)
+
+BUNDLE_DATA = glob([
+        "src/**/*.js",
+        "src/**/*.css",
+    ]) + [
+        ".babelrc",
+        "@npm//:node_modules",
+        "//proto/common:common_js_proto",
+        "//proto/svc:svc_js_proto",
+    ]
+
+webpack(
+    name = "bundle",
+    outs = ["app.bundle.js"],
+    args = [
+        "--config",
+        "$(execpath webpack.prod.config.js)",
+        "-o",
+        "$@",
+    ],
+    data = BUNDLE_DATA + ["webpack.prod.config.js"],
+)
+
+webpack(
+    name = "bundle_debug",
+    outs = ["app.dev.js", "app.dev.js.map"],
+    args = [
+        "--config",
+        "$(execpath webpack.dev.config.js)",
+        "--devtool",
+        "source-map",
+        "--output-path",
+        "$(RULEDIR)",
+        "--output-filename",
+        "app.dev.js",
+        "--output-source-map-filename",
+        "app.dev.js.map",
+    ],
+    data = BUNDLE_DATA + ["webpack.dev.config.js"],
+)
+
+go_embed_data(
+    name = "webfe_data",
+    srcs = select({
+        "debug_build": [":bundle_debug"],
+        "//conditions:default": [":bundle"],
+    }) + [
+        ":index.html",
+    ],
+    flatten = True,
+    package = "webfe",
+)
+
+# keep
+go_library(
+    name = "go_default_library",
+    srcs = [":webfe_data"],
+    importpath = "git.yiad.am/productimon/viewer/webfe",
+    visibility = ["//visibility:public"],
+)
