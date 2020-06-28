@@ -7,7 +7,12 @@ enum EventType {
   APP_SWITCH_EVENT = 1;
   KEY_STROKE_EVENT = 2;
   MOUSE_CLICK_EVENT = 3;
+  START_TRACKING_EVENT = 4;
+  STOP_TRACKING_EVENT = 5;
 }
+
+message StartTrackingEvent {}
+message StopTrackingEvent {}
 
 message AppSwitchEvent { string app_name = 1; }
 

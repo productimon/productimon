@@ -17,6 +17,7 @@ cc_library(
     }),
     visibility = ["//reporter:__pkg__"],
     deps = [
+        "//reporter/core:core.cc",
         "@system_libs//:pthread",
         "@system_libs//:x11",
     ],

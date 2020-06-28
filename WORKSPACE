@@ -50,7 +50,7 @@ go_rules_dependencies()
 go_register_toolchains()
 
 http_archive(
-   name = "com_github_bazelbuild_buildtools",
+    name = "com_github_bazelbuild_buildtools",
     sha256 = "a0e79f5876a1552ae8000882e4189941688f359a80b2bc1d7e3a51cab6257ba1",
     strip_prefix = "buildtools-3.0.0",
     url = "https://github.com/bazelbuild/buildtools/archive/3.0.0.tar.gz",

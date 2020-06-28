@@ -8,6 +8,7 @@
 #include <time.h>
 #include <pthread.h>
 
+#include "reporter/core/core.h"
 #include "reporter/plat/tracking.h"
 
 #ifdef __linux__
@@ -71,19 +72,26 @@ static int get_current_window_name(Display *display, Window root,
 }
 
 static void handle_window_change(Display *display, Window window) {
-    static char prog_name[512];
+    static char prog_name[512] = {0};
+    char new_prog_name[512];
 
-    time_t ts = time(NULL);
-    get_current_window_name(display, window, prog_name, 512);
-    printf("[%lu] Switched to a new program %s\n", ts, prog_name);
-    // TODO Insert report event function call here
-    // TODO check if prog_name or window ID changed, no need to report if not
+    get_current_window_name(display, window, new_prog_name, 512);
+
+    /* no need to report anything if still using the same program */
+    if (!strcmp(new_prog_name, prog_name))
+        return;
+
+    strcpy(prog_name, new_prog_name);
+
+    SendWindowSwitchEvent(prog_name);
 }
 
 static void *event_loop(UNUSED void *arg) {
     debug("Starting tracking with opts: %d|%d|%d (prog|mouse|key)\n",
             tracking_opts->foreground_program, tracking_opts->mouse_click,
             tracking_opts->keystroke);
+
+    SendStartTrackingEvent();
 
     long event_mask = 0;
     if (tracking_opts->foreground_program) {
@@ -105,6 +113,8 @@ static void *event_loop(UNUSED void *arg) {
             continue;
         handle_window_change(display, root_window);
     }
+
+    SendStopTrackingEvent();
 
     // clear event mask on exit of this function
     event_mask = 0;
@@ -176,7 +186,7 @@ void stop_tracking() {
 
     XEvent event;
     event.type = PropertyNotify;
-    event.xproperty.atom = active_window_prop;
+    event.xproperty.atom = 0;
     /* manually send a PropertyNotify event to the root window
      * in case the tracking thread is blocked at XMaskEvent */
     if(!XSendEvent(display, root_window, False, PropertyChangeMask, &event))
@@ -189,7 +199,6 @@ void stop_tracking() {
         perror("Cannot join the tracking thread");
         return;
     }
-
 
     printf("Tracking stopped\n");
 }
