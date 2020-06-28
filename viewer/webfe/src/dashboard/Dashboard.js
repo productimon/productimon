@@ -125,7 +125,7 @@ export default function Dashboard() {
     <div className={classes.root}>
       <CssBaseline />
         <AppBar position="absolute" className={clsx(classes.appBar, open && classes.appBarShift)} style={{backgroundColor: "brown"}}>
-          <Toolbar className={classes.toolbar}>  
+          <Toolbar className={classes.toolbar}>
             <IconButton
               edge="start"
               color="inherit"
@@ -179,8 +179,8 @@ export default function Dashboard() {
                  <DashboardIcon />
                </ListItemIcon>
                <ListItemText primary="Histogram" />
-            </ListItem>      
-          </List>        
+            </ListItem>  
+          </List>
         <Divider />
       </Drawer>
 
@@ -205,6 +205,10 @@ function Display(props) {
      } else if (state=="dashboard") {
          return (
          <div>
+<<<<<<< HEAD
+=======
+         <h1>Dashboard</h1>
+>>>>>>> [PROD-104]viewer:init dashboard
          <Container maxWidth="lg" className={classes.container}>
           <Grid container spacing={3}>
             {/* Chart */}
