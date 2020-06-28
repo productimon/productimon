@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
+	cpb "git.yiad.am/productimon/proto/common"
 	spb "git.yiad.am/productimon/proto/svc"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type Credentials struct {
@@ -25,7 +25,7 @@ func (c *Credentials) Login(client spb.DataAggregatorClient, username, password 
 	}
 	c.token = token.Token
 	log.Printf("auth token: %s", token.Token)
-	user, err := client.UserDetails(context.Background(), &emptypb.Empty{})
+	user, err := client.UserDetails(context.Background(), &cpb.Empty{})
 	if err != nil {
 		c.token = ""
 		return err

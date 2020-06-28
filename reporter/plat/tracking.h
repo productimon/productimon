@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #define UNUSED __attribute__((unused))
 
@@ -22,3 +23,4 @@ typedef struct tracking_opt {
 int init_tracking();
 int start_tracking(tracking_opt_t *opts);
 void stop_tracking();
+bool is_tracking();

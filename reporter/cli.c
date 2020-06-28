@@ -44,5 +44,7 @@ int main(int argc, const char* argv[]) {
         printf("> ");
     }
     free(command);
+
+    QuitReporter(is_tracking());
     return 0;
 }

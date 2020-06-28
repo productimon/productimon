@@ -22,7 +22,7 @@
 `sudo apt install libx11-6`
 
 #### x input extension
-`sudo apt install libxi-6`
+`sudo apt install libxi6`
 
 ## Running Instructions
 ### CLI

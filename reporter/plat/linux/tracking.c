@@ -77,13 +77,6 @@ static int get_current_window_name(Display *display, Window root,
     return 0;
 }
 
-static int send_input_stats() {
-    printf("%d keystrokes in last window session\n", tracking_n_keystrokes);
-    printf("%d mouse clicks in last window session\n", tracking_n_clicks);
-    // TODO insert acutal code to send stats to server
-    return 1;
-}
-
 static void handle_window_change(Display *display, Window window) {
     static char prog_name[512] = {0};
     char new_prog_name[512];
@@ -96,21 +89,7 @@ static void handle_window_change(Display *display, Window window) {
 
     strcpy(prog_name, new_prog_name);
 
-    send_input_stats();
     SendWindowSwitchEvent(prog_name);
-}
-
-// TODO: these event handlers can be defined in the go library
-// and we'll call them from within the plat code
-// the go lib will take care of maintain and regularly send input stats
-static void handle_key_press() {
-    tracking_n_keystrokes++;
-    debug("key press detected\n");
-}
-
-static void handle_button_press() {
-    tracking_n_clicks++;
-    debug("button press detected\n");
 }
 
 static int check_x_input_lib(Display *display) {
@@ -178,9 +157,9 @@ static void *event_loop(UNUSED void *arg) {
                 cookie->type == GenericEvent &&
                 cookie->extension == xi_major_opcode) {
             if (cookie->evtype == XI_RawKeyPress) {
-                handle_key_press();
+                HandleKeystroke();
             } else if (cookie->evtype == XI_RawButtonPress) {
-                handle_button_press();
+                HandleMouseClick();
             }
         }
     }
@@ -280,6 +259,10 @@ void stop_tracking() {
     XCloseDisplay(display);
     display = NULL;
     printf("Tracking stopped\n");
+}
+
+bool is_tracking() {
+    return tracking_started;
 }
 
 #else

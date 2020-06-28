@@ -7,14 +7,28 @@ import (
 	spb "git.yiad.am/productimon/proto/svc"
 	"google.golang.org/grpc"
 	"log"
+	"sync"
 	"time"
 )
 
 const ChannelBufferSize = 4096
 
-var mq chan string
-var eq chan *cpb.Event
-var done chan chan bool
+var (
+	build string
+
+	MinInputReportingInterval time.Duration
+
+	mq   chan string
+	eq   chan *cpb.Event
+	done chan chan bool
+
+	nClicks     int64
+	nKeystrokes int64
+	statsMutex  sync.Mutex
+
+	inputTrackingDone chan bool
+	reportInputStats  chan chan bool
+)
 
 func connectToServer(server string, creds *Credentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	return grpc.Dial(server, append([]grpc.DialOption{grpc.WithInsecure(), grpc.WithPerRPCCredentials(creds)}, opts...)...)
@@ -57,7 +71,9 @@ func runReporter(init chan bool, server string, username string, password string
 		init <- false
 		return
 	}
-	defer conn.Close()
+	defer func() {
+		conn.Close()
+	}()
 	client := spb.NewDataAggregatorClient(conn)
 
 	// login
@@ -105,6 +121,13 @@ func runReporter(init chan bool, server string, username string, password string
 
 //export InitReporter
 func InitReporter(server *C.char, username *C.char, password *C.char) bool {
+	if build == "DEBUG" {
+		log.Println("Running DEBUG build!")
+		MinInputReportingInterval = 5 * time.Second
+	} else {
+		MinInputReportingInterval = 60 * time.Second
+	}
+	log.Printf("MinInputReportingInterval: %v", MinInputReportingInterval)
 	init := make(chan bool)
 	go runReporter(init, C.GoString(server), C.GoString(username), C.GoString(password))
 	return <-init
@@ -117,6 +140,9 @@ func SendMessage(msg *C.char) {
 
 //export SendWindowSwitchEvent
 func SendWindowSwitchEvent(programName *C.char) {
+	done := make(chan bool)
+	reportInputStats <- done
+	<-done // wait until input event has been sent
 	event := &cpb.Event{
 		Device:    &cpb.Device{Id: "test-dev", DeviceType: 0},
 		Id:        0,
@@ -129,6 +155,9 @@ func SendWindowSwitchEvent(programName *C.char) {
 
 //export SendStartTrackingEvent
 func SendStartTrackingEvent() {
+	inputTrackingDone = make(chan bool)
+	reportInputStats = make(chan chan bool)
+	go runInputTracking(reportInputStats, inputTrackingDone)
 	event := &cpb.Event{
 		Device:    &cpb.Device{Id: "test-dev", DeviceType: 0},
 		Id:        0,
@@ -140,6 +169,9 @@ func SendStartTrackingEvent() {
 
 //export SendStopTrackingEvent
 func SendStopTrackingEvent() {
+	done := make(chan bool)
+	reportInputStats <- done
+	<-done // wait until input event has been sent
 	event := &cpb.Event{
 		Device:    &cpb.Device{Id: "test-dev", DeviceType: 0},
 		Id:        0,
@@ -147,10 +179,74 @@ func SendStopTrackingEvent() {
 		Kind:      &cpb.Event_StopTrackingEvent{},
 	}
 	eq <- event
+	inputTrackingDone <- true
+}
+
+//export HandleMouseClick
+func HandleMouseClick() {
+	statsMutex.Lock()
+	nClicks++
+	statsMutex.Unlock()
+}
+
+//export HandleKeystroke
+func HandleKeystroke() {
+	statsMutex.Lock()
+	nKeystrokes++
+	statsMutex.Unlock()
+}
+
+func sendInputStats(ts int64, duration int64) {
+	statsMutex.Lock()
+	defer statsMutex.Unlock()
+	if nKeystrokes > 0 {
+		event := &cpb.Event{
+			Device:    &cpb.Device{Id: "test-dev", DeviceType: 0},
+			Id:        0,
+			Timestamp: &cpb.Timestamp{Nanos: ts},
+			Kind:      &cpb.Event_KeyStrokeEvent{&cpb.KeyStrokeEvent{Duration: duration, Keystrokes: nKeystrokes}},
+		}
+		eq <- event
+		nKeystrokes = 0
+	}
+	if nClicks > 0 {
+		event := &cpb.Event{
+			Device:    &cpb.Device{Id: "test-dev", DeviceType: 0},
+			Id:        0,
+			Timestamp: &cpb.Timestamp{Nanos: ts},
+			Kind:      &cpb.Event_MouseClickEvent{&cpb.MouseClickEvent{Duration: duration, Mouseclicks: nClicks}},
+		}
+		eq <- event
+		nClicks = 0
+	}
+}
+
+func runInputTracking(reportInputStats chan chan bool, finish chan bool) {
+	timer := time.NewTicker(MinInputReportingInterval)
+	for {
+		start := time.Now().UnixNano()
+		select {
+		case <-finish:
+			break
+		case done := <-reportInputStats:
+			duration := time.Now().UnixNano() - start
+			sendInputStats(start, duration)
+			done <- true
+			timer.Stop()
+			timer = time.NewTicker(MinInputReportingInterval) // restart the timer for new program
+		case <-timer.C:
+			duration := time.Now().UnixNano() - start
+			sendInputStats(start, duration)
+		}
+	}
+	timer.Stop()
 }
 
 //export QuitReporter
-func QuitReporter() {
+func QuitReporter(isTracking C.char) {
+	if isTracking != 0 {
+		SendStopTrackingEvent()
+	}
 	cleanup := make(chan bool)
 	done <- cleanup
 	<-cleanup

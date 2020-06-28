@@ -10,14 +10,14 @@ config_setting(
 )
 
 BUNDLE_DATA = glob([
-        "src/**/*.js",
-        "src/**/*.css",
-    ]) + [
-        ".babelrc",
-        "@npm//:node_modules",
-        "//proto/common:common_js_proto",
-        "//proto/svc:svc_js_proto",
-    ]
+    "src/**/*.js",
+    "src/**/*.css",
+]) + [
+    ".babelrc",
+    "@npm//:node_modules",
+    "//proto/common:common_js_proto",
+    "//proto/svc:svc_js_proto",
+]
 
 webpack(
     name = "bundle",
@@ -33,7 +33,10 @@ webpack(
 
 webpack(
     name = "bundle_debug",
-    outs = ["app.dev.js", "app.dev.js.map"],
+    outs = [
+        "app.dev.js",
+        "app.dev.js.map",
+    ],
     args = [
         "--config",
         "$(execpath webpack.dev.config.js)",

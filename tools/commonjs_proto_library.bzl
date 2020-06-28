@@ -91,7 +91,7 @@ def commonjs_proto_library_aspect_(target, ctx):
     Handles running protoc to produce the generated JS files.
     """
 
-    js_outputs  = _get_outputs(target, ctx)
+    js_outputs = _get_outputs(target, ctx)
 
     command = _build_protoc_command(target, ctx)
 

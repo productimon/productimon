@@ -1,5 +1,12 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 
+config_setting(
+    name = "debug_build",
+    values = {
+        "compilation_mode": "dbg",
+    },
+)
+
 go_library(
     name = "go_default_library",
     srcs = [
@@ -9,11 +16,16 @@ go_library(
     cgo = True,
     importpath = "git.yiad.am/productimon/reporter/core",
     visibility = ["//visibility:private"],
+    x_defs = select({
+        "debug_build": {
+            "build": "DEBUG",
+        },
+        "//conditions:default": {},
+    }),
     deps = [
         "//proto/common:go_default_library",
         "//proto/svc:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
-        "@org_golang_google_protobuf//types/known/emptypb:go_default_library",
     ],
 )
 
