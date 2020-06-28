@@ -19,7 +19,7 @@ static Atom     active_window_prop;
 static Display *display;
 static Window   root_window;
 
-static bool             tracking_started = false;
+static volatile bool    tracking_started = false;
 static pthread_t        tracking_thread;
 static tracking_opt_t  *tracking_opts;
 
@@ -259,19 +259,18 @@ void stop_tracking() {
     tracking_started = false;
 
     XEvent event;
-    event.type = PropertyNotify;
-    event.xproperty.atom = 0;
-    /* manually send a PropertyNotify event to the root window
+    event.type = ClientMessage;
+    /* length of data payload in the event, need this otherwise xlib will complain */
+    event.xclient.format = 32;
+    /* manually send a ClientMessage event to the root window
      * in case the tracking thread is blocked at XNextEvent */
-    // TODO currently it sends an event that results in the window change
-    // handler to be called so the program would spit out info about the
-    // last window session, but we will probably change this to
-    // some other event and send an event to signal stracking stopped to the server
     if(!XSendEvent(display, root_window, False, PropertyChangeMask, &event))
         error("Failed to send event to root_window "
                 "to unblock the tracking thread\n");
     XFlush(display);
 
+    // TODO I think I got a race somehow and this deadlocked
+    // think about it and fix it
     int ret = pthread_join(tracking_thread, NULL);
     if (ret) {
         perror("Cannot join the tracking thread");

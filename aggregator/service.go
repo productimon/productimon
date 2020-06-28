@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
-
+	"io"
 	cpb "git.yiad.am/productimon/proto/common"
 	spb "git.yiad.am/productimon/proto/svc"
 	"golang.org/x/crypto/bcrypt"
@@ -78,6 +78,27 @@ func (s *service) UserDetails(ctx context.Context, req *cpb.Empty) (*spb.DataAgg
 }
 
 func (s *service) PushEvent(server spb.DataAggregator_PushEventServer) error {
+	log.Println("Started pushEvent stream")
+	context := server.Context()
+	for {
+		select {
+		case <-context.Done():
+			return context.Err()
+		default:
+		}
+
+		event, err := server.Recv()
+		switch err {
+		case io.EOF:
+			log.Println("Client closed the stream, we're closing too")
+			return nil
+		case nil:
+		default:
+			log.Printf("receive error %v", err)
+			continue
+		}
+		log.Printf("received event %v", event)
+	}
 	return nil
 }
 
