@@ -1,4 +1,10 @@
 import React from 'react';
+import {
+   BrowserRouter as Router,
+   Switch,
+   Route,
+   Link
+} from "react-router-dom";
 import clsx from 'clsx';
 import { makeStyles } from '@material-ui/core/styles';
 import CssBaseline from '@material-ui/core/CssBaseline';
@@ -14,17 +20,25 @@ import Badge from '@material-ui/core/Badge';
 import Container from '@material-ui/core/Container';
 import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
-import Link from '@material-ui/core/Link';
+import MaterialLink from '@material-ui/core/Link';
 import MenuIcon from '@material-ui/icons/Menu';
 import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
 import NotificationsIcon from '@material-ui/icons/Notifications';
-//import { mainListItems, secondaryListItems } from './listItems';
-import Chart from './Chart';
+import ExitToAppIcon from '@material-ui/icons/ExitToApp';
 
+import Histogram from './Histogram'
+import DisplayTable from './Table'
+import DisplayPie from './Pie'
+
+//import { mainListItems, secondaryListItems } from './listItems';
+import MenuItem from '@material-ui/core/MenuItem';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
 import DashboardIcon from '@material-ui/icons/Dashboard';
+import BarChartIcon from '@material-ui/icons/BarChart';
+import PieChartIcon from '@material-ui/icons/PieChart';
+import TableChartIcon from '@material-ui/icons/TableChart';
 
 const drawerWidth = 240;
 
@@ -102,16 +116,20 @@ const useStyles = makeStyles((theme) => ({
     overflow: 'auto',
     flexDirection: 'column',
   },
-  fixedHeight: {
-    height: 240,
+  fixedHeightTable: {
+    height: 600,
+  },
+  fixedHeightHistogram: {
+    height: 300,
+  },
+  fixedHeightPie: {
+    height: 300,
   },
 }));
 
 export default function Dashboard() {
-
   // state stores what page the main section displays is in, by default we start with dashboard
   const [state, setState] = React.useState('dashboard')
-
   const classes = useStyles();
   const [open, setOpen] = React.useState(true);
   const handleDrawerOpen = () => {
@@ -124,7 +142,7 @@ export default function Dashboard() {
   return (
     <div className={classes.root}>
       <CssBaseline />
-        <AppBar position="absolute" className={clsx(classes.appBar, open && classes.appBarShift)} style={{backgroundColor: "brown"}}>
+        <AppBar position="absolute" className={clsx(classes.appBar, open && classes.appBarShift)} style={{backgroundColor: '#484848'}}>
           <Toolbar className={classes.toolbar}>
             <IconButton
               edge="start"
@@ -135,16 +153,23 @@ export default function Dashboard() {
              >
            <MenuIcon />
            </IconButton>
-
            <Typography component="h1" variant="h6" color="inherit" noWrap className={classes.title}>
              Productimon
            </Typography>
 
            <IconButton color="inherit">
+             <Badge  color="secondary">
+               <Typography fontSize="6">
+               Logout &nbsp;
+               </Typography>
+               <ExitToAppIcon />
+             </Badge>
+           </IconButton>
+           {/*<IconButton color="inherit">
              <Badge badgeContent={4} color="secondary">
                <NotificationsIcon />
              </Badge>
-           </IconButton>
+           </IconButton>*/}
       </Toolbar>
       </AppBar>
 
@@ -162,63 +187,116 @@ export default function Dashboard() {
         </div>
         <Divider />
           <List>
-            <ListItem button onClick={() => setState('dashboard')}>
+            <MenuItem button component={Link} to='/' onClick={() => setState('dashboard')} selected={state=='dashboard'}>
                <ListItemIcon>
                   <DashboardIcon />
                </ListItemIcon>
                <ListItemText primary="Dashboard" />
-            </ListItem>
-            <ListItem button onClick={() => setState('goal')}>
+            </MenuItem>
+            <MenuItem button component={Link} to='/Histogram' onClick={() => setState('histogram')} selected={state=='histogram'}>
                <ListItemIcon>
-                 <DashboardIcon />
-               </ListItemIcon>
-               <ListItemText primary="Goals"/>
-            </ListItem>
-            <ListItem button onClick={() => setState('histogram')}>
-               <ListItemIcon>
-                 <DashboardIcon />
+                 <BarChartIcon />
                </ListItemIcon>
                <ListItemText primary="Histogram" />
-            </ListItem>  
-          </List>
+            </MenuItem>
+            <MenuItem button component={Link} to='/Pie' onClick={() => setState('pie')}selected={state=='pie'}>
+               <ListItemIcon>
+                 <PieChartIcon />
+               </ListItemIcon>
+               <ListItemText primary="Pie Chart"/>
+            </MenuItem>
+            <MenuItem button component={Link} to='/Table' onClick={() => setState('table')} selected={state=='table'}>
+               <ListItemIcon>
+                 <TableChartIcon />
+               </ListItemIcon>
+               <ListItemText primary="Table"/>
+            </MenuItem>
+          </List>          
         <Divider />
       </Drawer>
 
       <main className={classes.content}>
         <div className={classes.appBarSpacer} />
 
-        <Display page={state}/>
+        <Display />
 
       </main>
     </div>
   );
 }
 
-// Based on what page we select on the list (props.page) display specific content
-// I dont think this is how react is supposed to be used, it seems messy, but it'll do for now
-function Display(props) {
+
+function Display() {
      const classes = useStyles();
-     const state = props.page;
-     const fixedHeightPaper = clsx(classes.paper, classes.fixedHeight);
-     if (state=="histogram") {
-         return (<h1>Histogram</h1>);
-     } else if (state=="dashboard") {
-         return (
-         <div>
-         <h1>Dashboard</h1>
-         <Container maxWidth="lg" className={classes.container}>
-          <Grid container spacing={3}>
-            {/* Chart */}
-            <Grid item xs={12} md={8} lg={9}>
-              <Paper className={fixedHeightPaper}>
-                <Chart />
-              </Paper>
-            </Grid>
-          </Grid>
-        </Container>
-        </div>
-        );
-     } else if (state=="goal") {
-         return (<h1>Goal</h1>);
-     }
+
+     const fixedHeightPaperTable = clsx(classes.paper, classes.fixedHeightTable);
+     const fixedHeightPaperHistogram = clsx(classes.paper, classes.fixedHeightHistogram);
+     const fixedHeightPaperPie = clsx(classes.paper, classes.fixedHeightPie);
+     
+     return (
+         <Switch>
+            <Route path="/Histogram">
+              <div>
+              <Container maxWidth="lg" className={classes.container}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={8} lg={9}>
+                    <Paper className={fixedHeightPaperHistogram}>
+                      <Histogram />
+                    </Paper>
+                  </Grid>
+                </Grid>
+              </Container>
+              </div>
+            </Route>
+            <Route path="/Table">
+              <div>
+              <Container maxWidth="lg" className={classes.container}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={12} lg={9}>
+                    <Paper className={classes.paper}>
+                      <DisplayTable />
+                    </Paper>
+                  </Grid>
+                </Grid>
+              </Container>
+              </div>
+            </Route>
+            <Route path="/Pie">
+              <div>
+              <Container maxWidth="lg" className={classes.container}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6} lg={9}>
+                    <Paper className={fixedHeightPaperPie}>
+                      <DisplayPie />
+                    </Paper>
+                  </Grid>
+                </Grid>
+              </Container>
+              </div>
+            </Route>
+            <Route path="/">
+              <div>
+              <Container maxWidth="lg" className={classes.container}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6} lg={9}>
+                    <Paper className={fixedHeightPaperHistogram}>
+                      <Histogram />
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} md={6} lg={9}>
+                    <Paper className={fixedHeightPaperPie}>
+                      <DisplayPie />
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} md={12} lg={12}>
+                    <Paper className={classes.paper}>
+                      <DisplayTable />
+                    </Paper>
+                  </Grid>
+                </Grid>
+              </Container>
+              </div>
+            </Route>
+         </Switch>
+     );
 }

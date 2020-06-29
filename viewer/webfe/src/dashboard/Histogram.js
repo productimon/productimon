@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTheme } from '@material-ui/core/styles';
-import { LineChart, Line, XAxis, YAxis, Label, ResponsiveContainer } from 'recharts';
+import {BarChart, Bar, CartesianGrid, XAxis, YAxis, Label, ResponsiveContainer, Tooltip } from 'recharts';
 import Title from './Title';
 
 // Generate Sales Data
@@ -9,25 +9,25 @@ function createData(time, amount) {
 }
 
 const data = [
-  createData('00:00', 0),
-  createData('03:00', 300),
-  createData('06:00', 600),
-  createData('09:00', 800),
-  createData('12:00', 1500),
-  createData('15:00', 2000),
-  createData('18:00', 2400),
-  createData('21:00', 2400),
-  createData('24:00', undefined),
+  createData('20/6', 5),
+  createData('21/6', 2),
+  createData('22/6', 8),
+  createData('23/6', 3),
+  createData('24/6', 10),
+  createData('25/6', 11),
+  createData('26/6', 4),
+  createData('27/6', 7),
+  createData('28/6', 5),
 ];
 
-export default function Chart() {
+export default function Histogram() {
   const theme = useTheme();
 
   return (
     <React.Fragment>
-      <Title>Today</Title>
+      <Title>Computer Usage per day</Title>
       <ResponsiveContainer>
-        <LineChart
+        <BarChart
           data={data}
           margin={{
             top: 16,
@@ -36,6 +36,7 @@ export default function Chart() {
             left: 24,
           }}
         >
+          <CartesianGrid strokeDasharray="3 3"/>
           <XAxis dataKey="time" stroke={theme.palette.text.secondary} />
           <YAxis stroke={theme.palette.text.secondary}>
             <Label
@@ -43,11 +44,11 @@ export default function Chart() {
               position="left"
               style={{ textAnchor: 'middle', fill: theme.palette.text.primary }}
             >
-              Sales ($)
+              Hours
             </Label>
           </YAxis>
-          <Line type="monotone" dataKey="amount" stroke={theme.palette.primary.main} dot={false} />
-        </LineChart>
+          <Bar dataKey="amount" fill="#c8e6c9" stroke='#484848'/>
+        </BarChart>
       </ResponsiveContainer>
     </React.Fragment>
   );

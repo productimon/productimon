@@ -1,4 +1,10 @@
 import React from 'react';
+import {
+   BrowserRouter as Router,
+   Switch,
+   Route,
+   Link
+} from "react-router-dom";
 import clsx from 'clsx';
 import { makeStyles } from '@material-ui/core/styles';
 import CssBaseline from '@material-ui/core/CssBaseline';
@@ -14,7 +20,6 @@ import Badge from '@material-ui/core/Badge';
 import Container from '@material-ui/core/Container';
 import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
-import Link from '@material-ui/core/Link';
 import MenuIcon from '@material-ui/icons/Menu';
 import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
 import NotificationsIcon from '@material-ui/icons/Notifications';
@@ -28,8 +33,8 @@ import './App.css';
 
 export default function App() {
   return (
-          <div>
-          <SignIn />
-    </div>
+    <Router >
+       <Dashboard />
+    </Router>
   );
 }
