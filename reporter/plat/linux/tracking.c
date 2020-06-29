@@ -1,3 +1,5 @@
+#include "reporter/plat/tracking.h"
+
 // TODO check for mem leaks
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -11,7 +13,7 @@
 #include <pthread.h>
 
 #include "reporter/core/core.h"
-#include "reporter/plat/tracking.h"
+#include "inhibit.h"
 
 #ifdef __linux__
 
@@ -22,10 +24,12 @@ static Window   root_window;
 static volatile bool    tracking_started = false;
 static pthread_t        tracking_thread;
 static tracking_opt_t  *tracking_opts;
+static pthread_mutex_t  tracking_mutex;
 
 static int              xi_major_opcode;
-static int              tracking_n_clicks;
-static int              tracking_n_keystrokes;
+
+static void suspend_tracking();
+static void resume_tracking();
 
 static int xlib_error_handler(Display *display, XErrorEvent *event) {
     char buf[256];
@@ -130,8 +134,6 @@ static void *event_loop(UNUSED void *arg) {
 
     XIEventMask xi_event_mask;
     if (tracking_opts->keystroke || tracking_opts->mouse_click) {
-        tracking_n_clicks = 0;
-        tracking_n_keystrokes = 0;
         unsigned char xi_mask_val[(XI_LASTEVENT + 7 / 8)] = {0};
         xi_event_mask.deviceid = XIAllMasterDevices;
         xi_event_mask.mask_len = sizeof(xi_mask_val);
@@ -139,17 +141,15 @@ static void *event_loop(UNUSED void *arg) {
         XISetMask(xi_mask_val, XI_RawKeyPress);
         XISetMask(xi_mask_val, XI_RawButtonPress);
         XISelectEvents(display, root_window, &xi_event_mask, 1);
-        /* XSync(display, false); */
     }
 
     XEvent event;
     XGenericEventCookie *cookie = (XGenericEventCookie*)&event.xcookie;
 
     while (1) {
-        if (!tracking_started) {
-            break;
-        }
         XNextEvent(display, &event);
+        if (event.type == ClientMessage)
+            break;
         if (event.type == PropertyNotify &&
                 event.xproperty.atom == active_window_prop)
             handle_window_change(display, root_window);
@@ -158,8 +158,11 @@ static void *event_loop(UNUSED void *arg) {
                 cookie->extension == xi_major_opcode) {
             if (cookie->evtype == XI_RawKeyPress) {
                 HandleKeystroke();
+                // TODO bug: seems to be reporting as soon as we click
+                // probs related to go routine's timer ticker??
             } else if (cookie->evtype == XI_RawButtonPress) {
                 HandleMouseClick();
+                // TODO bug: seems to be reporting as soon as we click
             }
         }
     }
@@ -179,17 +182,18 @@ int init_tracking() {
 void exit_tracking() {
 }
 
-int start_tracking(tracking_opt_t *opts) {
-    if (tracking_started) {
+static int start_tracking_impl(tracking_opt_t *opts, bool inhibit) {
+    pthread_mutex_lock(&tracking_mutex);
+    if (inhibit && tracking_started) {
         error("Tracking tracking_started already!\n");
-        return 1;
+        goto exit_error;
     }
 
     // open connection to the X server
     display = XOpenDisplay(NULL);
     if (display == NULL) {
         error("Cannot open connection to X server\n");
-        return 1;
+        goto exit_error;
     }
 
     if (check_x_input_lib(display)) {
@@ -207,7 +211,7 @@ int start_tracking(tracking_opt_t *opts) {
 
     if (!(opts->foreground_program || opts->mouse_click || opts->keystroke)) {
         debug("Nothing to be tracked, not doing anything\n");
-        return 0;
+        goto exit_success;
     }
 
 
@@ -217,26 +221,47 @@ int start_tracking(tracking_opt_t *opts) {
         opts->keystroke = false;
     }
 
+    tracking_started = true;
+
+    if (inhibit && init_inhibit(&tracking_started, suspend_tracking, resume_tracking)) {
+        tracking_started = false;
+        goto exit_error;
+    }
+
     int ret = pthread_create(&tracking_thread, NULL, event_loop, display);
     if (ret) {
         perror("Cannot create the tracking thread");
-        return 1;
+        tracking_started = false;
+        if (inhibit)
+            wait_inhibit_cleanup();
+        goto exit_error;
     }
-    tracking_started = true;
-    printf("Tracking tracking_started\n");
+    printf("Tracking started\n");
+
+exit_success:
+    pthread_mutex_unlock(&tracking_mutex);
     return 0;
+
+exit_error:
+    pthread_mutex_unlock(&tracking_mutex);
+    return 1;
 }
 
-void stop_tracking() {
+static void stop_tracking_impl(bool suspend) {
+    pthread_mutex_lock(&tracking_mutex);
     if (!tracking_started) {
         error("Tracking not started, not doing anything\n");
-        return;
+        goto exit;
     }
     debug("Stopping tracking\n");
 
-    tracking_started = false;
+    if (!suspend) {
+        tracking_started = false;
+        wait_inhibit_cleanup();
+    }
 
     XEvent event;
+    memset(&event, 0, sizeof(event));
     event.type = ClientMessage;
     /* length of data payload in the event, need this otherwise xlib will complain */
     event.xclient.format = 32;
@@ -247,17 +272,38 @@ void stop_tracking() {
                 "to unblock the tracking thread\n");
     XFlush(display);
 
-    // TODO I think I got a race somehow and this deadlocked
-    // think about it and fix it
     int ret = pthread_join(tracking_thread, NULL);
     if (ret) {
         perror("Cannot join the tracking thread");
-        return;
+        goto exit;
     }
 
     XCloseDisplay(display);
     display = NULL;
     printf("Tracking stopped\n");
+
+exit:
+    pthread_mutex_unlock(&tracking_mutex);
+}
+
+int start_tracking(tracking_opt_t *opts) {
+    return start_tracking_impl(opts, true);
+}
+
+void stop_tracking() {
+    // TODO mutex for start and stop tracking, they can be called from
+    // GUI/CLI or the inhibit thread!
+    stop_tracking_impl(false);
+}
+
+static void suspend_tracking() {
+    stop_tracking_impl(true);
+}
+
+static void resume_tracking() {
+    /* this is called from the inhibit module,
+     * no need to init it again */
+    start_tracking_impl(tracking_opts, false);
 }
 
 bool is_tracking() {

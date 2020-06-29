@@ -9,7 +9,10 @@ config_setting(
 
 cc_library(
     name = "trackinglib-linux",
-    srcs = glob(["linux/*.c"]),
+    srcs = glob([
+        "linux/*.c",
+        "linux/*.h",
+    ]),
     hdrs = ["tracking.h"],
     defines = select({
         "debug_build": ["DEBUG"],
@@ -18,6 +21,7 @@ cc_library(
     visibility = ["//reporter:__pkg__"],
     deps = [
         "//reporter/core:core.cc",
+        "@dbus",
         "@system_libs//:pthread",
         "@system_libs//:x11",
         "@system_libs//:xi",

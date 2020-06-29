@@ -8,6 +8,11 @@
 #### x input headers
 `sudo apt install libxi-dev`
 
+#### cmake
+`sudo apt install cmake`
+
+#### libexpat headers
+`sudo apt install libexpat1-dev`
 
 ## Build Instructions
 ### CLI

@@ -126,6 +126,31 @@ new_local_repository(
     path = "/usr/lib/x86_64-linux-gnu",
 )
 
+# local_repository(
+#    name = "rules_foreign_cc",
+#    path = "../rules_foreign_cc",
+# )
+
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+
+git_repository(
+    name = "rules_foreign_cc",
+    commit = "2f8c9b999f68d225af195763d4c7f0e7bd63cd70",
+    remote = "https://github.com/Chester-P/rules_foreign_cc",
+)
+
+load("@rules_foreign_cc//:workspace_definitions.bzl", "rules_foreign_cc_dependencies")
+
+rules_foreign_cc_dependencies()
+
+http_archive(
+    name = "dbus",
+    build_file = "@//third_party:dbus.BUILD",
+    sha256 = "f56b0aa015d0cd13e235225484f411e3c587a0f852c12da03852a324dd1cafb3",
+    strip_prefix = "dbus-1.13.16",
+    urls = ["https://dbus.freedesktop.org/releases/dbus/dbus-1.13.16.tar.xz"],
+)
+
 go_repository(
     name = "com_github_dgrijalva_jwt_go",
     importpath = "github.com/dgrijalva/jwt-go",
