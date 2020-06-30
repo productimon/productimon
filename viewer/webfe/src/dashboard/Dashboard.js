@@ -227,76 +227,79 @@ export default function Dashboard() {
 
 
 function Display() {
-     const classes = useStyles();
+  const classes = useStyles();
 
-     const fixedHeightPaperTable = clsx(classes.paper, classes.fixedHeightTable);
-     const fixedHeightPaperHistogram = clsx(classes.paper, classes.fixedHeightHistogram);
-     const fixedHeightPaperPie = clsx(classes.paper, classes.fixedHeightPie);
-     
-     return (
-         <Switch>
-            <Route path="/Histogram">
-              <div>
-              <Container maxWidth="lg" className={classes.container}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={8} lg={9}>
-                    <Paper className={fixedHeightPaperHistogram}>
-                      <Histogram />
-                    </Paper>
-                  </Grid>
-                </Grid>
-              </Container>
-              </div>
-            </Route>
-            <Route path="/Table">
-              <div>
-              <Container maxWidth="lg" className={classes.container}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={12} lg={9}>
-                    <Paper className={classes.paper}>
-                      <DisplayTable />
-                    </Paper>
-                  </Grid>
-                </Grid>
-              </Container>
-              </div>
-            </Route>
-            <Route path="/Pie">
-              <div>
-              <Container maxWidth="lg" className={classes.container}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6} lg={9}>
-                    <Paper className={fixedHeightPaperPie}>
-                      <DisplayPie />
-                    </Paper>
-                  </Grid>
-                </Grid>
-              </Container>
-              </div>
-            </Route>
-            <Route path="/">
-              <div>
-              <Container maxWidth="lg" className={classes.container}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6} lg={9}>
-                    <Paper className={fixedHeightPaperHistogram}>
-                      <Histogram />
-                    </Paper>
-                  </Grid>
-                  <Grid item xs={12} md={6} lg={9}>
-                    <Paper className={fixedHeightPaperPie}>
-                      <DisplayPie />
-                    </Paper>
-                  </Grid>
-                  <Grid item xs={12} md={12} lg={12}>
-                    <Paper className={classes.paper}>
-                      <DisplayTable />
-                    </Paper>
-                  </Grid>
-                </Grid>
-              </Container>
-              </div>
-            </Route>
-         </Switch>
-     );
+  const fixedHeightPaperTable = clsx(classes.paper, classes.fixedHeightTable);
+  const fixedHeightPaperHistogram = clsx(classes.paper, classes.fixedHeightHistogram);
+  const fixedHeightPaperPie = clsx(classes.paper, classes.fixedHeightPie);
+
+  const token = window.localStorage.getItem("token");
+  console.log(token);
+
+  return (
+    <Switch>
+      <Route path="/Histogram">
+        <div>
+          <Container maxWidth="lg" className={classes.container}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={8} lg={9}>
+                <Paper className={fixedHeightPaperHistogram}>
+                  <Histogram />
+                </Paper>
+              </Grid>
+            </Grid>
+          </Container>
+        </div>
+      </Route>
+      <Route path="/Table">
+        <div>
+          <Container maxWidth="lg" className={classes.container}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={12} lg={9}>
+                <Paper className={classes.paper}>
+                  <DisplayTable />
+                </Paper>
+              </Grid>
+            </Grid>
+          </Container>
+        </div>
+      </Route>
+      <Route path="/Pie">
+        <div>
+          <Container maxWidth="lg" className={classes.container}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6} lg={9}>
+                <Paper className={fixedHeightPaperPie}>
+                  <DisplayPie />
+                </Paper>
+              </Grid>
+            </Grid>
+          </Container>
+        </div>
+      </Route>
+      <Route path="/">
+        <div>
+          <Container maxWidth="lg" className={classes.container}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6} lg={9}>
+                <Paper className={fixedHeightPaperHistogram}>
+                  <Histogram />
+                </Paper>
+              </Grid>
+              <Grid item xs={12} md={6} lg={9}>
+                <Paper className={fixedHeightPaperPie}>
+                  <DisplayPie />
+                </Paper>
+              </Grid>
+              <Grid item xs={12} md={12} lg={12}>
+                <Paper className={classes.paper}>
+                  <DisplayTable />
+                </Paper>
+              </Grid>
+            </Grid>
+          </Container>
+        </div>
+      </Route>
+    </Switch>
+  );
 }

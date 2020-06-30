@@ -28,13 +28,22 @@ import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
 
 import SignIn from './account/SignIn'
+import SignUp from './account/SignUp'
 import Dashboard from './dashboard/Dashboard';
 import './App.css';
 
 export default function App() {
   return (
-    <Router >
-       <Dashboard />
+    <Router>
+      <Route path="/" exact>
+        <SignIn />
+      </Route>
+      <Route path="/signup">
+        <SignUp />
+      </Route>
+      <Route path="/dashboard">
+        <Dashboard />
+      </Route>
     </Router>
   );
 }

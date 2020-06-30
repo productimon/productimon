@@ -1,7 +1,6 @@
 import React from 'react';
 import Avatar from '@material-ui/core/Avatar';
 import Button from '@material-ui/core/Button';
-import CssBaseline from '@material-ui/core/CssBaseline';
 import TextField from '@material-ui/core/TextField';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
@@ -11,8 +10,15 @@ import LockOutlinedIcon from '@material-ui/icons/LockOutlined';
 import Typography from '@material-ui/core/Typography';
 import { makeStyles } from '@material-ui/core/styles';
 import Container from '@material-ui/core/Container';
-import { grpc } from '@improbable-eng/grpc-web';
+import {
+  BrowserRouter as Router,
+  Switch,
+  Route,
+  Link as RouterLink,
+  useHistory
+} from "react-router-dom";
 
+import { grpc } from '@improbable-eng/grpc-web';
 import {DataAggregatorLoginRequest} from 'productimon/proto/svc/aggregator_pb'
 import {DataAggregator} from 'productimon/proto/svc/aggregator_pb_service'
 
@@ -20,25 +26,6 @@ import ReactDOM from 'react-dom';
 import TopMenu from '../core/TopMenu';
 import SignUp from './SignUp';
 
-function goSignUp() {
-    ReactDOM.render(<SignUp />, document.getElementById('root'));
-}
-
-function doLogin(e) {
-    e.preventDefault();
-    // TODO: i don't know react, we get username and password here
-    var request = new DataAggregatorLoginRequest();
-    request.setEmail("test@productimon.com");
-    request.setPassword("test");
-    console.log('sending request ', request);
-    grpc.unary(DataAggregator.Login, {
-        host: '/rpc',
-        onEnd: ({status, statusMessage, headers, message}) => {
-            console.log('response ', status, statusMessage, headers, message);
-        },
-        request,
-    });
-}
 
 const useStyles = makeStyles((theme) => ({
   paper: {
@@ -63,9 +50,39 @@ const useStyles = makeStyles((theme) => ({
 export default function SignIn() {
   const classes = useStyles();
 
+  const [username, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+
+  const handleChange = function(e, setter) {
+    setter(event.target.value);
+  }
+
+  const history = useHistory();
+
+  const doLogin = function(e) {
+    e.preventDefault();
+
+    const request = new DataAggregatorLoginRequest();
+    request.setEmail(username);
+    request.setPassword(password);
+    grpc.unary(DataAggregator.Login, {
+      host: '/rpc',
+      onEnd: ({status, statusMessage, headers, message}) => {
+        if (status != 0) {
+          alert("Login failed")
+          console.error('response ', status, statusMessage, headers, message);
+          return;
+        }
+        window.localStorage.setItem("token", message.getToken());
+        history.push("/dashboard");
+      },
+      request,
+    });
+  }
+
   return (
-          <Container component="main" maxWidth="xs">
-          <TopMenu />
+    <Container component="main" maxWidth="xs">
+      <TopMenu />
 
       <div className={classes.paper}>
 
@@ -82,22 +99,18 @@ export default function SignIn() {
             margin="normal"
             required
             fullWidth
-            id="email"
             label="Email Address"
-            name="email"
-            autoComplete="email"
             autoFocus
+            onChange={e => handleChange(e, setEmail)}
           />
           <TextField
             variant="outlined"
             margin="normal"
             required
             fullWidth
-            name="password"
             label="Password"
             type="password"
-            id="password"
-            autoComplete="current-password"
+            onChange={e => handleChange(e, setPassword)}
           />
           <FormControlLabel
             control={<Checkbox value="remember" color="primary" />}
@@ -115,14 +128,14 @@ export default function SignIn() {
 
           <Grid container>
             <Grid item xs>
-              <Link href="#" variant="body2">
+              <Link href="#">
                 Forgot password?
               </Link>
             </Grid>
             <Grid item>
-              <Link href="#" variant="body2" onClick={goSignUp}>
-                {"Don't have an account? Sign Up"}
-              </Link>
+              <RouterLink to="/signup" style={{ textDecoration: 'none' }}>
+                "Don't have an account? Sign Up"
+              </RouterLink>
             </Grid>
           </Grid>
         </form>

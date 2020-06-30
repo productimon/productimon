@@ -14,9 +14,12 @@ import ReactDOM from 'react-dom';
 import TopMenu from '../core/TopMenu'
 import SignIn from './SignIn';
 
-function goSignIn() {
-    ReactDOM.render(<SignIn />, document.getElementById('root'));
-}
+import {
+   BrowserRouter as Router,
+   Switch,
+   Route,
+   Link as RouterLink
+} from "react-router-dom";
 
 const useStyles = makeStyles((theme) => ({
   paper: {
@@ -88,9 +91,9 @@ export default function SignUp() {
 
           <Grid container justify="flex-end">
             <Grid item>
-              <Link href="#" variant="body2" onClick={goSignIn}>
+              <RouterLink to="/" style={{ textDecoration: 'none' }}>
                 Already have an account? Sign in
-              </Link>
+              </RouterLink>
             </Grid>
           </Grid>
         </form>
