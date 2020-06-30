@@ -54,7 +54,7 @@ export default function SignIn() {
   const [password, setPassword] = React.useState("");
 
   const handleChange = function(e, setter) {
-    setter(event.target.value);
+    setter(e.target.value);
   }
 
   const history = useHistory();
@@ -69,7 +69,7 @@ export default function SignIn() {
       host: '/rpc',
       onEnd: ({status, statusMessage, headers, message}) => {
         if (status != 0) {
-          alert("Login failed")
+          alert(statusMessage);
           console.error('response ', status, statusMessage, headers, message);
           return;
         }
@@ -93,7 +93,7 @@ export default function SignIn() {
           Sign in
         </Typography>
 
-        <form className={classes.form} noValidate onSubmit={doLogin}>
+        <form className={classes.form} onSubmit={doLogin}>
           <TextField
             variant="outlined"
             margin="normal"
@@ -134,7 +134,7 @@ export default function SignIn() {
             </Grid>
             <Grid item>
               <RouterLink to="/signup" style={{ textDecoration: 'none' }}>
-                "Don't have an account? Sign Up"
+                Don't have an account? Sign Up
               </RouterLink>
             </Grid>
           </Grid>

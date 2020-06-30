@@ -1,7 +1,6 @@
 import React from 'react';
 import Avatar from '@material-ui/core/Avatar';
 import Button from '@material-ui/core/Button';
-import CssBaseline from '@material-ui/core/CssBaseline';
 import TextField from '@material-ui/core/TextField';
 import Link from '@material-ui/core/Link';
 import Grid from '@material-ui/core/Grid';
@@ -9,17 +8,22 @@ import LockOutlinedIcon from '@material-ui/icons/LockOutlined';
 import Typography from '@material-ui/core/Typography';
 import { makeStyles } from '@material-ui/core/styles';
 import Container from '@material-ui/core/Container';
+import {
+  BrowserRouter as Router,
+  Switch,
+  Route,
+  Link as RouterLink,
+  useHistory
+} from "react-router-dom";
+
+import { grpc } from '@improbable-eng/grpc-web';
+import { User } from 'productimon/proto/common/common_pb'
+import { DataAggregatorSignupRequest } from 'productimon/proto/svc/aggregator_pb'
+import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service'
 
 import ReactDOM from 'react-dom';
 import TopMenu from '../core/TopMenu'
 import SignIn from './SignIn';
-
-import {
-   BrowserRouter as Router,
-   Switch,
-   Route,
-   Link as RouterLink
-} from "react-router-dom";
 
 const useStyles = makeStyles((theme) => ({
   paper: {
@@ -44,6 +48,38 @@ const useStyles = makeStyles((theme) => ({
 export default function SignUp() {
   const classes = useStyles();
 
+  const [username, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+
+  const handleChange = function(e, setter) {
+    setter(e.target.value);
+  }
+
+  const history = useHistory();
+
+  const doSignup = function(e) {
+    e.preventDefault();
+
+    const request = new DataAggregatorSignupRequest();
+    const user = new User();
+    user.setEmail(username);
+    user.setPassword(password);
+    request.setUser(user);
+    grpc.unary(DataAggregator.Signup, {
+      host: '/rpc',
+      onEnd: ({status, statusMessage, headers, message}) => {
+        if (status != 0) {
+          alert(statusMessage);
+          console.error('response ', status, statusMessage, headers, message);
+          return;
+        }
+        window.localStorage.setItem("token", message.getToken());
+        history.push("/dashboard");
+      },
+      request,
+    });
+  }
+
   return (
           <Container component="main" maxWidth="xs">
           <TopMenu />
@@ -56,28 +92,24 @@ export default function SignUp() {
           Sign up
         </Typography>
 
-        <form className={classes.form} noValidate>
+        <form className={classes.form} onSubmit={doSignup}>
           <TextField
             variant="outlined"
             margin="normal"
             required
             fullWidth
-            id="email"
             label="Email Address"
-            name="email"
-            autoComplete="email"
             autoFocus
+            onChange={e => handleChange(e, setEmail)}
           />
           <TextField
             variant="outlined"
             margin="normal"
             required
             fullWidth
-            name="password"
             label="Password"
             type="password"
-            id="password"
-            autoComplete="current-password"
+            onChange={e => handleChange(e, setPassword)}
           />
           <Button
             type="submit"
