@@ -8,6 +8,8 @@ import "proto/common/events.proto";
 service DataAggregator {
     rpc Ping(DataAggregatorPingRequest) returns (DataAggregatorPingResponse);
     rpc Login(DataAggregatorLoginRequest) returns (DataAggregatorLoginResponse);
+    rpc Signup(DataAggregatorSignupRequest)
+        returns (DataAggregatorLoginResponse);
     rpc ExtendToken(common.Empty) returns (DataAggregatorLoginResponse);
     rpc UserDetails(common.Empty) returns (DataAggregatorUserDetailsResponse);
     rpc PushEvent(stream common.Event)
@@ -28,6 +30,10 @@ message DataAggregatorPingResponse {
 message DataAggregatorLoginRequest {
     string email = 1;
     string password = 2;
+}
+
+message DataAggregatorSignupRequest {
+    common.User user = 1;
 }
 
 message DataAggregatorLoginResponse {

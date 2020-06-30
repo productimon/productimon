@@ -10,10 +10,13 @@ import (
 
 	cpb "git.yiad.am/productimon/proto/common"
 	spb "git.yiad.am/productimon/proto/svc"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+const bcryptStrength = 12
 
 type service struct {
 	auther *Authenticator
@@ -40,7 +43,7 @@ func (s *service) returnToken(ctx context.Context, uid string) (*spb.DataAggrega
 
 func (s *service) Login(ctx context.Context, req *spb.DataAggregatorLoginRequest) (*spb.DataAggregatorLoginResponse, error) {
 	var uid, storedPassword string
-	err := s.db.QueryRow("SELECT id, password FROM users WHERE email = ?", req.Email).Scan(&uid, &storedPassword)
+	err := s.db.QueryRow("SELECT id, password FROM users WHERE email = ? LIMIT 1", req.Email).Scan(&uid, &storedPassword)
 	if err != nil {
 		log.Println(err)
 		return nil, status.Errorf(codes.Unauthenticated, "invalid email/password")
@@ -50,6 +53,33 @@ func (s *service) Login(ctx context.Context, req *spb.DataAggregatorLoginRequest
 		log.Println(err)
 		return nil, status.Errorf(codes.Unauthenticated, "invalid email/password")
 	}
+	return s.returnToken(ctx, uid)
+}
+
+func (s *service) Signup(ctx context.Context, req *spb.DataAggregatorSignupRequest) (*spb.DataAggregatorLoginResponse, error) {
+	var tmp int64
+	err := s.db.QueryRow("SELECT 1 FROM users WHERE email = ? LIMIT 1", req.User.Email).Scan(&tmp)
+	switch {
+	case err != nil && err != sql.ErrNoRows:
+		log.Println(err)
+		return nil, status.Errorf(codes.Internal, "something went wrong")
+	case err == nil:
+		return nil, status.Errorf(codes.AlreadyExists, "user already exists")
+	}
+	pwd, err := bcrypt.GenerateFromPassword([]byte(req.User.Password), bcryptStrength)
+	if err != nil {
+		log.Println(err)
+		return nil, status.Errorf(codes.Internal, "something went wrong")
+	}
+	uid := uuid.New().String()
+	_, err = s.db.Exec("INSERT INTO users (id, email, password) VALUES (?, ?, ?)", uid, req.User.Email, pwd)
+	if err != nil {
+		log.Println(err)
+		return nil, status.Errorf(codes.Internal, "something went wrong")
+	}
+	// TODO: have separate api to create device. This should be under one transaction but we will remove this eventually so
+	// we don't have a transaction here
+	s.db.Exec("INSERT INTO devices VALUES(?, 0, 'test device (Linux)', 1)", uid)
 	return s.returnToken(ctx, uid)
 }
 
@@ -67,7 +97,7 @@ func (s *service) UserDetails(ctx context.Context, req *cpb.Empty) (*spb.DataAgg
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
 	}
 	var email string
-	err = s.db.QueryRow("SELECT email FROM users WHERE id = ?", uid).Scan(&email)
+	err = s.db.QueryRow("SELECT email FROM users WHERE id = ? LIMIT 1", uid).Scan(&email)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "User missing from db")
 	}
