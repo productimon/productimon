@@ -1,9 +1,10 @@
 import React from 'react';
 import {
-   BrowserRouter as Router,
-   Switch,
-   Route,
-   Link
+  BrowserRouter as Router,
+  Switch,
+  Route,
+  Link,
+  useRouteMatch
 } from "react-router-dom";
 import clsx from 'clsx';
 import { makeStyles } from '@material-ui/core/styles';
@@ -142,35 +143,35 @@ export default function Dashboard() {
   return (
     <div className={classes.root}>
       <CssBaseline />
-        <AppBar position="absolute" className={clsx(classes.appBar, open && classes.appBarShift)} style={{backgroundColor: '#484848'}}>
-          <Toolbar className={classes.toolbar}>
-            <IconButton
-              edge="start"
-              color="inherit"
-              aria-label="open drawer"
-              onClick={handleDrawerOpen}
-              className={clsx(classes.menuButton, open && classes.menuButtonHidden)}
-             >
-           <MenuIcon />
-           </IconButton>
-           <Typography component="h1" variant="h6" color="inherit" noWrap className={classes.title}>
-             Productimon
-           </Typography>
+      <AppBar position="absolute" className={clsx(classes.appBar, open && classes.appBarShift)} style={{backgroundColor: '#484848'}}>
+        <Toolbar className={classes.toolbar}>
+          <IconButton
+            edge="start"
+            color="inherit"
+            aria-label="open drawer"
+            onClick={handleDrawerOpen}
+            className={clsx(classes.menuButton, open && classes.menuButtonHidden)}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Typography component="h1" variant="h6" color="inherit" noWrap className={classes.title}>
+            Productimon
+          </Typography>
 
-           <IconButton color="inherit">
-             <Badge  color="secondary">
-               <Typography fontSize="6">
-               Logout &nbsp;
-               </Typography>
-               <ExitToAppIcon />
-             </Badge>
-           </IconButton>
-           {/*<IconButton color="inherit">
+          <IconButton color="inherit">
+            <Badge  color="secondary">
+              <Typography fontSize="6">
+                Logout &nbsp;
+              </Typography>
+              <ExitToAppIcon />
+            </Badge>
+          </IconButton>
+          {/*<IconButton color="inherit">
              <Badge badgeContent={4} color="secondary">
                <NotificationsIcon />
              </Badge>
            </IconButton>*/}
-      </Toolbar>
+        </Toolbar>
       </AppBar>
 
       <Drawer
@@ -186,32 +187,32 @@ export default function Dashboard() {
           </IconButton>
         </div>
         <Divider />
-          <List>
-            <MenuItem button component={Link} to='/' onClick={() => setState('dashboard')} selected={state=='dashboard'}>
-               <ListItemIcon>
-                  <DashboardIcon />
-               </ListItemIcon>
-               <ListItemText primary="Dashboard" />
-            </MenuItem>
-            <MenuItem button component={Link} to='/Histogram' onClick={() => setState('histogram')} selected={state=='histogram'}>
-               <ListItemIcon>
-                 <BarChartIcon />
-               </ListItemIcon>
-               <ListItemText primary="Histogram" />
-            </MenuItem>
-            <MenuItem button component={Link} to='/Pie' onClick={() => setState('pie')}selected={state=='pie'}>
-               <ListItemIcon>
-                 <PieChartIcon />
-               </ListItemIcon>
-               <ListItemText primary="Pie Chart"/>
-            </MenuItem>
-            <MenuItem button component={Link} to='/Table' onClick={() => setState('table')} selected={state=='table'}>
-               <ListItemIcon>
-                 <TableChartIcon />
-               </ListItemIcon>
-               <ListItemText primary="Table"/>
-            </MenuItem>
-          </List>          
+        <List>
+          <MenuItem button component={Link} to='/dashboard' onClick={() => setState('dashboard')} selected={state=='dashboard'}>
+            <ListItemIcon>
+              <DashboardIcon />
+            </ListItemIcon>
+            <ListItemText primary="Dashboard" />
+          </MenuItem>
+          <MenuItem button component={Link} to='/dashboard/histogram' onClick={() => setState('histogram')} selected={state=='histogram'}>
+            <ListItemIcon>
+              <BarChartIcon />
+            </ListItemIcon>
+            <ListItemText primary="Histogram" />
+          </MenuItem>
+          <MenuItem button component={Link} to='/dashboard/pie' onClick={() => setState('pie')}selected={state=='pie'}>
+            <ListItemIcon>
+              <PieChartIcon />
+            </ListItemIcon>
+            <ListItemText primary="Pie Chart"/>
+          </MenuItem>
+          <MenuItem button component={Link} to='/dashboard/table' onClick={() => setState('table')} selected={state=='table'}>
+            <ListItemIcon>
+              <TableChartIcon />
+            </ListItemIcon>
+            <ListItemText primary="Table"/>
+          </MenuItem>
+        </List>          
         <Divider />
       </Drawer>
 
@@ -233,12 +234,11 @@ function Display() {
   const fixedHeightPaperHistogram = clsx(classes.paper, classes.fixedHeightHistogram);
   const fixedHeightPaperPie = clsx(classes.paper, classes.fixedHeightPie);
 
-  const token = window.localStorage.getItem("token");
-  console.log(token);
+  let match = useRouteMatch();
 
   return (
     <Switch>
-      <Route path="/Histogram">
+      <Route path="/dashboard/histogram">
         <div>
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
@@ -251,7 +251,7 @@ function Display() {
           </Container>
         </div>
       </Route>
-      <Route path="/Table">
+      <Route path="/dashboard/table">
         <div>
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
@@ -264,7 +264,7 @@ function Display() {
           </Container>
         </div>
       </Route>
-      <Route path="/Pie">
+      <Route path="/dashboard/pie">
         <div>
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
@@ -301,5 +301,6 @@ function Display() {
         </div>
       </Route>
     </Switch>
+
   );
 }

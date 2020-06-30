@@ -19,8 +19,8 @@ import {
 } from "react-router-dom";
 
 import { grpc } from '@improbable-eng/grpc-web';
-import {DataAggregatorLoginRequest} from 'productimon/proto/svc/aggregator_pb'
-import {DataAggregator} from 'productimon/proto/svc/aggregator_pb_service'
+import { DataAggregatorLoginRequest } from 'productimon/proto/svc/aggregator_pb'
+import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service'
 
 import ReactDOM from 'react-dom';
 import TopMenu from '../core/TopMenu';

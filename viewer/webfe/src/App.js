@@ -35,15 +35,17 @@ import './App.css';
 export default function App() {
   return (
     <Router>
-      <Route path="/" exact>
-        <SignIn />
-      </Route>
-      <Route path="/signup">
-        <SignUp />
-      </Route>
-      <Route path="/dashboard">
-        <Dashboard />
-      </Route>
+      <Switch>
+        <Route path="/" exact>
+          <SignIn />
+        </Route>
+        <Route path="/signup">
+          <SignUp />
+        </Route>
+        <Route path="/dashboard">
+          <Dashboard />
+        </Route>
+      </Switch>
     </Router>
   );
 }
