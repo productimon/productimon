@@ -11,6 +11,11 @@ message Timestamp {
     int64 nanos = 1;
 }
 
+message Interval {
+    Timestamp start = 1;
+    Timestamp end = 2;
+}
+
 message User {
     string id = 1;
     string email = 2;
@@ -18,8 +23,10 @@ message User {
 }
 
 message Device {
-    // globally unique uuid
-    string id = 1;
+    User user = 1;
+
+    // sequential ID under user
+    int64 id = 2;
 
     enum DeviceType {
         LINUX = 0;
@@ -28,7 +35,9 @@ message Device {
         ANDROID = 3;
         IOS = 4;
     }
-    DeviceType device_type = 2;
+    DeviceType device_type = 3;
+
+    string name = 4;
 }
 
 message Event {
@@ -37,7 +46,7 @@ message Event {
     // increasing id bound to device
     int64 id = 2;
 
-    Timestamp timestamp = 3;
+    Interval timeinterval = 3;
 
     oneof kind {
         AppSwitchEvent app_switch_event = 4;

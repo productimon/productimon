@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"database/sql"
-	"log"
+	"errors"
+	"fmt"
 	"io"
+	"log"
+
 	cpb "git.yiad.am/productimon/proto/common"
 	spb "git.yiad.am/productimon/proto/svc"
 	"golang.org/x/crypto/bcrypt"
@@ -77,31 +80,82 @@ func (s *service) UserDetails(ctx context.Context, req *cpb.Empty) (*spb.DataAgg
 	return ret, nil
 }
 
+// add a event to events table in a new transaction and return that transaction
+// no need to rollback tx if err != nil
+func (s *service) addGeneralEvent(uid string, did int, e *cpb.Event, kind cpb.EventType) (tx *sql.Tx, err error) {
+	tx, err = s.db.Begin()
+	if err != nil {
+		return
+	}
+	_, err = tx.Exec("INSERT INTO events (uid, did, id, kind, starttime, endtime) VALUES(?, ?, ?, ?, ?, ?)",
+		uid, did, e.Id, kind, e.Timeinterval.Start.Nanos, e.Timeinterval.End.Nanos)
+	if err != nil {
+		tx.Rollback()
+	}
+	return
+}
+
+func (s *service) AddEvent(uid string, did int, e *cpb.Event) error {
+	switch k := e.Kind.(type) {
+	case *cpb.Event_AppSwitchEvent:
+		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_APP_SWITCH_EVENT)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec("INSERT INTO app_switch_events(uid, did, id, app) VALUES(?, ?, ?, ?)",
+			uid, did, e.Id, k.AppSwitchEvent.AppName); err != nil {
+			tx.Rollback()
+			return err
+		}
+		tx.Commit()
+	case nil:
+		return errors.New("event not set")
+	default:
+		return fmt.Errorf("unknown event type %T", k)
+	}
+
+	return nil
+}
+
 func (s *service) PushEvent(server spb.DataAggregator_PushEventServer) error {
 	log.Println("Started pushEvent stream")
-	context := server.Context()
+	ctx := server.Context()
+	uid, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil {
+		return status.Errorf(codes.Unauthenticated, "Invalid token")
+	}
+	did := 0 // TODO: fill in device id
+
 	for {
 		select {
-		case <-context.Done():
-			return context.Err()
+		case <-ctx.Done():
+			return ctx.Err()
 		default:
 		}
 
 		event, err := server.Recv()
-		switch err {
-		case io.EOF:
+		switch {
+		case err == io.EOF:
 			log.Println("Client closed the stream, we're closing too")
 			return nil
-		case nil:
-		default:
+		case err != nil:
 			log.Printf("receive error %v", err)
 			continue
 		}
 		log.Printf("received event %v", event)
+
+		if err = s.AddEvent(uid, did, event); err != nil {
+			log.Printf("error adding event: %v", err)
+		}
 	}
 	return nil
 }
 
 func (s *service) GetEvent(req *spb.DataAggregatorGetEventRequest, server spb.DataAggregator_GetEventServer) error {
 	return nil
+}
+
+func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeRequest) (*spb.DataAggregatorGetTimeResponse, error) {
+	rsp := &spb.DataAggregatorGetTimeResponse{}
+	return rsp, nil
 }

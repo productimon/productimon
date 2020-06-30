@@ -3,12 +3,13 @@ package main
 import "C"
 import (
 	"context"
-	cpb "git.yiad.am/productimon/proto/common"
-	spb "git.yiad.am/productimon/proto/svc"
-	"google.golang.org/grpc"
 	"log"
 	"sync"
 	"time"
+
+	cpb "git.yiad.am/productimon/proto/common"
+	spb "git.yiad.am/productimon/proto/svc"
+	"google.golang.org/grpc"
 )
 
 const ChannelBufferSize = 4096
@@ -26,12 +27,28 @@ var (
 	nKeystrokes int64
 	statsMutex  sync.Mutex
 
+	eid      int64
+	eidMutex sync.Mutex
+
 	inputTrackingDone chan bool
 	reportInputStats  chan chan bool
 )
 
 func connectToServer(server string, creds *Credentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	return grpc.Dial(server, append([]grpc.DialOption{grpc.WithInsecure(), grpc.WithPerRPCCredentials(creds)}, opts...)...)
+}
+
+func nowInterval() *cpb.Interval {
+	ts := time.Now().UnixNano()
+	return &cpb.Interval{Start: &cpb.Timestamp{Nanos: ts}, End: &cpb.Timestamp{Nanos: ts}}
+}
+
+func getEid() (id int64) {
+	eidMutex.Lock()
+	eid++
+	id = eid
+	eidMutex.Unlock()
+	return
 }
 
 // TODO didn't thoroughly test all scenarios
@@ -144,10 +161,9 @@ func SendWindowSwitchEvent(programName *C.char) {
 	reportInputStats <- done
 	<-done // wait until input event has been sent
 	event := &cpb.Event{
-		Device:    &cpb.Device{Id: "test-dev", DeviceType: 0},
-		Id:        0,
-		Timestamp: &cpb.Timestamp{Nanos: time.Now().UnixNano()},
-		Kind:      &cpb.Event_AppSwitchEvent{&cpb.AppSwitchEvent{AppName: C.GoString(programName)}},
+		Id:           getEid(),
+		Timeinterval: nowInterval(),
+		Kind:         &cpb.Event_AppSwitchEvent{&cpb.AppSwitchEvent{AppName: C.GoString(programName)}},
 	}
 	// TODO do some magic here in case the channel buffer is full
 	eq <- event
@@ -159,10 +175,9 @@ func SendStartTrackingEvent() {
 	reportInputStats = make(chan chan bool)
 	go runInputTracking(reportInputStats, inputTrackingDone)
 	event := &cpb.Event{
-		Device:    &cpb.Device{Id: "test-dev", DeviceType: 0},
-		Id:        0,
-		Timestamp: &cpb.Timestamp{Nanos: time.Now().UnixNano()},
-		Kind:      &cpb.Event_StartTrackingEvent{},
+		Id:           getEid(),
+		Timeinterval: nowInterval(),
+		Kind:         &cpb.Event_StartTrackingEvent{},
 	}
 	eq <- event
 }
@@ -173,10 +188,9 @@ func SendStopTrackingEvent() {
 	reportInputStats <- done
 	<-done // wait until input event has been sent
 	event := &cpb.Event{
-		Device:    &cpb.Device{Id: "test-dev", DeviceType: 0},
-		Id:        0,
-		Timestamp: &cpb.Timestamp{Nanos: time.Now().UnixNano()},
-		Kind:      &cpb.Event_StopTrackingEvent{},
+		Id:           getEid(),
+		Timeinterval: nowInterval(),
+		Kind:         &cpb.Event_StopTrackingEvent{},
 	}
 	eq <- event
 	inputTrackingDone <- true
@@ -196,25 +210,23 @@ func HandleKeystroke() {
 	statsMutex.Unlock()
 }
 
-func sendInputStats(ts int64, duration int64) {
+func sendInputStats(start, end int64) {
 	statsMutex.Lock()
 	defer statsMutex.Unlock()
 	if nKeystrokes > 0 {
 		event := &cpb.Event{
-			Device:    &cpb.Device{Id: "test-dev", DeviceType: 0},
-			Id:        0,
-			Timestamp: &cpb.Timestamp{Nanos: ts},
-			Kind:      &cpb.Event_KeyStrokeEvent{&cpb.KeyStrokeEvent{Duration: duration, Keystrokes: nKeystrokes}},
+			Id:           getEid(),
+			Timeinterval: &cpb.Interval{Start: &cpb.Timestamp{Nanos: start}, End: &cpb.Timestamp{Nanos: end}},
+			Kind:         &cpb.Event_KeyStrokeEvent{&cpb.KeyStrokeEvent{Keystrokes: nKeystrokes}},
 		}
 		eq <- event
 		nKeystrokes = 0
 	}
 	if nClicks > 0 {
 		event := &cpb.Event{
-			Device:    &cpb.Device{Id: "test-dev", DeviceType: 0},
-			Id:        0,
-			Timestamp: &cpb.Timestamp{Nanos: ts},
-			Kind:      &cpb.Event_MouseClickEvent{&cpb.MouseClickEvent{Duration: duration, Mouseclicks: nClicks}},
+			Id:           getEid(),
+			Timeinterval: &cpb.Interval{Start: &cpb.Timestamp{Nanos: start}, End: &cpb.Timestamp{Nanos: end}},
+			Kind:         &cpb.Event_MouseClickEvent{&cpb.MouseClickEvent{Mouseclicks: nClicks}},
 		}
 		eq <- event
 		nClicks = 0
@@ -229,14 +241,14 @@ func runInputTracking(reportInputStats chan chan bool, finish chan bool) {
 		case <-finish:
 			break
 		case done := <-reportInputStats:
-			duration := time.Now().UnixNano() - start
-			sendInputStats(start, duration)
+			end := time.Now().UnixNano()
+			sendInputStats(start, end)
 			done <- true
 			timer.Stop()
 			timer = time.NewTicker(MinInputReportingInterval) // restart the timer for new program
 		case <-timer.C:
-			duration := time.Now().UnixNano() - start
-			sendInputStats(start, duration)
+			end := time.Now().UnixNano()
+			sendInputStats(start, end)
 		}
 	}
 	timer.Stop()
