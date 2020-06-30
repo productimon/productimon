@@ -17,6 +17,8 @@
 
 #ifdef __linux__
 
+#define XCLIENTMESSAGE_MAGIC_STOP "Productimon is great"
+
 static Atom     active_window_prop;
 static Display *display;
 static Window   root_window;
@@ -148,7 +150,7 @@ static void *event_loop(UNUSED void *arg) {
 
     while (1) {
         XNextEvent(display, &event);
-        if (event.type == ClientMessage)
+        if (event.type == ClientMessage && memcmp(event.xclient.data.b, XCLIENTMESSAGE_MAGIC_STOP, 20) == 0)
             break;
         if (event.type == PropertyNotify &&
                 event.xproperty.atom == active_window_prop)
@@ -263,8 +265,9 @@ static void stop_tracking_impl(bool suspend) {
     XEvent event;
     memset(&event, 0, sizeof(event));
     event.type = ClientMessage;
-    /* length of data payload in the event, need this otherwise xlib will complain */
-    event.xclient.format = 32;
+    /* view event data as 20 bytes, need this otherwise xlib will complain */
+    event.xclient.format = 8;
+    memcpy(event.xclient.data.b, XCLIENTMESSAGE_MAGIC_STOP, 20);
     /* manually send a ClientMessage event to the root window
      * in case the tracking thread is blocked at XNextEvent */
     if(!XSendEvent(display, root_window, False, PropertyChangeMask, &event))
