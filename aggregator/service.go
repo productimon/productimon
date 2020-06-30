@@ -155,7 +155,95 @@ func (s *service) GetEvent(req *spb.DataAggregatorGetEventRequest, server spb.Da
 	return nil
 }
 
+func (s *service) getLabel(appname string) string {
+	// TODO: this needs to be fancy
+	return appname
+}
+
 func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeRequest) (*spb.DataAggregatorGetTimeResponse, error) {
+	uid, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
+	}
+	devices := req.GetDevices()
+	dFilter := ""
+	if len(devices) > 0 {
+		dFilter = " AND events.did IN ("
+		pfx := ""
+		for _, dev := range devices {
+			dFilter += fmt.Sprintf("%s%d", pfx, dev.Id)
+			pfx = ", "
+		}
+		dFilter += ")"
+	}
+	log.Println(dFilter)
+
+	intervals := req.GetIntervals()
+
+	var transform func(string) string
+
+	switch req.GroupBy {
+	case spb.DataAggregatorGetTimeRequest_APPLICATION:
+		transform = func(x string) string { return x }
+	case spb.DataAggregatorGetTimeRequest_LABEL:
+		transform = func(x string) string { return s.getLabel(x) }
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "i don't recognize that GroupBy param, is earth flat now?")
+	}
+
 	rsp := &spb.DataAggregatorGetTimeResponse{}
+
+	// TODO: optimize this terribly written code written at 3AM
+	//       that does not consider performance whatsoever
+	for _, in := range intervals {
+		rd := &spb.DataAggregatorGetTimeResponse_RangeData{Interval: in}
+		func() {
+			var sid, eid int64
+			if err := s.db.QueryRow("SELECT MIN(id), MAX(id) FROM events WHERE starttime >= ? AND endtime <= ? AND uid = ?"+dFilter, in.Start.Nanos, in.End.Nanos, uid).Scan(&sid, &eid); err != nil {
+				fmt.Println(err)
+				return
+			}
+			// TODO: remove mouse click and key stroke events from this
+			rows, err := s.db.Query("SELECT events.id, events.kind, events.starttime, events.endtime, app_switch_events.app FROM events LEFT JOIN app_switch_events ON app_switch_events.id = events.id AND app_switch_events.uid = events.uid AND app_switch_events.did = events.did WHERE events.id >= ? AND events.id <= ? AND events.uid = ?"+dFilter, sid-1, eid, uid)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			currApp := ""
+			lastTime := in.Start.Nanos
+			data := make(map[string]int64)
+			for rows.Next() {
+				var eid, ekind, estart, eend int64
+				var appname string
+				rows.Scan(&eid, &ekind, &estart, &eend, &appname)
+				if eend > lastTime {
+					if currApp != "" {
+						data[currApp] += eend - lastTime
+					}
+					lastTime = eend
+				}
+				if appname != "" {
+					currApp = transform(appname)
+				}
+			}
+			for k, v := range data {
+				switch req.GroupBy {
+				case spb.DataAggregatorGetTimeRequest_APPLICATION:
+					rd.Data = append(rd.Data, &spb.DataAggregatorGetTimeResponse_RangeData_DataPoint{
+						App:   k,
+						Label: s.getLabel(k),
+						Time:  v,
+					})
+				case spb.DataAggregatorGetTimeRequest_LABEL:
+					rd.Data = append(rd.Data, &spb.DataAggregatorGetTimeResponse_RangeData_DataPoint{
+						Label: k,
+						Time:  v,
+					})
+				}
+			}
+		}()
+		rsp.Data = append(rsp.Data, rd)
+	}
+
 	return rsp, nil
 }

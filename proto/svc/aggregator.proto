@@ -13,7 +13,8 @@ service DataAggregator {
     rpc PushEvent(stream common.Event)
         returns (DataAggregatorPushEventResponse);
     rpc GetEvent(DataAggregatorGetEventRequest) returns (stream common.Event);
-    rpc GetTime(DataAggregatorGetTimeRequest) returns (DataAggregatorGetTimeResponse);
+    rpc GetTime(DataAggregatorGetTimeRequest)
+        returns (DataAggregatorGetTimeResponse);
 }
 
 message DataAggregatorPingRequest {
@@ -91,8 +92,9 @@ message DataAggregatorGetTimeResponse {
     message RangeData {
         common.Interval interval = 1;
         message DataPoint {
-            string name = 1;  // either application or label name
-            int64 time = 2;   // nanoseconds in interval
+            string app = 1;  // only populated if group_by = APPLICATION
+            string label = 2;
+            int64 time = 3;  // nanoseconds in duration
         }
         repeated DataPoint data = 2;
     }
