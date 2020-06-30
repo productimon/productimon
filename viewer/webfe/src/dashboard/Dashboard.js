@@ -242,7 +242,7 @@ function Display() {
         <div>
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={8} lg={9}>
+              <Grid item xs={12} md={12} lg={12}>
                 <Paper className={fixedHeightPaperHistogram}>
                   <Histogram />
                 </Paper>
@@ -255,7 +255,7 @@ function Display() {
         <div>
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={12} lg={9}>
+              <Grid item xs={12} md={12} lg={12}>
                 <Paper className={classes.paper}>
                   <DisplayTable />
                 </Paper>
@@ -268,7 +268,7 @@ function Display() {
         <div>
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6} lg={9}>
+              <Grid item xs={12} md={12} lg={12}>
                 <Paper className={fixedHeightPaperPie}>
                   <DisplayPie />
                 </Paper>
@@ -281,12 +281,12 @@ function Display() {
         <div>
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6} lg={9}>
+              <Grid item xs={12} md={6} lg={6}>
                 <Paper className={fixedHeightPaperHistogram}>
                   <Histogram />
                 </Paper>
               </Grid>
-              <Grid item xs={12} md={6} lg={9}>
+              <Grid item xs={12} md={6} lg={6}>
                 <Paper className={fixedHeightPaperPie}>
                   <DisplayPie />
                 </Paper>

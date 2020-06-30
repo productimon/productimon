@@ -41,7 +41,6 @@ function createData(program, hours, label) {
 export default function DisplayTable() {
   const classes = useStyles();
 
-  var request = new DataAggregatorGetTimeRequest();
   const [rows, setRows] = React.useState([createData("init",1 ,3)]);
 
 
@@ -54,6 +53,7 @@ export default function DisplayTable() {
     interval.setStart(start);
     interval.setEnd(end);
 
+    const request = new DataAggregatorGetTimeRequest();
     /* Get time data for all device and all interval */
     request.setDevicesList([]);
     request.setIntervalsList([interval]);
