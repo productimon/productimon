@@ -108,6 +108,40 @@ func (s *service) AddEvent(uid string, did int, e *cpb.Event) error {
 			return err
 		}
 		tx.Commit()
+	case *cpb.Event_StartTrackingEvent:
+		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_START_TRACKING_EVENT)
+		if err != nil {
+			return err
+		}
+		tx.Commit()
+	case *cpb.Event_StopTrackingEvent:
+		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_STOP_TRACKING_EVENT)
+		if err != nil {
+			return err
+		}
+		tx.Commit()
+	case *cpb.Event_KeyStrokeEvent:
+		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_KEY_STROKE_EVENT)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec("INSERT INTO key_stroke_events(uid, did, id, keystrokes) VALUES(?, ?, ?, ?)",
+			uid, did, e.Id, k.KeyStrokeEvent.Keystrokes); err != nil {
+			tx.Rollback()
+			return err
+		}
+		tx.Commit()
+	case *cpb.Event_MouseClickEvent:
+		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_MOUSE_CLICK_EVENT)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec("INSERT INTO mouse_click_events(uid, did, id, mouseclicks) VALUES(?, ?, ?, ?)",
+			uid, did, e.Id, k.MouseClickEvent.Mouseclicks); err != nil {
+			tx.Rollback()
+			return err
+		}
+		tx.Commit()
 	case nil:
 		return errors.New("event not set")
 	default:
@@ -203,8 +237,7 @@ func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeReq
 				fmt.Println(err)
 				return
 			}
-			// TODO: remove mouse click and key stroke events from this
-			rows, err := s.db.Query("SELECT events.id, events.kind, events.starttime, events.endtime, app_switch_events.app FROM events LEFT JOIN app_switch_events ON app_switch_events.id = events.id AND app_switch_events.uid = events.uid AND app_switch_events.did = events.did WHERE events.id >= ? AND events.id <= ? AND events.uid = ?"+dFilter, sid-1, eid, uid)
+			rows, err := s.db.Query("SELECT events.id, events.kind, events.starttime, app_switch_events.app FROM events LEFT JOIN app_switch_events ON app_switch_events.id = events.id AND app_switch_events.uid = events.uid AND app_switch_events.did = events.did WHERE events.id >= ? AND events.id <= ? AND events.uid = ? AND events.kind IN (?,?,?)"+dFilter, sid-1, eid, uid, cpb.EventType_APP_SWITCH_EVENT, cpb.EventType_START_TRACKING_EVENT, cpb.EventType_STOP_TRACKING_EVENT)
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -213,17 +246,21 @@ func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeReq
 			lastTime := in.Start.Nanos
 			data := make(map[string]int64)
 			for rows.Next() {
-				var eid, ekind, estart, eend int64
+				var eid, ekind, etime int64
 				var appname string
-				rows.Scan(&eid, &ekind, &estart, &eend, &appname)
-				if eend > lastTime {
+				// for all event types we are interested, starttime=endtime
+				rows.Scan(&eid, &ekind, &etime, &appname)
+				if etime > lastTime {
 					if currApp != "" {
-						data[currApp] += eend - lastTime
+						data[currApp] += etime - lastTime
+						log.Printf("%s - %d - %d [%d ns]", currApp, lastTime, etime, etime-lastTime)
 					}
-					lastTime = eend
+					lastTime = etime
 				}
 				if appname != "" {
 					currApp = transform(appname)
+				} else {
+					currApp = ""
 				}
 			}
 			for k, v := range data {

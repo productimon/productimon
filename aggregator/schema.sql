@@ -35,5 +35,21 @@ CREATE TABLE app_switch_events (
   PRIMARY KEY(uid, did, id)
 );
 
+CREATE TABLE key_stroke_events (
+  uid CHAR(36) NOT NULL,
+  did INTEGER NOT NULL,
+  id INTEGER NOT NULL,
+  keystrokes INTEGER NOT NULL,
+  PRIMARY KEY(uid, did, id)
+);
+
+CREATE TABLE mouse_click_events (
+  uid CHAR(36) NOT NULL,
+  did INTEGER NOT NULL,
+  id INTEGER NOT NULL,
+  mouseclicks INTEGER NOT NULL,
+  PRIMARY KEY(uid, did, id)
+);
+
 INSERT INTO users VALUES('9e9b23c8-8cf1-4891-b201-5bc0467ba535','test@productimon.com','$2a$10$18SpmyR9yo4pegsfy/a1W.SuYTmgYSMNoNmuS0T9EQE6OQPh40rLK'); -- password: test
 INSERT INTO devices VALUES('9e9b23c8-8cf1-4891-b201-5bc0467ba535', 0, 'test device (Linux)', 1);
