@@ -180,6 +180,11 @@ void exit_tracking() {
 }
 
 int start_tracking(tracking_opt_t *opts) {
+    if (tracking_started) {
+        error("Tracking tracking_started already!\n");
+        return 1;
+    }
+
     // open connection to the X server
     display = XOpenDisplay(NULL);
     if (display == NULL) {
@@ -197,12 +202,6 @@ int start_tracking(tracking_opt_t *opts) {
 
     // get root window
     root_window = XDefaultRootWindow(display);
-
-
-    if (tracking_started) {
-        error("Tracking tracking_started already!\n");
-        return 1;
-    }
 
     tracking_opts = opts;
 
