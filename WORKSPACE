@@ -126,17 +126,11 @@ new_local_repository(
     path = "/usr/lib/x86_64-linux-gnu",
 )
 
-# local_repository(
-#    name = "rules_foreign_cc",
-#    path = "../rules_foreign_cc",
-# )
-
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
-
-git_repository(
+http_archive(
     name = "rules_foreign_cc",
-    commit = "2f8c9b999f68d225af195763d4c7f0e7bd63cd70",
-    remote = "https://github.com/Chester-P/rules_foreign_cc",
+    urls = ["https://github.com/Chester-P/rules_foreign_cc/archive/2f8c9b999f68d225af195763d4c7f0e7bd63cd70.tar.gz"],
+    sha256 = "7d96526be03eff25dde14c51fa6b1088f7f94f9c643082132ab0759addb8b363",
+    strip_prefix = "rules_foreign_cc-2f8c9b999f68d225af195763d4c7f0e7bd63cd70"
 )
 
 load("@rules_foreign_cc//:workspace_definitions.bzl", "rules_foreign_cc_dependencies")
