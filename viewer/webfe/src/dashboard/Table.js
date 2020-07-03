@@ -11,11 +11,14 @@ import Paper from '@material-ui/core/Paper';
 import Title from './Title';
 
 import { grpc } from '@improbable-eng/grpc-web';
-import { DataAggregatorGetTimeRequest, DataAggregatorGetTimeResponse } from 'productimon/proto/svc/aggregator_pb'
-import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service'
-import { Interval, Timestamp } from 'productimon/proto/common/common_pb'
+import {
+  DataAggregatorGetTimeRequest,
+  DataAggregatorGetTimeResponse,
+} from 'productimon/proto/svc/aggregator_pb';
+import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service';
+import { Interval, Timestamp } from 'productimon/proto/common/common_pb';
 
-import moment from 'moment'
+import moment from 'moment';
 
 /* format a timediff in nanoseconds to readable string */
 function humanizeDuration(nanoseconds) {
@@ -41,8 +44,7 @@ function createData(program, hours, label) {
 export default function DisplayTable() {
   const classes = useStyles();
 
-  const [rows, setRows] = React.useState([createData("init",1 ,3)]);
-
+  const [rows, setRows] = React.useState([createData('init', 1, 3)]);
 
   useEffect(() => {
     const interval = new Interval();
@@ -59,24 +61,34 @@ export default function DisplayTable() {
     request.setIntervalsList([interval]);
     request.setGroupBy(DataAggregatorGetTimeRequest.GroupBy.APPLICATION);
 
-    const token = window.localStorage.getItem("token");
+    const token = window.localStorage.getItem('token');
     grpc.unary(DataAggregator.GetTime, {
       host: '/rpc',
-      metadata: new grpc.Metadata({"Authorization": token}),
-      onEnd: ({status, statusMessage, headers, message}) => {
+      metadata: new grpc.Metadata({ Authorization: token }),
+      onEnd: ({ status, statusMessage, headers, message }) => {
         if (status != 0) {
-          console.error(`Error getting res, status ${status}: ${statusMessage}`);
+          console.error(
+            `Error getting res, status ${status}: ${statusMessage}`,
+          );
           return;
         }
-        setRows(message.getDataList()[0].getDataList()
-          .sort((a, b) => b.getTime() - a.getTime())
-          .map(data =>
-            createData(data.getApp(), humanizeDuration(data.getTime()), data.getLabel())));
+        setRows(
+          message
+            .getDataList()[0]
+            .getDataList()
+            .sort((a, b) => b.getTime() - a.getTime())
+            .map((data) =>
+              createData(
+                data.getApp(),
+                humanizeDuration(data.getTime()),
+                data.getLabel(),
+              ),
+            ),
+        );
       },
       request,
     });
   }, []);
-
 
   // TODO enable sort table by col
   return (
@@ -87,9 +99,7 @@ export default function DisplayTable() {
           <TableHead>
             <TableRow>
               <TableCell>
-                <TableSortLabel>
-                  Program Name
-                </TableSortLabel>
+                <TableSortLabel>Program Name</TableSortLabel>
               </TableCell>
               <TableCell>Time Spent</TableCell>
               <TableCell>Labels</TableCell>

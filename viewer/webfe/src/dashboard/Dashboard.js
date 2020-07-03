@@ -5,8 +5,8 @@ import {
   Route,
   Link,
   useRouteMatch,
-  useHistory
-} from "react-router-dom";
+  useHistory,
+} from 'react-router-dom';
 import clsx from 'clsx';
 import { makeStyles } from '@material-ui/core/styles';
 import CssBaseline from '@material-ui/core/CssBaseline';
@@ -28,8 +28,8 @@ import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
 import NotificationsIcon from '@material-ui/icons/Notifications';
 import ExitToAppIcon from '@material-ui/icons/ExitToApp';
 
-import Histogram from './Histogram'
-import DisplayTable from './Table'
+import Histogram from './Histogram';
+import DisplayTable from './Table';
 // DisplayPie causing runtime errors. Fix up then re-integrate
 // import DisplayPie from './Pie'
 
@@ -45,8 +45,8 @@ import PieChartIcon from '@material-ui/icons/PieChart';
 import TableChartIcon from '@material-ui/icons/TableChart';
 
 import { grpc } from '@improbable-eng/grpc-web';
-import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service'
-import { Empty } from 'productimon/proto/common/common_pb'
+import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service';
+import { Empty } from 'productimon/proto/common/common_pb';
 
 const drawerWidth = 240;
 
@@ -140,21 +140,21 @@ export default function Dashboard() {
 
   const redirectToLogin = () => {
     window.localStorage.clear();
-    history.push("/");
-  }
+    history.push('/');
+  };
 
   // redirect user to login page if unable to get user details
-  const token = window.localStorage.getItem("token");
+  const token = window.localStorage.getItem('token');
   const request = new Empty();
   if (!token) {
     redirectToLogin();
     // this return is needed to stop teh execution of the following code
-    return (<p>Redirecting to login...</p>);
+    return <p>Redirecting to login...</p>;
   }
   grpc.unary(DataAggregator.UserDetails, {
     host: '/rpc',
-    metadata: new grpc.Metadata({"Authorization": token}),
-    onEnd: ({status, statusMessage, headers, message}) => {
+    metadata: new grpc.Metadata({ Authorization: token }),
+    onEnd: ({ status, statusMessage, headers, message }) => {
       if (status != 0) {
         console.error('response ', status, statusMessage, headers, message);
         redirectToLogin();
@@ -162,11 +162,11 @@ export default function Dashboard() {
       }
       console.log(`Authenticated as ${message.getUser().getEmail()}`);
     },
-    request
+    request,
   });
 
   // state stores what page the main section displays is in, by default we start with dashboard
-  const [state, setState] = React.useState('dashboard')
+  const [state, setState] = React.useState('dashboard');
   const classes = useStyles();
   const [open, setOpen] = React.useState(true);
   const handleDrawerOpen = () => {
@@ -188,18 +188,31 @@ export default function Dashboard() {
   return (
     <div className={classes.root}>
       <CssBaseline />
-      <AppBar position="absolute" className={clsx(classes.appBar, open && classes.appBarShift)} style={{backgroundColor: '#484848'}}>
+      <AppBar
+        position="absolute"
+        className={clsx(classes.appBar, open && classes.appBarShift)}
+        style={{ backgroundColor: '#484848' }}
+      >
         <Toolbar className={classes.toolbar}>
           <IconButton
             edge="start"
             color="inherit"
             aria-label="open drawer"
             onClick={handleDrawerOpen}
-            className={clsx(classes.menuButton, open && classes.menuButtonHidden)}
+            className={clsx(
+              classes.menuButton,
+              open && classes.menuButtonHidden,
+            )}
           >
             <MenuIcon />
           </IconButton>
-          <Typography component="h1" variant="h6" color="inherit" noWrap className={classes.title}>
+          <Typography
+            component="h1"
+            variant="h6"
+            color="inherit"
+            noWrap
+            className={classes.title}
+          >
             Productimon
           </Typography>
           <Menu
@@ -213,10 +226,14 @@ export default function Dashboard() {
             <MenuItem onClick={redirectToLogin}>Logout</MenuItem>
           </Menu>
 
-          <Typography aria-controls="account-menu" aria-haspopup="true" onClick={handleClick} style={{ textAlign: 'right', color: 'white' }} >
+          <Typography
+            aria-controls="account-menu"
+            aria-haspopup="true"
+            onClick={handleClick}
+            style={{ textAlign: 'right', color: 'white' }}
+          >
             Account
           </Typography>
-
         </Toolbar>
       </AppBar>
 
@@ -234,29 +251,53 @@ export default function Dashboard() {
         </div>
         <Divider />
         <List>
-          <MenuItem button component={Link} to='/dashboard' onClick={() => setState('dashboard')} selected={state=='dashboard'}>
+          <MenuItem
+            button
+            component={Link}
+            to="/dashboard"
+            onClick={() => setState('dashboard')}
+            selected={state == 'dashboard'}
+          >
             <ListItemIcon>
               <DashboardIcon />
             </ListItemIcon>
             <ListItemText primary="Dashboard" />
           </MenuItem>
-          <MenuItem button component={Link} to='/dashboard/histogram' onClick={() => setState('histogram')} selected={state=='histogram'}>
+          <MenuItem
+            button
+            component={Link}
+            to="/dashboard/histogram"
+            onClick={() => setState('histogram')}
+            selected={state == 'histogram'}
+          >
             <ListItemIcon>
               <BarChartIcon />
             </ListItemIcon>
             <ListItemText primary="Histogram" />
           </MenuItem>
-          <MenuItem button component={Link} to='/dashboard/pie' onClick={() => setState('pie')}selected={state=='pie'}>
+          <MenuItem
+            button
+            component={Link}
+            to="/dashboard/pie"
+            onClick={() => setState('pie')}
+            selected={state == 'pie'}
+          >
             <ListItemIcon>
               <PieChartIcon />
             </ListItemIcon>
-            <ListItemText primary="Pie Chart"/>
+            <ListItemText primary="Pie Chart" />
           </MenuItem>
-          <MenuItem button component={Link} to='/dashboard/table' onClick={() => setState('table')} selected={state=='table'}>
+          <MenuItem
+            button
+            component={Link}
+            to="/dashboard/table"
+            onClick={() => setState('table')}
+            selected={state == 'table'}
+          >
             <ListItemIcon>
               <TableChartIcon />
             </ListItemIcon>
-            <ListItemText primary="Table"/>
+            <ListItemText primary="Table" />
           </MenuItem>
         </List>
         <Divider />
@@ -266,7 +307,6 @@ export default function Dashboard() {
         <div className={classes.appBarSpacer} />
 
         <Display />
-
       </main>
     </div>
   );
@@ -276,7 +316,10 @@ function Display() {
   const classes = useStyles();
 
   const fixedHeightPaperTable = clsx(classes.paper, classes.fixedHeightTable);
-  const fixedHeightPaperHistogram = clsx(classes.paper, classes.fixedHeightHistogram);
+  const fixedHeightPaperHistogram = clsx(
+    classes.paper,
+    classes.fixedHeightHistogram,
+  );
   const fixedHeightPaperPie = clsx(classes.paper, classes.fixedHeightPie);
 
   let match = useRouteMatch();
@@ -310,8 +353,7 @@ function Display() {
         </div>
       </Route>
       // pie-chart is temporarily disabled due to runtime errors
-      <Route path="/dashboard/pie">
-      </Route>
+      <Route path="/dashboard/pie"></Route>
       <Route path="/">
         <div>
           <Container maxWidth="lg" className={classes.container}>
@@ -331,6 +373,5 @@ function Display() {
         </div>
       </Route>
     </Switch>
-
   );
 }

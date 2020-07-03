@@ -13,16 +13,16 @@ import {
   Switch,
   Route,
   Link as RouterLink,
-  useHistory
-} from "react-router-dom";
+  useHistory,
+} from 'react-router-dom';
 
 import { grpc } from '@improbable-eng/grpc-web';
-import { User } from 'productimon/proto/common/common_pb'
-import { DataAggregatorSignupRequest } from 'productimon/proto/svc/aggregator_pb'
-import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service'
+import { User } from 'productimon/proto/common/common_pb';
+import { DataAggregatorSignupRequest } from 'productimon/proto/svc/aggregator_pb';
+import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service';
 
 import ReactDOM from 'react-dom';
-import TopMenu from '../core/TopMenu'
+import TopMenu from '../core/TopMenu';
 import SignIn from './SignIn';
 
 const useStyles = makeStyles((theme) => ({
@@ -48,16 +48,16 @@ const useStyles = makeStyles((theme) => ({
 export default function SignUp() {
   const classes = useStyles();
 
-  const [username, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
+  const [username, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
 
-  const handleChange = function(e, setter) {
+  const handleChange = function (e, setter) {
     setter(e.target.value);
-  }
+  };
 
   const history = useHistory();
 
-  const doSignup = function(e) {
+  const doSignup = function (e) {
     e.preventDefault();
 
     const request = new DataAggregatorSignupRequest();
@@ -67,24 +67,23 @@ export default function SignUp() {
     request.setUser(user);
     grpc.unary(DataAggregator.Signup, {
       host: '/rpc',
-      onEnd: ({status, statusMessage, headers, message}) => {
+      onEnd: ({ status, statusMessage, headers, message }) => {
         if (status != 0) {
           alert(statusMessage);
           console.error('response ', status, statusMessage, headers, message);
           return;
         }
-        window.localStorage.setItem("token", message.getToken());
-        history.push("/dashboard");
+        window.localStorage.setItem('token', message.getToken());
+        history.push('/dashboard');
       },
       request,
     });
-  }
+  };
 
   return (
     <Container component="main" maxWidth="xs">
       <TopMenu />
       <div className={classes.paper}>
-
         <Avatar className={classes.avatar}>
           <LockOutlinedIcon />
         </Avatar>
@@ -100,7 +99,7 @@ export default function SignUp() {
             fullWidth
             label="Email Address"
             autoFocus
-            onChange={e => handleChange(e, setEmail)}
+            onChange={(e) => handleChange(e, setEmail)}
           />
           <TextField
             variant="outlined"
@@ -109,7 +108,7 @@ export default function SignUp() {
             fullWidth
             label="Password"
             type="password"
-            onChange={e => handleChange(e, setPassword)}
+            onChange={(e) => handleChange(e, setPassword)}
           />
           <Button
             type="submit"

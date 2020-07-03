@@ -7,11 +7,13 @@
 This bundles the frontend as well.
 
 **prod build** (minified js)
+
 ```
 bazel build //aggregator
 ```
 
 **dev build** (unminified js with sourcemap, ~10MB)
+
 ```
 bazel build -c dbg //aggregator
 ```
@@ -20,7 +22,7 @@ bazel build -c dbg //aggregator
 
 ```
 sqlite3 db.sqlite3 < schema.sql
-````
+```
 
 ### init jwt token
 
@@ -30,9 +32,11 @@ openssl rsa -in jwtRS256.key -pubout -outform PEM -out jwtRS256.key.pub
 ```
 
 ### run
+
 ```
 bazel-bin/aggregator/aggregator_/aggregator --help
 ```
+
 Visit `http://127.0.0.1:4201/`
 
 ## testing

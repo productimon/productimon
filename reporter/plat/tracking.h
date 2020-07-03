@@ -1,8 +1,8 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdbool.h>
 
 #define UNUSED __attribute__((unused))
 
@@ -15,9 +15,9 @@
 #endif
 
 typedef struct tracking_opt {
-    uint8_t foreground_program : 1;
-    uint8_t mouse_click : 1;
-    uint8_t keystroke : 1;
+  uint8_t foreground_program : 1;
+  uint8_t mouse_click : 1;
+  uint8_t keystroke : 1;
 } tracking_opt_t;
 
 int init_tracking();

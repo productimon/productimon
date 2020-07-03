@@ -1,12 +1,25 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTheme } from '@material-ui/core/styles';
-import {BarChart, Bar, CartesianGrid, XAxis, YAxis, Label, ResponsiveContainer, Tooltip, Legend} from 'recharts';
+import {
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Label,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+} from 'recharts';
 import Title from './Title';
 
 import { grpc } from '@improbable-eng/grpc-web';
-import { DataAggregatorGetTimeRequest, DataAggregatorGetTimeResponse } from 'productimon/proto/svc/aggregator_pb'
-import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service'
-import { Interval, Timestamp } from 'productimon/proto/common/common_pb'
+import {
+  DataAggregatorGetTimeRequest,
+  DataAggregatorGetTimeResponse,
+} from 'productimon/proto/svc/aggregator_pb';
+import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service';
+import { Interval, Timestamp } from 'productimon/proto/common/common_pb';
 
 function last10MinIntervals() {
   const gap = 60 * 10 ** 9;
@@ -28,29 +41,38 @@ function last10MinIntervals() {
 }
 
 function formatNanoTS(ts) {
-  const date = new Date(ts / 10 ** 6)
+  const date = new Date(ts / 10 ** 6);
   return `${date.getHours()}:${date.getMinutes()}`;
 }
 
 function transformRange(data) {
   const dataPoints = data.getDataList();
   const ret = {
-    time: formatNanoTS(data.getInterval().getStart())
+    time: formatNanoTS(data.getInterval().getStart()),
   };
-  dataPoints.forEach(point => {
+  dataPoints.forEach((point) => {
     // TODO convert it to a proper unit
     // always using seconds for now
     ret[point.getLabel()] = point.getTime() / 10 ** 9;
-  })
+  });
   return ret;
 }
 
 function getUniqLabels(response) {
-  return response.getDataList().reduce((result, range) =>
-    [...result, range.getDataList().reduce((labels, datapoint) =>
-      [...labels, datapoint.getLabel()], [])], [])
-      .reduce((result, arr) => [...result, ...arr], [])
-      .filter((v, i, a) => a.indexOf(v) === i).sort();
+  return response
+    .getDataList()
+    .reduce(
+      (result, range) => [
+        ...result,
+        range
+          .getDataList()
+          .reduce((labels, datapoint) => [...labels, datapoint.getLabel()], []),
+      ],
+      [],
+    )
+    .reduce((result, arr) => [...result, ...arr], [])
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .sort();
 }
 
 const labelColorMap = new Map();
@@ -79,13 +101,15 @@ export default function Histogram() {
     request.setIntervalsList(intervals);
     request.setGroupBy(DataAggregatorGetTimeRequest.GroupBy.LABEL);
 
-    const token = window.localStorage.getItem("token");
+    const token = window.localStorage.getItem('token');
     grpc.unary(DataAggregator.GetTime, {
       host: '/rpc',
-      metadata: new grpc.Metadata({"Authorization": token}),
-      onEnd: ({status, statusMessage, headers, message}) => {
+      metadata: new grpc.Metadata({ Authorization: token }),
+      onEnd: ({ status, statusMessage, headers, message }) => {
         if (status != 0) {
-          console.error(`Error getting res, status ${status}: ${statusMessage}`);
+          console.error(
+            `Error getting res, status ${status}: ${statusMessage}`,
+          );
           return;
         }
         setDataKeys(getUniqLabels(message));
@@ -113,10 +137,14 @@ export default function Histogram() {
           <YAxis />
           {/* <Tooltip /> */}
           <Legend />
-          {dataKeys.map(
-            (label, index) =>
-              <Bar key={index} dataKey={label} stackId="a" fill={getLabelColor(label)} />
-          )}
+          {dataKeys.map((label, index) => (
+            <Bar
+              key={index}
+              dataKey={label}
+              stackId="a"
+              fill={getLabelColor(label)}
+            />
+          ))}
         </BarChart>
       </ResponsiveContainer>
     </React.Fragment>

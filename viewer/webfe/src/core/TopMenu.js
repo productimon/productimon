@@ -79,9 +79,15 @@ export default function TopMenu() {
   return (
     <div>
       <CssBaseline />
-      <AppBar position="absolute" style={{backgroundColor: "brown"}}>
+      <AppBar position="absolute" style={{ backgroundColor: 'brown' }}>
         <Toolbar className={classes.toolbar}>
-          <Typography component="h1" variant="h6" color="inherit" noWrap className={classes.title}>
+          <Typography
+            component="h1"
+            variant="h6"
+            color="inherit"
+            noWrap
+            className={classes.title}
+          >
             Productimon
           </Typography>
         </Toolbar>
@@ -89,4 +95,3 @@ export default function TopMenu() {
     </div>
   );
 }
-

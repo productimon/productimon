@@ -9,6 +9,7 @@ gazelle(
 buildifier(
     name = "buildifier",
     exclude_patterns = [
+        "./bazel-*/*",
         "/node_modules/*",
     ],
     lint_mode = "fix",

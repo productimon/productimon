@@ -1,317 +1,311 @@
 #include "reporter/plat/tracking.h"
 
 // TODO check for mem leaks
+#include <X11/XKBlib.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <X11/XKBlib.h>
 #include <X11/extensions/XInput2.h>
+#include <pthread.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <time.h>
-#include <pthread.h>
 
-#include "reporter/core/core.h"
 #include "inhibit.h"
+#include "reporter/core/core.h"
 
 #ifdef __linux__
 
 #define XCLIENTMESSAGE_MAGIC_STOP "Productimon is great"
 
-static Atom     active_window_prop;
+static Atom active_window_prop;
 static Display *display;
-static Window   root_window;
+static Window root_window;
 
-static volatile bool    tracking_started = false;
-static pthread_t        tracking_thread;
-static tracking_opt_t  *tracking_opts;
-static pthread_mutex_t  tracking_mutex;
+static volatile bool tracking_started = false;
+static pthread_t tracking_thread;
+static tracking_opt_t *tracking_opts;
+static pthread_mutex_t tracking_mutex;
 
-static int              xi_major_opcode;
+static int xi_major_opcode;
 
 static void suspend_tracking();
 static void resume_tracking();
 
 static int xlib_error_handler(Display *display, XErrorEvent *event) {
-    char buf[256];
-    XGetErrorText(display, event->type, buf, 256);
-    error("xlib error: %s\n", buf);
-    XCloseDisplay(display);
-    exit(1);
+  char buf[256];
+  XGetErrorText(display, event->type, buf, 256);
+  error("xlib error: %s\n", buf);
+  XCloseDisplay(display);
+  exit(1);
 }
 
-static int get_current_window_name(Display *display, Window root,
-        char *buf, int size) {
-    Atom actual_type_ret;
-    int actual_format_ret;
-    unsigned long nitems_return;
-    unsigned long bytes_after_return;
-    unsigned char *prop_return;
+static int get_current_window_name(Display *display, Window root, char *buf,
+                                   int size) {
+  Atom actual_type_ret;
+  int actual_format_ret;
+  unsigned long nitems_return;
+  unsigned long bytes_after_return;
+  unsigned char *prop_return;
 
-    /* Get current active window's ID */
-    int ret = XGetWindowProperty(display, root, active_window_prop,
-            0, 4, 0, AnyPropertyType, &actual_type_ret,
-            &actual_format_ret, &nitems_return, &bytes_after_return,
-            &prop_return);
+  /* Get current active window's ID */
+  int ret =
+      XGetWindowProperty(display, root, active_window_prop, 0, 4, 0,
+                         AnyPropertyType, &actual_type_ret, &actual_format_ret,
+                         &nitems_return, &bytes_after_return, &prop_return);
 
-    if (ret || actual_format_ret != 32 || nitems_return != 1) {
-        debug("atom returned %s\n", XGetAtomName(display, actual_type_ret));
-        error("Failed to get active window\n");
-        return -1;
-    }
-    /* debug("fmt ret: %d, %lu items, %lu bytes remains, prop @ %p\n", */
-    /*         actual_format_ret, nitems_return, bytes_after_return,
-     *         prop_return); */
+  if (ret || actual_format_ret != 32 || nitems_return != 1) {
+    debug("atom returned %s\n", XGetAtomName(display, actual_type_ret));
+    error("Failed to get active window\n");
+    return -1;
+  }
+  /* debug("fmt ret: %d, %lu items, %lu bytes remains, prop @ %p\n", */
+  /*         actual_format_ret, nitems_return, bytes_after_return,
+   *         prop_return); */
 
-    Window active_window = *(Window *) prop_return;
-    debug("Got active window ID 0x%lX\n", active_window);
-    XFree(prop_return);
+  Window active_window = *(Window *)prop_return;
+  debug("Got active window ID 0x%lX\n", active_window);
+  XFree(prop_return);
 
-    if (active_window == 0) {
-        strncpy(buf, "Desktop", size);
-        return 0;
-    }
-
-    /* Get its WM_CLASS class name */
-    XClassHint class_hint;
-    XGetClassHint(display, active_window, &class_hint);
-    debug("WM_CLASS: %s\n", class_hint.res_class);
-    snprintf(buf, size, "%s", class_hint.res_class);
-    XFree(class_hint.res_name);
-    XFree(class_hint.res_class);
+  if (active_window == 0) {
+    strncpy(buf, "Desktop", size);
     return 0;
+  }
+
+  /* Get its WM_CLASS class name */
+  XClassHint class_hint;
+  XGetClassHint(display, active_window, &class_hint);
+  debug("WM_CLASS: %s\n", class_hint.res_class);
+  snprintf(buf, size, "%s", class_hint.res_class);
+  XFree(class_hint.res_name);
+  XFree(class_hint.res_class);
+  return 0;
 }
 
 static void handle_window_change(Display *display, Window window) {
-    static char prog_name[512] = {0};
-    char new_prog_name[512];
+  static char prog_name[512] = {0};
+  char new_prog_name[512];
 
-    get_current_window_name(display, window, new_prog_name, 512);
+  get_current_window_name(display, window, new_prog_name, 512);
 
-    /* no need to report anything if still using the same program */
-    if (!strcmp(new_prog_name, prog_name))
-        return;
+  /* no need to report anything if still using the same program */
+  if (!strcmp(new_prog_name, prog_name)) return;
 
-    strcpy(prog_name, new_prog_name);
+  strcpy(prog_name, new_prog_name);
 
-    SendWindowSwitchEvent(prog_name);
+  SendWindowSwitchEvent(prog_name);
 }
 
 static int check_x_input_lib(Display *display) {
-    int unused1, unused2;
-    xi_major_opcode = 0;
-    if (!XQueryExtension(display, "XInputExtension",
-                &xi_major_opcode, &unused1, &unused2)) {
-        error("X Input extension not available\n");
-        return 1;
-    }
-    /* request XI 2.0 */
-    int major = 2, minor = 0;
-    int queryResult = XIQueryVersion(display, &major, &minor);
-    if (queryResult == BadRequest) {
-        error("Need X Input 2.0 (got %d.%d)\n", major, minor);
-        return 1;
-    } else if (queryResult != Success) {
-        error("XIQueryVersion failed\n");
-        return 1;
-    }
-    debug("X Input Extension (%d.%d)\n", major, minor);
-    return 0;
+  int unused1, unused2;
+  xi_major_opcode = 0;
+  if (!XQueryExtension(display, "XInputExtension", &xi_major_opcode, &unused1,
+                       &unused2)) {
+    error("X Input extension not available\n");
+    return 1;
+  }
+  /* request XI 2.0 */
+  int major = 2, minor = 0;
+  int queryResult = XIQueryVersion(display, &major, &minor);
+  if (queryResult == BadRequest) {
+    error("Need X Input 2.0 (got %d.%d)\n", major, minor);
+    return 1;
+  } else if (queryResult != Success) {
+    error("XIQueryVersion failed\n");
+    return 1;
+  }
+  debug("X Input Extension (%d.%d)\n", major, minor);
+  return 0;
 }
 
 static void *event_loop(UNUSED void *arg) {
-    debug("Starting tracking with opts: %d|%d|%d (prog|mouse|key)\n",
-            tracking_opts->foreground_program, tracking_opts->mouse_click,
-            tracking_opts->keystroke);
+  debug("Starting tracking with opts: %d|%d|%d (prog|mouse|key)\n",
+        tracking_opts->foreground_program, tracking_opts->mouse_click,
+        tracking_opts->keystroke);
 
-    SendStartTrackingEvent();
+  SendStartTrackingEvent();
 
-    long event_mask = 0;
-    if (tracking_opts->foreground_program) {
-        // receive property change events
-        event_mask |= PropertyChangeMask;
-        XSelectInput(display, root_window, event_mask);
+  long event_mask = 0;
+  if (tracking_opts->foreground_program) {
+    // receive property change events
+    event_mask |= PropertyChangeMask;
+    XSelectInput(display, root_window, event_mask);
+  }
+
+  XIEventMask xi_event_mask;
+  if (tracking_opts->keystroke || tracking_opts->mouse_click) {
+    unsigned char xi_mask_val[(XI_LASTEVENT + 7 / 8)] = {0};
+    xi_event_mask.deviceid = XIAllMasterDevices;
+    xi_event_mask.mask_len = sizeof(xi_mask_val);
+    xi_event_mask.mask = xi_mask_val;
+    XISetMask(xi_mask_val, XI_RawKeyPress);
+    XISetMask(xi_mask_val, XI_RawButtonPress);
+    XISelectEvents(display, root_window, &xi_event_mask, 1);
+  }
+
+  XEvent event;
+  XGenericEventCookie *cookie = (XGenericEventCookie *)&event.xcookie;
+
+  while (1) {
+    XNextEvent(display, &event);
+    if (event.type == ClientMessage &&
+        memcmp(event.xclient.data.b, XCLIENTMESSAGE_MAGIC_STOP, 20) == 0)
+      break;
+    if (event.type == PropertyNotify &&
+        event.xproperty.atom == active_window_prop)
+      handle_window_change(display, root_window);
+    if (XGetEventData(display, cookie) && cookie->type == GenericEvent &&
+        cookie->extension == xi_major_opcode) {
+      if (cookie->evtype == XI_RawKeyPress) {
+        HandleKeystroke();
+        // TODO bug: seems to be reporting as soon as we click
+        // probs related to go routine's timer ticker??
+      } else if (cookie->evtype == XI_RawButtonPress) {
+        HandleMouseClick();
+        // TODO bug: seems to be reporting as soon as we click
+      }
     }
+  }
 
-    XIEventMask xi_event_mask;
-    if (tracking_opts->keystroke || tracking_opts->mouse_click) {
-        unsigned char xi_mask_val[(XI_LASTEVENT + 7 / 8)] = {0};
-        xi_event_mask.deviceid = XIAllMasterDevices;
-        xi_event_mask.mask_len = sizeof(xi_mask_val);
-        xi_event_mask.mask = xi_mask_val;
-        XISetMask(xi_mask_val, XI_RawKeyPress);
-        XISetMask(xi_mask_val, XI_RawButtonPress);
-        XISelectEvents(display, root_window, &xi_event_mask, 1);
-    }
-
-    XEvent event;
-    XGenericEventCookie *cookie = (XGenericEventCookie*)&event.xcookie;
-
-    while (1) {
-        XNextEvent(display, &event);
-        if (event.type == ClientMessage && memcmp(event.xclient.data.b, XCLIENTMESSAGE_MAGIC_STOP, 20) == 0)
-            break;
-        if (event.type == PropertyNotify &&
-                event.xproperty.atom == active_window_prop)
-            handle_window_change(display, root_window);
-        if (XGetEventData(display, cookie) &&
-                cookie->type == GenericEvent &&
-                cookie->extension == xi_major_opcode) {
-            if (cookie->evtype == XI_RawKeyPress) {
-                HandleKeystroke();
-                // TODO bug: seems to be reporting as soon as we click
-                // probs related to go routine's timer ticker??
-            } else if (cookie->evtype == XI_RawButtonPress) {
-                HandleMouseClick();
-                // TODO bug: seems to be reporting as soon as we click
-            }
-        }
-    }
-
-    SendStopTrackingEvent();
-    return NULL;
+  SendStopTrackingEvent();
+  return NULL;
 }
 
 int init_tracking() {
-    if (strcmp(getenv("XDG_SESSION_TYPE"), "x11")) {
-        error("Not using x11 as display server, tracking may not be accurate\n");
-    }
-    XSetErrorHandler(xlib_error_handler);
-    return 0;
+  if (strcmp(getenv("XDG_SESSION_TYPE"), "x11")) {
+    error("Not using x11 as display server, tracking may not be accurate\n");
+  }
+  XSetErrorHandler(xlib_error_handler);
+  return 0;
 }
 
-void exit_tracking() {
-}
+void exit_tracking() {}
 
 static int start_tracking_impl(tracking_opt_t *opts, bool inhibit) {
-    pthread_mutex_lock(&tracking_mutex);
-    if (inhibit && tracking_started) {
-        error("Tracking tracking_started already!\n");
-        goto exit_error;
-    }
+  pthread_mutex_lock(&tracking_mutex);
+  if (inhibit && tracking_started) {
+    error("Tracking tracking_started already!\n");
+    goto exit_error;
+  }
 
-    // open connection to the X server
-    display = XOpenDisplay(NULL);
-    if (display == NULL) {
-        error("Cannot open connection to X server\n");
-        goto exit_error;
-    }
+  // open connection to the X server
+  display = XOpenDisplay(NULL);
+  if (display == NULL) {
+    error("Cannot open connection to X server\n");
+    goto exit_error;
+  }
 
-    if (check_x_input_lib(display)) {
-        xi_major_opcode = 0;
-        error("X Input not available, no mouse/key tracking\n");
-    }
+  if (check_x_input_lib(display)) {
+    xi_major_opcode = 0;
+    error("X Input not available, no mouse/key tracking\n");
+  }
 
-    // init Atoms
-    active_window_prop = XInternAtom(display, "_NET_ACTIVE_WINDOW", 0);
+  // init Atoms
+  active_window_prop = XInternAtom(display, "_NET_ACTIVE_WINDOW", 0);
 
-    // get root window
-    root_window = XDefaultRootWindow(display);
+  // get root window
+  root_window = XDefaultRootWindow(display);
 
-    tracking_opts = opts;
+  tracking_opts = opts;
 
-    if (!(opts->foreground_program || opts->mouse_click || opts->keystroke)) {
-        debug("Nothing to be tracked, not doing anything\n");
-        goto exit_success;
-    }
+  if (!(opts->foreground_program || opts->mouse_click || opts->keystroke)) {
+    debug("Nothing to be tracked, not doing anything\n");
+    goto exit_success;
+  }
 
+  if ((opts->mouse_click || opts->keystroke) && !xi_major_opcode) {
+    error("Requested mouse/key stats but X input lib not available!\n");
+    opts->mouse_click = false;
+    opts->keystroke = false;
+  }
 
-    if ((opts->mouse_click || opts->keystroke) && !xi_major_opcode) {
-        error("Requested mouse/key stats but X input lib not available!\n");
-        opts->mouse_click = false;
-        opts->keystroke = false;
-    }
+  tracking_started = true;
 
-    tracking_started = true;
+  if (inhibit &&
+      init_inhibit(&tracking_started, suspend_tracking, resume_tracking)) {
+    tracking_started = false;
+    goto exit_error;
+  }
 
-    if (inhibit && init_inhibit(&tracking_started, suspend_tracking, resume_tracking)) {
-        tracking_started = false;
-        goto exit_error;
-    }
-
-    int ret = pthread_create(&tracking_thread, NULL, event_loop, display);
-    if (ret) {
-        perror("Cannot create the tracking thread");
-        tracking_started = false;
-        if (inhibit)
-            wait_inhibit_cleanup();
-        goto exit_error;
-    }
-    printf("Tracking started\n");
+  int ret = pthread_create(&tracking_thread, NULL, event_loop, display);
+  if (ret) {
+    perror("Cannot create the tracking thread");
+    tracking_started = false;
+    if (inhibit) wait_inhibit_cleanup();
+    goto exit_error;
+  }
+  printf("Tracking started\n");
 
 exit_success:
-    pthread_mutex_unlock(&tracking_mutex);
-    return 0;
+  pthread_mutex_unlock(&tracking_mutex);
+  return 0;
 
 exit_error:
-    pthread_mutex_unlock(&tracking_mutex);
-    return 1;
+  pthread_mutex_unlock(&tracking_mutex);
+  return 1;
 }
 
 static void stop_tracking_impl(bool suspend) {
-    pthread_mutex_lock(&tracking_mutex);
-    if (!tracking_started) {
-        error("Tracking not started, not doing anything\n");
-        goto exit;
-    }
-    debug("Stopping tracking\n");
+  pthread_mutex_lock(&tracking_mutex);
+  if (!tracking_started) {
+    error("Tracking not started, not doing anything\n");
+    goto exit;
+  }
+  debug("Stopping tracking\n");
 
-    if (!suspend) {
-        tracking_started = false;
-        wait_inhibit_cleanup();
-    }
+  if (!suspend) {
+    tracking_started = false;
+    wait_inhibit_cleanup();
+  }
 
-    XEvent event;
-    memset(&event, 0, sizeof(event));
-    event.type = ClientMessage;
-    /* view event data as 20 bytes, need this otherwise xlib will complain */
-    event.xclient.format = 8;
-    memcpy(event.xclient.data.b, XCLIENTMESSAGE_MAGIC_STOP, 20);
-    /* manually send a ClientMessage event to the root window
-     * in case the tracking thread is blocked at XNextEvent */
-    if(!XSendEvent(display, root_window, False, PropertyChangeMask, &event))
-        error("Failed to send event to root_window "
-                "to unblock the tracking thread\n");
-    XFlush(display);
+  XEvent event;
+  memset(&event, 0, sizeof(event));
+  event.type = ClientMessage;
+  /* view event data as 20 bytes, need this otherwise xlib will complain */
+  event.xclient.format = 8;
+  memcpy(event.xclient.data.b, XCLIENTMESSAGE_MAGIC_STOP, 20);
+  /* manually send a ClientMessage event to the root window
+   * in case the tracking thread is blocked at XNextEvent */
+  if (!XSendEvent(display, root_window, False, PropertyChangeMask, &event))
+    error(
+        "Failed to send event to root_window "
+        "to unblock the tracking thread\n");
+  XFlush(display);
 
-    int ret = pthread_join(tracking_thread, NULL);
-    if (ret) {
-        perror("Cannot join the tracking thread");
-        goto exit;
-    }
+  int ret = pthread_join(tracking_thread, NULL);
+  if (ret) {
+    perror("Cannot join the tracking thread");
+    goto exit;
+  }
 
-    XCloseDisplay(display);
-    display = NULL;
-    printf("Tracking stopped\n");
+  XCloseDisplay(display);
+  display = NULL;
+  printf("Tracking stopped\n");
 
 exit:
-    pthread_mutex_unlock(&tracking_mutex);
+  pthread_mutex_unlock(&tracking_mutex);
 }
 
 int start_tracking(tracking_opt_t *opts) {
-    return start_tracking_impl(opts, true);
+  return start_tracking_impl(opts, true);
 }
 
 void stop_tracking() {
-    // TODO mutex for start and stop tracking, they can be called from
-    // GUI/CLI or the inhibit thread!
-    stop_tracking_impl(false);
+  // TODO mutex for start and stop tracking, they can be called from
+  // GUI/CLI or the inhibit thread!
+  stop_tracking_impl(false);
 }
 
-static void suspend_tracking() {
-    stop_tracking_impl(true);
-}
+static void suspend_tracking() { stop_tracking_impl(true); }
 
 static void resume_tracking() {
-    /* this is called from the inhibit module,
-     * no need to init it again */
-    start_tracking_impl(tracking_opts, false);
+  /* this is called from the inhibit module,
+   * no need to init it again */
+  start_tracking_impl(tracking_opts, false);
 }
 
-bool is_tracking() {
-    return tracking_started;
-}
+bool is_tracking() { return tracking_started; }
 
 #else
 #error "This code only works on Linux"
