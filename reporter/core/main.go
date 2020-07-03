@@ -17,7 +17,7 @@ const ChannelBufferSize = 4096
 var (
 	build string
 
-	MinInputReportingInterval time.Duration
+	MaxInputReportingInterval time.Duration
 
 	mq   chan string
 	eq   chan *cpb.Event
@@ -140,11 +140,11 @@ func runReporter(init chan bool, server string, username string, password string
 func InitReporter(server *C.char, username *C.char, password *C.char) bool {
 	if build == "DEBUG" {
 		log.Println("Running DEBUG build!")
-		MinInputReportingInterval = 5 * time.Second
+		MaxInputReportingInterval = 5 * time.Second
 	} else {
-		MinInputReportingInterval = 60 * time.Second
+		MaxInputReportingInterval = 60 * time.Second
 	}
-	log.Printf("MinInputReportingInterval: %v", MinInputReportingInterval)
+	log.Printf("MaxInputReportingInterval: %v", MaxInputReportingInterval)
 	init := make(chan bool)
 	go runReporter(init, C.GoString(server), C.GoString(username), C.GoString(password))
 	return <-init
@@ -234,24 +234,24 @@ func sendInputStats(start, end int64) {
 }
 
 func runInputTracking(reportInputStats chan chan bool, finish chan bool) {
-	timer := time.NewTicker(MinInputReportingInterval)
+	timer := time.NewTicker(MaxInputReportingInterval)
 	for {
 		start := time.Now().UnixNano()
 		select {
-		case <-finish:
-			break
-		case done := <-reportInputStats:
+		case <-finish: // quit InputTracking goroutine
+			timer.Stop()
+			return
+		case done := <-reportInputStats: // report stats before switching
 			end := time.Now().UnixNano()
 			sendInputStats(start, end)
 			done <- true
 			timer.Stop()
-			timer = time.NewTicker(MinInputReportingInterval) // restart the timer for new program
-		case <-timer.C:
+			timer = time.NewTicker(MaxInputReportingInterval) // restart the timer for new program
+		case <-timer.C: // tick for max interval
 			end := time.Now().UnixNano()
 			sendInputStats(start, end)
 		}
 	}
-	timer.Stop()
 }
 
 //export QuitReporter
