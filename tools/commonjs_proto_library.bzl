@@ -55,18 +55,18 @@ def _get_input_proto_names(target):
     return " ".join(proto_inputs)
 
 def _build_protoc_command(target, ctx):
-    protoc_command = "%s" % (ctx.executable._protoc.path)
+    protoc_command = ctx.executable._protoc.path
 
-    protoc_command += " --plugin=protoc-gen-ts=%s" % (ctx.executable._ts_protoc_gen.path)
+    protoc_command += " --plugin=protoc-gen-ts=$PWD/" + ctx.executable._ts_protoc_gen.path
 
     protoc_output_dir = ctx.var["BINDIR"]
-    protoc_command += " --ts_out=service=grpc-web:%s" % (protoc_output_dir)
-    protoc_command += " --js_out=import_style=commonjs,binary:%s" % (protoc_output_dir)
+    protoc_command += " --ts_out=service=grpc-web:" + protoc_output_dir
+    protoc_command += " --js_out=import_style=commonjs,binary:" + protoc_output_dir
 
     descriptor_sets_paths = [desc.path for desc in target[ProtoInfo].transitive_descriptor_sets.to_list()]
-    protoc_command += " --descriptor_set_in=%s" % (":".join(descriptor_sets_paths))
+    protoc_command += " \"--descriptor_set_in=" + ctx.host_configuration.host_path_separator.join(descriptor_sets_paths) + "\""
 
-    protoc_command += " %s" % (_get_input_proto_names(target))
+    protoc_command += " " + _get_input_proto_names(target)
 
     return protoc_command
 
@@ -104,6 +104,7 @@ def commonjs_proto_library_aspect_(target, ctx):
         outputs = js_outputs,
         progress_message = "Creating commonjs pb files %s" % ctx.label,
         command = command,
+        use_default_shell_env = True,
         tools = depset(tools),
     )
 

@@ -27,3 +27,20 @@ cc_library(
         "@system_libs//:xi",
     ],
 )
+
+cc_library(
+    name = "trackinglib-windows",
+    srcs = glob([
+        "windows/*.c",
+        "windows/*.h",
+    ]),
+    hdrs = ["tracking.h"],
+    defines = select({
+        "debug_build": ["DEBUG"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//reporter:__pkg__"],
+    deps = [
+        "//reporter/core:core.cc",
+    ],
+)

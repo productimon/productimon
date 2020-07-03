@@ -5,7 +5,13 @@
 #include "reporter/core/core.h"
 #include "reporter/plat/tracking.h"
 
+#define MAX_CMD_LEN BUFSIZ
+
+static char command[MAX_CMD_LEN];
+
 int main(int argc, const char* argv[]) {
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
     if (argc != 4) {
         error("Usage: %s server username password\n", argv[0]);
         return 1;
@@ -24,10 +30,8 @@ int main(int argc, const char* argv[]) {
     printf("Productimon data reporter CLI\n");
     printf("Valid commands are: start, stop and exit\n");
 
-    char* command = NULL;
-    size_t size = 0;
     printf("> ");
-    while (getline(&command, &size, stdin) > 0) {
+    while (fgets(command, MAX_CMD_LEN, stdin) != NULL) {
         if (strcmp(command, "start\n") == 0) {
             start_tracking(&opts);
         } else if (strcmp(command, "stop\n") == 0) {
@@ -43,7 +47,6 @@ int main(int argc, const char* argv[]) {
         } */
         printf("> ");
     }
-    free(command);
 
     QuitReporter(is_tracking());
     return 0;

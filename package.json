@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@bazel/typescript": "1.4.1",
     "@improbable-eng/grpc-web": "0.12.0",
     "@material-ui/core": "^4.10.2",
     "@material-ui/icons": "^4.9.1",
@@ -18,7 +17,6 @@
     "babel-preset-stage-0": "^6.24.1",
     "css-loader": "^3.2.0",
     "google-protobuf": "^3.6.1",
-    "http-server": "^0.12.3",
     "moment": "^2.27.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
@@ -29,8 +27,7 @@
     "ts-protoc-gen": "0.12.0",
     "typescript": "3.8.3",
     "webpack": "^4.41.0",
-    "webpack-cli": "^3.3.9",
-    "webpack-dev-server": "^3.8.2"
+    "webpack-cli": "^3.3.9"
   },
   "eslintConfig": {
     "extends": "react-app"

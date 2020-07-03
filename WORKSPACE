@@ -79,11 +79,37 @@ rules_proto_dependencies()
 
 rules_proto_toolchains()
 
+NODEJS_COMMIT = "acc81d7c03d57ef8d7daa99f51e9b0d5c76b34ac"
+
+NODEJS_SHA256 = "ce868fd3490042d7fff058e2a050a5dc4fb7896ecc5aa113fe4c2c3e57ddd05d"
+
 # nodejs
 http_archive(
     name = "build_bazel_rules_nodejs",
-    sha256 = "84abf7ac4234a70924628baa9a73a5a5cbad944c4358cf9abdb4aab29c9a5b77",
-    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/1.7.0/rules_nodejs-1.7.0.tar.gz"],
+    sha256 = NODEJS_SHA256,
+    strip_prefix = "rules_nodejs-" + NODEJS_COMMIT,
+    urls = ["https://github.com/adamyi/rules_nodejs/archive/" + NODEJS_COMMIT + ".tar.gz"],
+)
+
+#local_repository(
+#    name = "build_bazel_rules_nodejs",
+#    path = "../rules_nodejs",
+#)
+
+load("@build_bazel_rules_nodejs//:package.bzl", "rules_nodejs_dev_dependencies")
+
+rules_nodejs_dev_dependencies()
+
+#local_repository(
+#    name = "npm_bazel_typescript",
+#    path = "../rules_nodejs/packages/typescript/src",
+#)
+
+http_archive(
+    name = "npm_bazel_typescript",
+    sha256 = NODEJS_SHA256,
+    strip_prefix = "rules_nodejs-" + NODEJS_COMMIT + "/packages/typescript/src",
+    urls = ["https://github.com/adamyi/rules_nodejs/archive/" + NODEJS_COMMIT + ".tar.gz"],
 )
 
 load("@build_bazel_rules_nodejs//:index.bzl", "yarn_install")
@@ -94,9 +120,28 @@ yarn_install(
     yarn_lock = "//:yarn.lock",
 )
 
+http_archive(
+    name = "build_bazel_rules_typescript",
+    sha256 = "5ac7855faddf296c33f4b1f8f4917d0800bda6cb3f8c133ba097bbe00e149d90",
+    strip_prefix = "rules_typescript-5d79e42953eb8614d961ccf0e3440884e974eeb3",
+    url = "https://github.com/bazelbuild/rules_typescript/archive/5d79e42953eb8614d961ccf0e3440884e974eeb3.tar.gz",
+)
+
+load("@build_bazel_rules_typescript//:package.bzl", "rules_typescript_dev_dependencies")
+
+rules_typescript_dev_dependencies()
+
 load("@npm//:install_bazel_dependencies.bzl", "install_bazel_dependencies")
 
 install_bazel_dependencies()
+
+load("@build_bazel_rules_typescript//internal:ts_repositories.bzl", "ts_setup_dev_workspace")
+
+ts_setup_dev_workspace()
+
+load("@npm_bazel_typescript//:index.bzl", "ts_setup_workspace")
+
+ts_setup_workspace()
 
 go_repository(
     name = "org_golang_google_grpc",
@@ -128,9 +173,9 @@ new_local_repository(
 
 http_archive(
     name = "rules_foreign_cc",
-    urls = ["https://github.com/Chester-P/rules_foreign_cc/archive/2f8c9b999f68d225af195763d4c7f0e7bd63cd70.tar.gz"],
     sha256 = "7d96526be03eff25dde14c51fa6b1088f7f94f9c643082132ab0759addb8b363",
-    strip_prefix = "rules_foreign_cc-2f8c9b999f68d225af195763d4c7f0e7bd63cd70"
+    strip_prefix = "rules_foreign_cc-2f8c9b999f68d225af195763d4c7f0e7bd63cd70",
+    urls = ["https://github.com/Chester-P/rules_foreign_cc/archive/2f8c9b999f68d225af195763d4c7f0e7bd63cd70.tar.gz"],
 )
 
 load("@rules_foreign_cc//:workspace_definitions.bzl", "rules_foreign_cc_dependencies")
