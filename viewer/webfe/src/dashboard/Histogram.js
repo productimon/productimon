@@ -113,8 +113,9 @@ export default function Histogram() {
           <YAxis />
           {/* <Tooltip /> */}
           <Legend />
-          {dataKeys.map(label =>
-          <Bar dataKey={label} stackId="a" fill={getLabelColor(label)} />
+          {dataKeys.map(
+            (label, index) =>
+              <Bar key={index} dataKey={label} stackId="a" fill={getLabelColor(label)} />
           )}
         </BarChart>
       </ResponsiveContainer>

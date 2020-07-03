@@ -4,7 +4,8 @@ import {
   Switch,
   Route,
   Link,
-  useRouteMatch
+  useRouteMatch,
+  useHistory
 } from "react-router-dom";
 import clsx from 'clsx';
 import { makeStyles } from '@material-ui/core/styles';
@@ -29,9 +30,11 @@ import ExitToAppIcon from '@material-ui/icons/ExitToApp';
 
 import Histogram from './Histogram'
 import DisplayTable from './Table'
-import DisplayPie from './Pie'
+// DisplayPie causing runtime errors. Fix up then re-integrate
+// import DisplayPie from './Pie'
 
 //import { mainListItems, secondaryListItems } from './listItems';
+import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
@@ -40,6 +43,10 @@ import DashboardIcon from '@material-ui/icons/Dashboard';
 import BarChartIcon from '@material-ui/icons/BarChart';
 import PieChartIcon from '@material-ui/icons/PieChart';
 import TableChartIcon from '@material-ui/icons/TableChart';
+
+import { grpc } from '@improbable-eng/grpc-web';
+import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service'
+import { Empty } from 'productimon/proto/common/common_pb'
 
 const drawerWidth = 240;
 
@@ -129,6 +136,35 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 export default function Dashboard() {
+  const history = useHistory();
+
+  const redirectToLogin = () => {
+    window.localStorage.clear();
+    history.push("/");
+  }
+
+  // redirect user to login page if unable to get user details
+  const token = window.localStorage.getItem("token");
+  const request = new Empty();
+  if (!token) {
+    redirectToLogin();
+    // this return is needed to stop teh execution of the following code
+    return (<p>Redirecting to login...</p>);
+  }
+  grpc.unary(DataAggregator.UserDetails, {
+    host: '/rpc',
+    metadata: new grpc.Metadata({"Authorization": token}),
+    onEnd: ({status, statusMessage, headers, message}) => {
+      if (status != 0) {
+        console.error('response ', status, statusMessage, headers, message);
+        redirectToLogin();
+        return;
+      }
+      console.log(`Authenticated as ${message.getUser().getEmail()}`);
+    },
+    request
+  });
+
   // state stores what page the main section displays is in, by default we start with dashboard
   const [state, setState] = React.useState('dashboard')
   const classes = useStyles();
@@ -138,6 +174,15 @@ export default function Dashboard() {
   };
   const handleDrawerClose = () => {
     setOpen(false);
+  };
+  const [anchorEl, setAnchorEl] = React.useState(null);
+
+  const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
   };
 
   return (
@@ -157,20 +202,21 @@ export default function Dashboard() {
           <Typography component="h1" variant="h6" color="inherit" noWrap className={classes.title}>
             Productimon
           </Typography>
+          <Menu
+            id="account-menu"
+            anchorEl={anchorEl}
+            keepMounted
+            open={Boolean(anchorEl)}
+            onClose={handleClose}
+          >
+            <MenuItem onClick={handleClose}>Settings</MenuItem>
+            <MenuItem onClick={redirectToLogin}>Logout</MenuItem>
+          </Menu>
 
-          <IconButton color="inherit">
-            <Badge  color="secondary">
-              <Typography fontSize="6">
-                Logout &nbsp;
-              </Typography>
-              <ExitToAppIcon />
-            </Badge>
-          </IconButton>
-          {/*<IconButton color="inherit">
-             <Badge badgeContent={4} color="secondary">
-               <NotificationsIcon />
-             </Badge>
-           </IconButton>*/}
+          <Typography aria-controls="account-menu" aria-haspopup="true" onClick={handleClick} style={{ textAlign: 'right', color: 'white' }} >
+            Account
+          </Typography>
+
         </Toolbar>
       </AppBar>
 
@@ -212,7 +258,7 @@ export default function Dashboard() {
             </ListItemIcon>
             <ListItemText primary="Table"/>
           </MenuItem>
-        </List>          
+        </List>
         <Divider />
       </Drawer>
 
@@ -225,7 +271,6 @@ export default function Dashboard() {
     </div>
   );
 }
-
 
 function Display() {
   const classes = useStyles();
@@ -264,18 +309,8 @@ function Display() {
           </Container>
         </div>
       </Route>
+      // pie-chart is temporarily disabled due to runtime errors
       <Route path="/dashboard/pie">
-        <div>
-          <Container maxWidth="lg" className={classes.container}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={12} lg={12}>
-                <Paper className={fixedHeightPaperPie}>
-                  <DisplayPie />
-                </Paper>
-              </Grid>
-            </Grid>
-          </Container>
-        </div>
       </Route>
       <Route path="/">
         <div>
@@ -284,11 +319,6 @@ function Display() {
               <Grid item xs={12} md={6} lg={6}>
                 <Paper className={fixedHeightPaperHistogram}>
                   <Histogram />
-                </Paper>
-              </Grid>
-              <Grid item xs={12} md={6} lg={6}>
-                <Paper className={fixedHeightPaperPie}>
-                  <DisplayPie />
                 </Paper>
               </Grid>
               <Grid item xs={12} md={12} lg={12}>

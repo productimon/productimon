@@ -73,35 +73,20 @@ export default function TopMenu() {
   const handleClose = () => {
     setAnchorEl(null);
   };
-    
+
   const classes = useStyles();
   const fixedHeightPaper = clsx(classes.paper, classes.fixedHeight);
-        return (
-            <div>
+  return (
+    <div>
       <CssBaseline />
-          <AppBar position="absolute" style={{backgroundColor: "brown"}}>
-<Menu
-  id="simple-menu"
-  anchorEl={anchorEl}
-  keepMounted
-  open={Boolean(anchorEl)}
-  onClose={handleClose}
->
-  <MenuItem onClick={handleClose}>Settings</MenuItem>
-  <MenuItem onClick={handleClose}>Logout</MenuItem>
-</Menu>
-          
+      <AppBar position="absolute" style={{backgroundColor: "brown"}}>
         <Toolbar className={classes.toolbar}>
           <Typography component="h1" variant="h6" color="inherit" noWrap className={classes.title}>
             Productimon
-      </Typography>
-          <Typography aria-controls="simple-menu" aria-haspopup="true" onClick={handleClick} style={{ textAlign: 'right', color: 'white' }} >
-          Account
-      </Typography>
-          
+          </Typography>
         </Toolbar>
-          </AppBar>
-                </div>
-        );
-    }
+      </AppBar>
+    </div>
+  );
+}
 

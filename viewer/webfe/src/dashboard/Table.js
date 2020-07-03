@@ -71,7 +71,7 @@ export default function DisplayTable() {
         setRows(message.getDataList()[0].getDataList()
           .sort((a, b) => b.getTime() - a.getTime())
           .map(data =>
-          createData(data.getApp(), humanizeDuration(data.getTime()), data.getLabel())));
+            createData(data.getApp(), humanizeDuration(data.getTime()), data.getLabel())));
       },
       request,
     });
@@ -109,4 +109,3 @@ export default function DisplayTable() {
     </React.Fragment>
   );
 }
-

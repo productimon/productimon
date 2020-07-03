@@ -28,15 +28,8 @@ export default function DisplayPie() {
           {/*<Pie isAnimationActive={false} data={data} cx={200} cy={200} outerRadius={80} fill="#8884d8" label/>*/}
           <Pie data={data} cx={200} cy={100} innerRadius={40} outerRadius={80} fill="#c8e6c9" stroke='#484848'/>
           <Tooltip/>
-      </PieChart>
+        </PieChart>
       </ResponsiveContainer>
     </React.Fragment>
   );
 }
-
-
-
-
-
-
-
