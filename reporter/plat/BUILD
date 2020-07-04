@@ -39,7 +39,7 @@ cc_library(
         "debug_build": ["DEBUG"],
         "//conditions:default": [],
     }),
-    linkopts = ['-luser32', '-lversion', '-lshlwapi'],
+    linkopts = ['-luser32', '-lversion', '-lshlwapi', '-lwtsapi32'],
     visibility = ["//reporter:__pkg__"],
     deps = [
         "//reporter/core:core.cc",

@@ -10,6 +10,7 @@
 #include <windows.h>
 #include <winuser.h>
 #include <winver.h>
+#include <wtsapi32.h>
 
 #include "reporter/core/core.h"
 
@@ -25,21 +26,25 @@ static HANDLE tracking_thread = NULL;
 static DWORD tracking_thread_id;
 static tracking_opt_t *tracking_opts;
 
+static HWND window_handle;
+static HHOOK mouse_hook;
+static HHOOK key_hook;
+static HWINEVENTHOOK window_change_hook;
+
 static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
   int ret = 1;
   DWORD pid;
   GetWindowThreadProcessId(hwnd, &pid);
-  debug("got pid %d\n", pid);
 
   HANDLE proc_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
   if (proc_handle == NULL) {
-    error("OpenProcess failed\n");
+    error("OpenProcess failed: %d\n", GetLastError());
     return 1;
   }
 
   char path[MAX_PATH];
   if (GetModuleFileNameExA(proc_handle, NULL, path, MAX_PATH) == 0) {
-    error("Failed to get executable path\n");
+    error("Failed to get executable path %d\n", GetLastError);
     goto error_close_handle;
   }
   debug("exec full path: %s\n", path);
@@ -52,7 +57,6 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
     CloseHandle(proc_handle);
     return 0;
   }
-  debug("version info size: %ld\n", ver_info_size);
 
   void *version_buf = malloc(ver_info_size);
   if (version_buf == NULL) {
@@ -76,7 +80,6 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
                  (LPVOID *)&translate, &translate_size);
 
   int n_translations = translate_size / sizeof(struct LANGANDCODEPAGE);
-  debug("Got %d translations\n", n_translations);
 
   // NOTE: it seems like all app on my windows have one translation
   if (n_translations < 1) {
@@ -87,7 +90,6 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
   char query_str[64];
   snprintf(query_str, 64, "\\StringFileInfo\\%04x%04x\\FileDescription",
            translate[0].wLanguage, translate[0].wCodePage);
-  debug("using query: %s\n", query_str);
 
   char *file_description;
   /* Get program description from the version info */
@@ -140,9 +142,8 @@ static VOID CALLBACK callback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent,
   printf("Got new program: %s\n", prog_name);
   SendWindowSwitchEvent(prog_name);
 }
-
-LRESULT CALLBACK keystroke_callback(_In_ int nCode, _In_ WPARAM wParam,
-                                    _In_ LPARAM lParam) {
+static LRESULT CALLBACK keystroke_callback(_In_ int nCode, _In_ WPARAM wParam,
+                                           _In_ LPARAM lParam) {
   /* following what the documentation says */
   if (nCode < 0) return CallNextHookEx(NULL, nCode, wParam, lParam);
 
@@ -153,8 +154,8 @@ LRESULT CALLBACK keystroke_callback(_In_ int nCode, _In_ WPARAM wParam,
   return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
 
-LRESULT CALLBACK mouseclick_callback(_In_ int nCode, _In_ WPARAM wParam,
-                                     _In_ LPARAM lParam) {
+static LRESULT CALLBACK mouseclick_callback(_In_ int nCode, _In_ WPARAM wParam,
+                                            _In_ LPARAM lParam) {
   /* following what the documentation says */
   if (nCode < 0) return CallNextHookEx(NULL, nCode, wParam, lParam);
 
@@ -166,36 +167,114 @@ LRESULT CALLBACK mouseclick_callback(_In_ int nCode, _In_ WPARAM wParam,
   return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
 
-DWORD WINAPI tracking_loop(_In_ LPVOID lpParameter) {
+static int install_hooks(bool register_session_ntfn) {
+  if (tracking_opts->foreground_program) {
+    // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwineventhook?redirectedfrom=MSDN
+    window_change_hook = SetWinEventHook(
+        EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, callback, 0, 0,
+        WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
+    debug("SetWinEventHook got %d\n", window_change_hook);
+    if (window_change_hook == NULL) {
+      error("Failed to set hook for keyboard: %d\n", GetLastError());
+      return 1;
+    }
+  }
+
+  if (tracking_opts->keystroke) {
+    key_hook = SetWindowsHookExA(WH_KEYBOARD_LL, keystroke_callback, NULL, 0);
+    debug("SetWindowsHookExA for keyboard got %d\n", key_hook);
+    if (key_hook == NULL) {
+      error("Failed to set hook for keyboard: %d\n", GetLastError());
+      return 1;
+    }
+  }
+
+  if (tracking_opts->mouse_click) {
+    mouse_hook = SetWindowsHookExA(WH_MOUSE_LL, mouseclick_callback, NULL, 0);
+    debug("SetWindowsHookExA for mouseclick got %d\n", mouse_hook);
+    if (mouse_hook == NULL) {
+      error("Failed to set hook for mouseclick: %d\n", GetLastError());
+      return 1;
+    }
+  }
+
+  /* register for lock/unlock and login/logout events
+   * doing this twice within the same thread can undo the effect
+   * thus the boolean param
+   */
+  if (register_session_ntfn &&
+      !WTSRegisterSessionNotification(window_handle, NOTIFY_FOR_THIS_SESSION)) {
+    error("Failed to regitster for session change notifications: %d\n",
+          GetLastError());
+    return 1;
+  }
+  return 0;
+}
+
+static void suspend_tracking() {
+  SendStopTrackingEvent();
+
+  if (tracking_opts->foreground_program && !UnhookWinEvent(window_change_hook))
+    error("Failed to remove window change hook: %d\n", GetLastError());
+
+  if (tracking_opts->keystroke && !UnhookWindowsHookEx(key_hook))
+    error("Failed to remove key hook: %d\n", GetLastError());
+
+  if (tracking_opts->mouse_click && !UnhookWindowsHookEx(mouse_hook))
+    error("Failed to remove mosue hook: %d\n", GetLastError());
+
+  tracking_started = false;
+}
+
+static void resume_tracking() {
+  SendStartTrackingEvent();
+
+  install_hooks(false);
+
+  tracking_started = true;
+}
+
+static LRESULT CALLBACK session_change_callback(WPARAM type) {
+  switch (type) {
+    case WTS_SESSION_LOCK:
+      debug("system about to lock, suspend tracking...\n");
+      suspend_tracking();
+      break;
+    case WTS_SESSION_UNLOCK:
+      debug("login detected, resume tracking\n");
+      resume_tracking();
+      break;
+    case WTS_SESSION_LOGOFF:
+      // TODO
+      break;
+  }
+}
+
+static DWORD WINAPI tracking_loop(_In_ LPVOID lpParameter) {
   SendStartTrackingEvent();
   debug("Tracking started\n");
 
-  // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwineventhook?redirectedfrom=MSDN
-  if (tracking_opts->foreground_program) {
-    HWINEVENTHOOK event_hook = SetWinEventHook(
-        EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, callback, 0, 0,
-        WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
-    debug("SetWinEventHook got %d\n", event_hook);
+  /* create a hidden message window */
+  window_handle = CreateWindowExA(WS_EX_ACCEPTFILES, "Button", "null", 0, 0, 0,
+                                  0, 0, HWND_MESSAGE, NULL, NULL, NULL);
+  if (window_handle == NULL) {
+    error("Failed to create a message window: %d\n", GetLastError());
+    return 0;  // use synchronisation primitives here to notify the failure to
+               // start_tracking
   }
 
-  if (tracking_opts->keystroke) {
-    HHOOK handle =
-        SetWindowsHookExA(WH_KEYBOARD_LL, keystroke_callback, NULL, 0);
-    debug("SetWindowsHookExA for keyboard got %d\n", handle);
-    if (handle == NULL)
-      error("Failed to set hook for keyboard: %d\n", GetLastError());
-  }
-
-  if (tracking_opts->keystroke) {
-    HHOOK handle = SetWindowsHookExA(WH_MOUSE_LL, mouseclick_callback, NULL, 0);
-    debug("SetWindowsHookExA for mouseclick got %d\n", handle);
-    if (handle == NULL)
-      error("Failed to set hook for mouseclick: %d\n", GetLastError());
+  if (install_hooks(true)) {
+    return 1;  // TODO use sync primitives to have start_tracking wait for this
+               // failure
   }
 
   MSG msg;
   while (GetMessage(&msg, NULL, 0, 0)) {
     if (IS_STOP_MSG(msg)) break;
+
+    if (msg.message == WM_WTSSESSION_CHANGE) {
+      session_change_callback(msg.wParam);
+    }
 
     TranslateMessage(&msg);
     DispatchMessage(&msg);
@@ -242,6 +321,14 @@ void stop_tracking() {
 
   WaitForSingleObject(tracking_thread, INFINITE);
   tracking_started = false;
+
+  tracking_thread = NULL;
+  tracking_thread_id = 0;
+  tracking_opts = NULL;
+  window_handle = NULL;
+  mouse_hook = NULL;
+  key_hook = NULL;
+  window_change_hook = NULL;
   return;
 }
 
