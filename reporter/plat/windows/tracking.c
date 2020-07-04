@@ -141,6 +141,31 @@ static VOID CALLBACK callback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent,
   SendWindowSwitchEvent(prog_name);
 }
 
+LRESULT CALLBACK keystroke_callback(_In_ int nCode, _In_ WPARAM wParam,
+                                    _In_ LPARAM lParam) {
+  /* following what the documentation says */
+  if (nCode < 0) return CallNextHookEx(NULL, nCode, wParam, lParam);
+
+  /* only do reporting for key down event */
+  if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
+    HandleKeystroke();
+  }
+  return CallNextHookEx(NULL, nCode, wParam, lParam);
+}
+
+LRESULT CALLBACK mouseclick_callback(_In_ int nCode, _In_ WPARAM wParam,
+                                     _In_ LPARAM lParam) {
+  /* following what the documentation says */
+  if (nCode < 0) return CallNextHookEx(NULL, nCode, wParam, lParam);
+
+  /* only do reporting for key down event */
+  if (wParam == WM_LBUTTONDOWN || wParam == WM_RBUTTONDOWN ||
+      wParam == WM_MOUSEWHEEL) {
+    HandleMouseClick();
+  }
+  return CallNextHookEx(NULL, nCode, wParam, lParam);
+}
+
 DWORD WINAPI tracking_loop(_In_ LPVOID lpParameter) {
   SendStartTrackingEvent();
   debug("Tracking started\n");
@@ -151,6 +176,21 @@ DWORD WINAPI tracking_loop(_In_ LPVOID lpParameter) {
         EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, callback, 0, 0,
         WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
     debug("SetWinEventHook got %d\n", event_hook);
+  }
+
+  if (tracking_opts->keystroke) {
+    HHOOK handle =
+        SetWindowsHookExA(WH_KEYBOARD_LL, keystroke_callback, NULL, 0);
+    debug("SetWindowsHookExA for keyboard got %d\n", handle);
+    if (handle == NULL)
+      error("Failed to set hook for keyboard: %d\n", GetLastError());
+  }
+
+  if (tracking_opts->keystroke) {
+    HHOOK handle = SetWindowsHookExA(WH_MOUSE_LL, mouseclick_callback, NULL, 0);
+    debug("SetWindowsHookExA for mouseclick got %d\n", handle);
+    if (handle == NULL)
+      error("Failed to set hook for mouseclick: %d\n", GetLastError());
   }
 
   MSG msg;
