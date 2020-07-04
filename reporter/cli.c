@@ -38,14 +38,9 @@ int main(int argc, const char* argv[]) {
       stop_tracking(&opts);
     } else if (strcmp(command, "exit\n") == 0) {
       break;
-    } /* else {
-        // NOTE this breaks the offline buffering feature since message queue in
-    the core
-        // is not a buffered channel and this could be blocking
-        // TODO delete this and relevant code in the core
-        SendMessage(command);  // demo sending something to core
+    } else {
         printf("unknown command\n");
-    } */
+    }
     printf("> ");
   }
 

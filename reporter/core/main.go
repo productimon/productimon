@@ -19,7 +19,6 @@ var (
 
 	MaxInputReportingInterval time.Duration
 
-	mq   chan string
 	eq   chan *cpb.Event
 	done chan chan bool
 
@@ -110,13 +109,10 @@ func runReporter(init chan bool, server string, username string, password string
 	init <- true
 
 	// event loop
-	mq = make(chan string)
 	eq = make(chan *cpb.Event, ChannelBufferSize)
 	done = make(chan chan bool)
 	for {
 		select {
-		case s := <-mq:
-			log.Println(s)
 		case e := <-eq:
 			log.Println("Sending event", e)
 			err := eventStream.Send(e)
@@ -148,11 +144,6 @@ func InitReporter(server *C.char, username *C.char, password *C.char) bool {
 	init := make(chan bool)
 	go runReporter(init, C.GoString(server), C.GoString(username), C.GoString(password))
 	return <-init
-}
-
-//export SendMessage
-func SendMessage(msg *C.char) {
-	mq <- C.GoString(msg)
 }
 
 //export SendWindowSwitchEvent
