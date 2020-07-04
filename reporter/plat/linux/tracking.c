@@ -159,11 +159,8 @@ static void *event_loop(UNUSED void *arg) {
         cookie->extension == xi_major_opcode) {
       if (cookie->evtype == XI_RawKeyPress) {
         HandleKeystroke();
-        // TODO bug: seems to be reporting as soon as we click
-        // probs related to go routine's timer ticker??
       } else if (cookie->evtype == XI_RawButtonPress) {
         HandleMouseClick();
-        // TODO bug: seems to be reporting as soon as we click
       }
     }
   }
@@ -292,8 +289,6 @@ int start_tracking(tracking_opt_t *opts) {
 }
 
 void stop_tracking() {
-  // TODO mutex for start and stop tracking, they can be called from
-  // GUI/CLI or the inhibit thread!
   stop_tracking_impl(false);
 }
 
