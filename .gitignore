@@ -1,7 +1,8 @@
+*.DS_Store
 **/*.pb.go
 bazel-*
 db.sqlite3
-jwtRS256.key
-jwtRS256.key.pub
+ca.key
+ca.pem
 node_modules
 yarn-error.log

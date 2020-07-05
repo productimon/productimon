@@ -73,6 +73,33 @@ func (s *service) Login(ctx context.Context, req *spb.DataAggregatorLoginRequest
 	return s.returnToken(ctx, uid)
 }
 
+func (s *service) DeviceSignin(ctx context.Context, req *spb.DataAggregatorDeviceSigninRequest) (*spb.DataAggregatorDeviceSigninResponse, error) {
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
+		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
+	}
+	err = s.db.QueryRow("SELECT MAX(id) FROM devices WHERE uid=?", uid).Scan(&did)
+	if err != nil {
+		did = 0
+	} else {
+		did += 1
+	}
+	_, err = s.db.Exec("INSERT INTO devices(uid, id, name, kind) VALUES(?, ?, ?, ?)", uid, did, req.Device.Name, req.Device.DeviceType)
+	if err != nil {
+		log.Println(err)
+		return nil, status.Errorf(codes.Internal, "something went wrong")
+	}
+	cert, key, err := s.auther.SignDeviceCert(uid, did)
+	if err != nil {
+		log.Println(err)
+		return nil, status.Errorf(codes.Internal, "something went wrong")
+	}
+	return &spb.DataAggregatorDeviceSigninResponse{
+		Cert: cert,
+		Key:  key,
+	}, nil
+}
+
 func (s *service) Signup(ctx context.Context, req *spb.DataAggregatorSignupRequest) (*spb.DataAggregatorLoginResponse, error) {
 	var tmp int64
 	err := s.db.QueryRow("SELECT 1 FROM users WHERE email = ? LIMIT 1", req.User.Email).Scan(&tmp)
@@ -94,23 +121,20 @@ func (s *service) Signup(ctx context.Context, req *spb.DataAggregatorSignupReque
 		log.Println(err)
 		return nil, status.Errorf(codes.Internal, "something went wrong")
 	}
-	// TODO: have separate api to create device. This should be under one transaction but we will remove this eventually so
-	// we don't have a transaction here
-	s.db.Exec("INSERT INTO devices VALUES(?, 0, 'test device (Linux)', 1)", uid)
 	return s.returnToken(ctx, uid)
 }
 
 func (s *service) ExtendToken(ctx context.Context, req *cpb.Empty) (*spb.DataAggregatorLoginResponse, error) {
-	uid, err := s.auther.AuthenticateRequest(ctx)
-	if err != nil {
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
 	}
 	return s.returnToken(ctx, uid)
 }
 
 func (s *service) UserDetails(ctx context.Context, req *cpb.Empty) (*spb.DataAggregatorUserDetailsResponse, error) {
-	uid, err := s.auther.AuthenticateRequest(ctx)
-	if err != nil {
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
 	}
 	var email string
@@ -220,15 +244,16 @@ func (s *service) AddEvent(uid string, did int, e *cpb.Event) error {
 func (s *service) PushEvent(server spb.DataAggregator_PushEventServer) error {
 	log.Println("Started pushEvent stream")
 	ctx := server.Context()
-	uid, err := s.auther.AuthenticateRequest(ctx)
-	if err != nil {
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did == -1 {
+		log.Println(err)
 		return status.Errorf(codes.Unauthenticated, "Invalid token")
 	}
-	did := 0 // TODO: fill in device id
 
 	for {
 		select {
 		case <-ctx.Done():
+			log.Println(ctx.Err())
 			return ctx.Err()
 		default:
 		}
@@ -261,8 +286,8 @@ func (s *service) getLabel(appname string) string {
 }
 
 func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeRequest) (*spb.DataAggregatorGetTimeResponse, error) {
-	uid, err := s.auther.AuthenticateRequest(ctx)
-	if err != nil {
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
 	}
 	devices := req.GetDevices()

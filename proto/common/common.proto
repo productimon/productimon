@@ -29,11 +29,12 @@ message Device {
   int64 id = 2;
 
   enum DeviceType {
-    LINUX = 0;
-    MACOS = 1;
-    WINDOWS = 2;
-    ANDROID = 3;
-    IOS = 4;
+    UNKNOWN = 0;
+    LINUX = 1;
+    MACOS = 2;
+    WINDOWS = 3;
+    ANDROID = 4;
+    IOS = 5;
   }
   DeviceType device_type = 3;
 

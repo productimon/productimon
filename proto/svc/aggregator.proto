@@ -11,6 +11,8 @@ service DataAggregator {
   rpc Signup(DataAggregatorSignupRequest) returns (DataAggregatorLoginResponse);
   rpc ExtendToken(common.Empty) returns (DataAggregatorLoginResponse);
   rpc UserDetails(common.Empty) returns (DataAggregatorUserDetailsResponse);
+  rpc DeviceSignin(DataAggregatorDeviceSigninRequest)
+      returns (DataAggregatorDeviceSigninResponse);
   rpc PushEvent(stream common.Event) returns (DataAggregatorPushEventResponse);
   rpc GetEvent(DataAggregatorGetEventRequest) returns (stream common.Event);
   rpc GetTime(DataAggregatorGetTimeRequest)
@@ -28,6 +30,15 @@ message DataAggregatorPingResponse {
 message DataAggregatorLoginRequest {
   string email = 1;
   string password = 2;
+}
+
+message DataAggregatorDeviceSigninRequest {
+  common.Device device = 1;
+}
+
+message DataAggregatorDeviceSigninResponse {
+  bytes cert = 1;
+  bytes key = 2;
 }
 
 message DataAggregatorSignupRequest {

@@ -33,10 +33,6 @@ var (
 	reportInputStats  chan chan bool
 )
 
-func connectToServer(server string, creds *Credentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	return grpc.Dial(server, append([]grpc.DialOption{grpc.WithInsecure(), grpc.WithPerRPCCredentials(creds)}, opts...)...)
-}
-
 func nowInterval() *cpb.Interval {
 	ts := time.Now().UnixNano()
 	return &cpb.Interval{Start: &cpb.Timestamp{Nanos: ts}, End: &cpb.Timestamp{Nanos: ts}}
@@ -52,13 +48,13 @@ func getEid() (id int64) {
 
 // TODO didn't thoroughly test all scenarios
 // would be worth to test all network conditions
-func retrySendEvent(event *cpb.Event, server string, creds *Credentials) (*grpc.ClientConn, spb.DataAggregatorClient, spb.DataAggregator_PushEventClient, error) {
+func retrySendEvent(event *cpb.Event) (*grpc.ClientConn, spb.DataAggregatorClient, spb.DataAggregator_PushEventClient, error) {
 	var conn *grpc.ClientConn
 	var err error
 	// NOTE this blocks this goroutine until connection to the server
 	// is established again
 	for {
-		conn, err = connectToServer(server, creds, grpc.WithBlock())
+		conn, err = ConnectToServer(config.Server, config.cert, grpc.WithBlock())
 		if err == nil {
 			break
 		}
@@ -74,14 +70,19 @@ func retrySendEvent(event *cpb.Event, server string, creds *Credentials) (*grpc.
 	return conn, client, eventStream, nil
 }
 
-func runReporter(init chan bool, server string, username string, password string) {
+func runReporter(init chan bool) {
 	log.Printf("productimon core module initiating")
-	log.Printf("using server: %s", server)
-	creds := &Credentials{}
+
+	// TODO: ask gui code for pwd
+	if len(config.Certificate) == 0 && !interactiveLogin() {
+		log.Println("failed to login")
+		init <- false
+		return
+	}
 
 	// establish grpc connection
 	// TODO think about what happens if the user started with offline env
-	conn, err := connectToServer(server, creds)
+	conn, err := ConnectToServer(config.Server, config.cert)
 	if err != nil {
 		log.Printf("cannot dial: %v", err)
 		init <- false
@@ -91,13 +92,6 @@ func runReporter(init chan bool, server string, username string, password string
 		conn.Close()
 	}()
 	client := spb.NewDataAggregatorClient(conn)
-
-	// login
-	if err = creds.Login(client, username, password); err != nil {
-		init <- false
-		log.Printf("cannot login: %v", err)
-		return
-	}
 
 	eventStream, err := client.PushEvent(context.Background())
 	if err != nil {
@@ -120,7 +114,7 @@ func runReporter(init chan bool, server string, username string, password string
 				log.Printf("Got err %v, reconnecting to the server", err)
 				conn.Close()
 				for err != nil {
-					conn, client, eventStream, err = retrySendEvent(e, server, creds)
+					conn, client, eventStream, err = retrySendEvent(e)
 				}
 			}
 		case c := <-done:
@@ -133,7 +127,7 @@ func runReporter(init chan bool, server string, username string, password string
 }
 
 //export InitReporter
-func InitReporter(server *C.char, username *C.char, password *C.char) bool {
+func InitReporter() bool {
 	if build == "DEBUG" {
 		log.Println("Running DEBUG build!")
 		MaxInputReportingInterval = 5 * time.Second
@@ -142,7 +136,7 @@ func InitReporter(server *C.char, username *C.char, password *C.char) bool {
 	}
 	log.Printf("MaxInputReportingInterval: %v", MaxInputReportingInterval)
 	init := make(chan bool)
-	go runReporter(init, C.GoString(server), C.GoString(username), C.GoString(password))
+	go runReporter(init)
 	return <-init
 }
 

@@ -12,14 +12,12 @@ static char command[MAX_CMD_LEN];
 int main(int argc, const char* argv[]) {
   setbuf(stdout, NULL);
   setbuf(stderr, NULL);
-  if (argc != 4) {
-    error("Usage: %s server username password\n", argv[0]);
-    return 1;
-  }
+  ReadConfig();
+
+  // TODO: use core module config for this
   tracking_opt_t opts = {
       .foreground_program = 1, .mouse_click = 1, .keystroke = 1};
-  // TODO: use a configuration file instead of cli argument
-  if (!InitReporter(argv[1], argv[2], argv[3])) {
+  if (!InitReporter()) {
     error("Failed to init core module\n");
     return 1;
   }
@@ -39,7 +37,7 @@ int main(int argc, const char* argv[]) {
     } else if (strcmp(command, "exit\n") == 0) {
       break;
     } else {
-        printf("unknown command\n");
+      printf("unknown command\n");
     }
     printf("> ");
   }

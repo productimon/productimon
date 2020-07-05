@@ -48,4 +48,6 @@
 
 ### CLI
 
-`bazel-bin/reporter/reporter_cli HOST:4200 test@productimon.com test`
+Usually, you don't need any CLI argument. Just run `bazel-bin/reporter/reporter_cli`
+
+See `bazel-bin/reporter/reporter_cli --help` for more info

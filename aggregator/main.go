@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"flag"
+	"log"
 	"net"
 	"net/http"
 
@@ -20,15 +22,17 @@ var (
 	flagPublicKeyPath     string
 	flagPrivateKeyPath    string
 	flagDBFilePath        string
+	flagGRPCPublicPort    int
 	jsFilename            string
 	mapFilename           string
 )
 
 func init() {
 	flag.StringVar(&flagGRPCListenAddress, "grpc_listen_address", "0.0.0.0:4200", "gRPC listen address")
-	flag.StringVar(&flagHTTPListenAddress, "http_listen_address", "0.0.0.0:4201", "HTTP listen address")
-	flag.StringVar(&flagPublicKeyPath, "jwt_public_key", "jwtRS256.key.pub", "Path to JWT public key")
-	flag.StringVar(&flagPrivateKeyPath, "jwt_private_key", "jwtRS256.key", "Path to JWT private key")
+	flag.StringVar(&flagHTTPListenAddress, "http_listen_address", "0.0.0.0:4201", "HTTP listen address (TODO: HTTPS only)")
+	flag.IntVar(&flagGRPCPublicPort, "grpc_public_port", 4200, "gRPC public-facing port (this usually needs to be the same port as grpc_listen_address, unless you have some fancy NAT infra)")
+	flag.StringVar(&flagPublicKeyPath, "ca_cert", "ca.pem", "Path to CA cert")
+	flag.StringVar(&flagPrivateKeyPath, "ca_key", "ca.key", "Path to CA key")
 	flag.StringVar(&flagDBFilePath, "db_path", "db.sqlite3", "Path to SQLite3 database file")
 }
 
@@ -46,7 +50,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	grpcServer := grpc.NewServer()
+	grpcCreds, err := auther.GrpcCreds()
+	if err != nil {
+		panic(err)
+	}
+	grpcServer := grpc.NewServer(grpcCreds)
 	reflection.Register(grpcServer)
 	s := NewService(auther, db)
 	spb.RegisterDataAggregatorServer(grpcServer, s)
@@ -74,6 +82,23 @@ func main() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write(webfe.Data["index.html"])
+	})
+
+	mux.HandleFunc("/rpc.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		j := json.NewEncoder(w)
+		err := j.Encode(struct {
+			Port       int
+			PublicKey  []byte
+			ServerName string
+		}{
+			flagGRPCPublicPort,
+			auther.certPEM,
+			"api.productimon.com",
+		})
+		if err != nil {
+			log.Println(err)
+		}
 	})
 
 	httpServer := &http.Server{Addr: flagHTTPListenAddress, Handler: mux}
