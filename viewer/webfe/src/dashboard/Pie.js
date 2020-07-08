@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useTheme } from "@material-ui/core/styles";
 import {
   PieChart,
@@ -19,6 +19,7 @@ import {
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Interval, Timestamp } from "productimon/proto/common/common_pb";
 import moment from "moment";
+import { calculateDate } from "./utils";
 
 // format a time in seconds to readable string
 // TODO: refactor
@@ -52,17 +53,27 @@ function getLabelColor(label) {
   return labelColorMap.get(label);
 }
 
-export default function DisplayPie() {
+export default function DisplayPie(props) {
   const theme = useTheme();
   const [rows, setRows] = React.useState([createData("init", 1, 3)]);
+  const [title, setTitle] = useState(props.spec.graphTitle);
   var data = [];
 
   useEffect(() => {
     const interval = new Interval();
     const start = new Timestamp();
-    start.setNanos(0);
+    const startDate = calculateDate(
+      props.spec.startTimeUnit,
+      props.spec.startTimeVal
+    );
+    const endDate = calculateDate(
+      props.spec.endTimeUnit,
+      props.spec.endTimeVal
+    );
+
+    start.setNanos(startDate * 10 ** 6);
     const end = new Timestamp();
-    end.setNanos(new Date().getTime() * 10 ** 6);
+    end.setNanos(endDate * 10 ** 6);
     interval.setStart(start);
     interval.setEnd(end);
 
@@ -89,13 +100,10 @@ export default function DisplayPie() {
           .getDataList()
           .sort((a, b) => b.getTime() - a.getTime());
 
-        // Display the 5 most used programs and the rest to a sector called 'other'
-        // To change number of applications displayed change variable appsDisplay
-        var appsDisplay = 5;
         // Cumulatively store the amount of time used in apps other than main displayed
         var othTime = 0;
         for (var i = 0; i < sorted.length; i++) {
-          if (i < appsDisplay) {
+          if (i < props.spec.numItems) {
             data.push(
               createData(
                 sorted[i].getApp(),
@@ -114,13 +122,15 @@ export default function DisplayPie() {
       },
       request,
     });
+    if (props.spec.graphTitle === "")
+      setTitle(props.spec.numItems + " most used");
   }, []);
 
   // TODO: add legend to the pie chart
   return (
     <React.Fragment>
-      <Title>Five Most used Applications</Title>
-      <ResponsiveContainer>
+      <Title>{title}</Title>
+      <ResponsiveContainer height="80%">
         <PieChart width={200} height={200}>
           <Pie
             innerRadius={38}

@@ -1,71 +1,73 @@
-import React from 'react';
+import React, { useState } from "react";
 import {
-  BrowserRouter as Router,
   Switch,
   Route,
   Link,
   useRouteMatch,
   useHistory,
-} from 'react-router-dom';
-import clsx from 'clsx';
-import { makeStyles } from '@material-ui/core/styles';
-import CssBaseline from '@material-ui/core/CssBaseline';
-import Drawer from '@material-ui/core/Drawer';
-import Box from '@material-ui/core/Box';
-import AppBar from '@material-ui/core/AppBar';
-import Toolbar from '@material-ui/core/Toolbar';
-import List from '@material-ui/core/List';
-import Typography from '@material-ui/core/Typography';
-import Divider from '@material-ui/core/Divider';
-import IconButton from '@material-ui/core/IconButton';
-import Badge from '@material-ui/core/Badge';
-import Container from '@material-ui/core/Container';
-import Grid from '@material-ui/core/Grid';
-import Paper from '@material-ui/core/Paper';
-import MaterialLink from '@material-ui/core/Link';
-import MenuIcon from '@material-ui/icons/Menu';
-import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
-import NotificationsIcon from '@material-ui/icons/Notifications';
-import ExitToAppIcon from '@material-ui/icons/ExitToApp';
+} from "react-router-dom";
+import clsx from "clsx";
+import { makeStyles } from "@material-ui/core/styles";
+import CssBaseline from "@material-ui/core/CssBaseline";
+import Drawer from "@material-ui/core/Drawer";
+import Box from "@material-ui/core/Box";
+import AppBar from "@material-ui/core/AppBar";
+import Toolbar from "@material-ui/core/Toolbar";
+import List from "@material-ui/core/List";
+import Typography from "@material-ui/core/Typography";
+import Divider from "@material-ui/core/Divider";
+import IconButton from "@material-ui/core/IconButton";
+import Badge from "@material-ui/core/Badge";
+import Container from "@material-ui/core/Container";
+import Grid from "@material-ui/core/Grid";
+import Paper from "@material-ui/core/Paper";
+import MaterialLink from "@material-ui/core/Link";
+import MenuIcon from "@material-ui/icons/Menu";
+import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
+import NotificationsIcon from "@material-ui/icons/Notifications";
+import ExitToAppIcon from "@material-ui/icons/ExitToApp";
 
-import Histogram from './Histogram';
-import DisplayTable from './Table';
-import DisplayPie from './Pie'
+import DashboardCustomizer from "./DashboardCustomizer";
+import Histogram from "./Histogram";
+import DisplayTable from "./Table";
+import DisplayPie from "./Pie";
 
 //import { mainListItems, secondaryListItems } from './listItems';
-import Menu from '@material-ui/core/Menu';
-import MenuItem from '@material-ui/core/MenuItem';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemIcon from '@material-ui/core/ListItemIcon';
-import ListItemText from '@material-ui/core/ListItemText';
-import DashboardIcon from '@material-ui/icons/Dashboard';
-import BarChartIcon from '@material-ui/icons/BarChart';
-import PieChartIcon from '@material-ui/icons/PieChart';
-import TableChartIcon from '@material-ui/icons/TableChart';
+import Menu from "@material-ui/core/Menu";
+import MenuItem from "@material-ui/core/MenuItem";
+import ListItem from "@material-ui/core/ListItem";
+import ListItemIcon from "@material-ui/core/ListItemIcon";
+import ListItemText from "@material-ui/core/ListItemText";
+import DashboardIcon from "@material-ui/icons/Dashboard";
 
-import { grpc } from '@improbable-eng/grpc-web';
-import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service';
-import { Empty } from 'productimon/proto/common/common_pb';
+import BrushIcon from "@material-ui/icons/Brush";
+import BarChartIcon from "@material-ui/icons/BarChart";
+import PieChartIcon from "@material-ui/icons/PieChart";
+import TableChartIcon from "@material-ui/icons/TableChart";
+
+import { grpc } from "@improbable-eng/grpc-web";
+import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
+import { Empty } from "productimon/proto/common/common_pb";
 
 const drawerWidth = 240;
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    display: 'flex',
+    display: "flex",
   },
   toolbar: {
     paddingRight: 24, // keep right padding when drawer closed
   },
   toolbarIcon: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    padding: '0 8px',
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    padding: "0 8px",
     ...theme.mixins.toolbar,
   },
   appBar: {
     zIndex: theme.zIndex.drawer + 1,
-    transition: theme.transitions.create(['width', 'margin'], {
+    transition: theme.transitions.create(["width", "margin"], {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
     }),
@@ -73,7 +75,7 @@ const useStyles = makeStyles((theme) => ({
   appBarShift: {
     marginLeft: drawerWidth,
     width: `calc(100% - ${drawerWidth}px)`,
-    transition: theme.transitions.create(['width', 'margin'], {
+    transition: theme.transitions.create(["width", "margin"], {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
     }),
@@ -82,36 +84,36 @@ const useStyles = makeStyles((theme) => ({
     marginRight: 36,
   },
   menuButtonHidden: {
-    display: 'none',
+    display: "none",
   },
   title: {
     flexGrow: 1,
   },
   drawerPaper: {
-    position: 'relative',
-    whiteSpace: 'nowrap',
+    position: "relative",
+    whiteSpace: "nowrap",
     width: drawerWidth,
-    transition: theme.transitions.create('width', {
+    transition: theme.transitions.create("width", {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
     }),
   },
   drawerPaperClose: {
-    overflowX: 'hidden',
-    transition: theme.transitions.create('width', {
+    overflowX: "hidden",
+    transition: theme.transitions.create("width", {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
     }),
     width: theme.spacing(7),
-    [theme.breakpoints.up('sm')]: {
+    [theme.breakpoints.up("sm")]: {
       width: theme.spacing(9),
     },
   },
   appBarSpacer: theme.mixins.toolbar,
   content: {
     flexGrow: 1,
-    height: '100vh',
-    overflow: 'auto',
+    height: "100vh",
+    overflow: "auto",
   },
   container: {
     paddingTop: theme.spacing(4),
@@ -119,15 +121,15 @@ const useStyles = makeStyles((theme) => ({
   },
   paper: {
     padding: theme.spacing(2),
-    display: 'flex',
-    overflow: 'auto',
-    flexDirection: 'column',
+    display: "flex",
+    overflow: "auto",
+    flexDirection: "column",
   },
   fixedHeightTable: {
     height: 600,
   },
   fixedHeightHistogram: {
-    height: 300,
+    height: 350,
   },
   fixedHeightPie: {
     height: 300,
@@ -139,23 +141,22 @@ export default function Dashboard() {
 
   const redirectToLogin = () => {
     window.localStorage.clear();
-    history.push('/');
+    history.push("/");
   };
 
   // redirect user to login page if unable to get user details
-  const token = window.localStorage.getItem('token');
+  const token = window.localStorage.getItem("token");
   const request = new Empty();
   if (!token) {
     redirectToLogin();
-    // this return is needed to stop teh execution of the following code
     return <p>Redirecting to login...</p>;
   }
   grpc.unary(DataAggregator.UserDetails, {
-    host: '/rpc',
+    host: "/rpc",
     metadata: new grpc.Metadata({ Authorization: token }),
     onEnd: ({ status, statusMessage, headers, message }) => {
       if (status != 0) {
-        console.error('response ', status, statusMessage, headers, message);
+        console.error("response ", status, statusMessage, headers, message);
         redirectToLogin();
         return;
       }
@@ -165,7 +166,7 @@ export default function Dashboard() {
   });
 
   // state stores what page the main section displays is in, by default we start with dashboard
-  const [state, setState] = React.useState('dashboard');
+  const [state, setState] = React.useState("dashboard");
   const classes = useStyles();
   const [open, setOpen] = React.useState(true);
   const handleDrawerOpen = () => {
@@ -190,7 +191,7 @@ export default function Dashboard() {
       <AppBar
         position="absolute"
         className={clsx(classes.appBar, open && classes.appBarShift)}
-        style={{ backgroundColor: '#484848' }}
+        style={{ backgroundColor: "#484848" }}
       >
         <Toolbar className={classes.toolbar}>
           <IconButton
@@ -200,7 +201,7 @@ export default function Dashboard() {
             onClick={handleDrawerOpen}
             className={clsx(
               classes.menuButton,
-              open && classes.menuButtonHidden,
+              open && classes.menuButtonHidden
             )}
           >
             <MenuIcon />
@@ -229,7 +230,7 @@ export default function Dashboard() {
             aria-controls="account-menu"
             aria-haspopup="true"
             onClick={handleClick}
-            style={{ textAlign: 'right', color: 'white' }}
+            style={{ textAlign: "right", color: "white" }}
           >
             Account
           </Typography>
@@ -254,20 +255,34 @@ export default function Dashboard() {
             button
             component={Link}
             to="/dashboard"
-            onClick={() => setState('dashboard')}
-            selected={state == 'dashboard'}
+            onClick={() => setState("dashboard")}
+            selected={state == "dashboard"}
           >
             <ListItemIcon>
               <DashboardIcon />
             </ListItemIcon>
             <ListItemText primary="Dashboard" />
           </MenuItem>
+
+          <MenuItem
+            button
+            component={Link}
+            to="/dashboard/customize"
+            onClick={() => setState("customize")}
+            selected={state == "customize"}
+          >
+            <ListItemIcon>
+              <BrushIcon />
+            </ListItemIcon>
+            <ListItemText primary="Customize" />
+          </MenuItem>
+
           <MenuItem
             button
             component={Link}
             to="/dashboard/histogram"
-            onClick={() => setState('histogram')}
-            selected={state == 'histogram'}
+            onClick={() => setState("histogram")}
+            selected={state == "histogram"}
           >
             <ListItemIcon>
               <BarChartIcon />
@@ -278,8 +293,8 @@ export default function Dashboard() {
             button
             component={Link}
             to="/dashboard/pie"
-            onClick={() => setState('pie')}
-            selected={state == 'pie'}
+            onClick={() => setState("pie")}
+            selected={state == "pie"}
           >
             <ListItemIcon>
               <PieChartIcon />
@@ -290,8 +305,8 @@ export default function Dashboard() {
             button
             component={Link}
             to="/dashboard/table"
-            onClick={() => setState('table')}
-            selected={state == 'table'}
+            onClick={() => setState("table")}
+            selected={state == "table"}
           >
             <ListItemIcon>
               <TableChartIcon />
@@ -317,34 +332,81 @@ function Display() {
   const fixedHeightPaperTable = clsx(classes.paper, classes.fixedHeightTable);
   const fixedHeightPaperHistogram = clsx(
     classes.paper,
-    classes.fixedHeightHistogram,
+    classes.fixedHeightHistogram
   );
   const fixedHeightPaperPie = clsx(classes.paper, classes.fixedHeightPie);
 
-  let match = useRouteMatch();
+  const initialGraphs = [
+    {
+      graphType: "histogram",
+      graphTitle: "Last ten minutes",
+      startTimeUnit: "Minutes",
+      startTimeVal: "10",
+      endTimeUnit: "Seconds",
+      endTimeVal: "0",
+      intervals: "10",
+    },
+    {
+      graphType: "piechart",
+      graphTitle: "Top 5 most used",
+      startTimeUnit: "Years",
+      startTimeVal: "10",
+      endTimeUnit: "Seconds",
+      endTimeVal: "0",
+      numItems: "5",
+    },
+    {
+      graphType: "table",
+      graphTitle: "Total use",
+      startTimeUnit: "Years",
+      startTimeVal: "10",
+      endTimeUnit: "Seconds",
+      endTimeVal: "0",
+    },
+  ];
+  const [graphs, setGraphs] = useState(initialGraphs);
 
+  // This is passed as a prop to the DashboardCustomizer. Right now this just updates a list of graphs that are rendered. In the future this will send the graph to the aggregator to save it to the account.
+  const addGraph = (graphSpec) => {
+    setGraphs(graphs.concat([graphSpec]));
+  };
+
+  const gmap = {
+    histogram: (graph) => {
+      return <Histogram spec={graph} />;
+    },
+    piechart: (graph) => {
+      return <DisplayPie spec={graph} />;
+    },
+    table: (graph) => {
+      return <DisplayTable spec={graph} />;
+    },
+  };
+
+  let match = useRouteMatch();
   return (
     <Switch>
+      <Route path="/dashboard/customize">
+        <div>
+          <Container maxWidth="lg" className={classes.container}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={12} lg={12}>
+                <DashboardCustomizer
+                  onAdd={(graphSpec) => addGraph(graphSpec)}
+                />
+              </Grid>
+            </Grid>
+          </Container>
+        </div>
+      </Route>
+
       <Route path="/dashboard/histogram">
         <div>
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={12} lg={12}>
                 <Paper className={fixedHeightPaperHistogram}>
-                  <Histogram />
-                </Paper>
-              </Grid>
-            </Grid>
-          </Container>
-        </div>
-      </Route>
-      <Route path="/dashboard/table">
-        <div>
-          <Container maxWidth="lg" className={classes.container}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={12} lg={12}>
-                <Paper className={classes.paper}>
-                  <DisplayTable />
+                  <Histogram spec={initialGraphs[0]} />
                 </Paper>
               </Grid>
             </Grid>
@@ -357,7 +419,20 @@ function Display() {
             <Grid container spacing={2}>
               <Grid item xs={12} md={12} lg={12}>
                 <Paper className={fixedHeightPaperPie}>
-                  <DisplayPie />
+                  <DisplayPie spec={initialGraphs[1]} />
+                </Paper>
+              </Grid>
+            </Grid>
+          </Container>
+        </div>
+      </Route>
+      <Route path="/dashboard/table">
+        <div>
+          <Container maxWidth="lg" className={classes.container}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={12} lg={12}>
+                <Paper className={classes.paper}>
+                  <DisplayTable spec={initialGraphs[2]} />
                 </Paper>
               </Grid>
             </Grid>
@@ -365,27 +440,17 @@ function Display() {
         </div>
       </Route>
       <Route path="/">
-        <div>
-          <Container maxWidth="lg" className={classes.container}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6} lg={6}>
-                <Paper className={fixedHeightPaperHistogram}>
-                  <Histogram />
+        <Container maxWidth="lg" className={classes.container}>
+          <Grid container spacing={2}>
+            {graphs.map((graph, index) => (
+              <Grid item xs={12} md={6} lg={6} key={index}>
+                <Paper className={fixedHeightPaperHistogram} key={index}>
+                  {gmap[graph.graphType](graph)}
                 </Paper>
               </Grid>
-              <Grid item xs={12} md={6} lg={6}>
-                <Paper className={fixedHeightPaperPie}>
-                  <DisplayPie />
-                </Paper>
-              </Grid>
-              <Grid item xs={12} md={12} lg={12}>
-                <Paper className={classes.paper}>
-                  <DisplayTable />
-                </Paper>
-              </Grid>
-            </Grid>
-          </Container>
-        </div>
+            ))}
+          </Grid>
+        </Container>
       </Route>
     </Switch>
   );

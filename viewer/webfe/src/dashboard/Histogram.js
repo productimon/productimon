@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useTheme } from '@material-ui/core/styles';
+import React, { useEffect, useState } from "react";
+import { useTheme } from "@material-ui/core/styles";
 import {
   BarChart,
   Bar,
@@ -10,31 +10,35 @@ import {
   ResponsiveContainer,
   Tooltip,
   Legend,
-} from 'recharts';
-import Title from './Title';
+} from "recharts";
+import Title from "./Title";
 
-import { grpc } from '@improbable-eng/grpc-web';
+import { grpc } from "@improbable-eng/grpc-web";
 import {
   DataAggregatorGetTimeRequest,
   DataAggregatorGetTimeResponse,
-} from 'productimon/proto/svc/aggregator_pb';
-import { DataAggregator } from 'productimon/proto/svc/aggregator_pb_service';
-import { Interval, Timestamp } from 'productimon/proto/common/common_pb';
+} from "productimon/proto/svc/aggregator_pb";
+import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
+import { Interval, Timestamp } from "productimon/proto/common/common_pb";
+import IconButton from "@material-ui/core/IconButton";
+import DeleteIcon from "@material-ui/icons/Delete";
+import { calculateDate } from "./utils";
 
-function last10MinIntervals() {
-  const gap = 60 * 10 ** 9;
-  var curr = new Date().getTime() * 10 ** 6;
-  curr = curr - (curr % gap) + gap;
+// startDate and endDate are miliseconds.
+function createIntervals(startDate, endDate, numIntervals) {
+  const intervalDuration = (endDate - startDate) / numIntervals;
+  var curr = endDate;
+  curr = curr - (curr % intervalDuration) + intervalDuration;
   const ret = [];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < numIntervals; ++i) {
     const interval = new Interval();
     const start = new Timestamp();
-    start.setNanos(curr - gap);
+    start.setNanos((curr - intervalDuration) * 10 ** 6);
     const end = new Timestamp();
-    end.setNanos(curr);
+    end.setNanos(curr * 10 ** 6);
     interval.setStart(start);
     interval.setEnd(end);
-    curr -= gap;
+    curr -= intervalDuration;
     ret.push(interval);
   }
   return ret;
@@ -53,6 +57,7 @@ function transformRange(data) {
   dataPoints.forEach((point) => {
     // TODO convert it to a proper unit
     // always using seconds for now
+
     ret[point.getLabel()] = point.getTime() / 10 ** 9;
   });
   return ret;
@@ -68,7 +73,7 @@ function getUniqLabels(response) {
           .getDataList()
           .reduce((labels, datapoint) => [...labels, datapoint.getLabel()], []),
       ],
-      [],
+      []
     )
     .reduce((result, arr) => [...result, ...arr], [])
     .filter((v, i, a) => a.indexOf(v) === i)
@@ -76,7 +81,7 @@ function getUniqLabels(response) {
 }
 
 const labelColorMap = new Map();
-const colors = ['#ef5350', '#d81b60', '#2196f3', '#4db6ac', '#9ccc65'];
+const colors = ["#ef5350", "#d81b60", "#2196f3", "#4db6ac", "#9ccc65"];
 var colorIdx = 0;
 function getLabelColor(label) {
   if (!labelColorMap.has(label)) {
@@ -87,28 +92,37 @@ function getLabelColor(label) {
   return labelColorMap.get(label);
 }
 
-export default function Histogram() {
+export default function Histogram(props) {
   const theme = useTheme();
   const [data, setData] = useState([]);
   const [dataKeys, setDataKeys] = useState([]);
+  const [title, setTitle] = useState(props.spec.graphTitle);
 
   useEffect(() => {
-    const intervals = last10MinIntervals();
+    const startDate = calculateDate(
+      props.spec.startTimeUnit,
+      props.spec.startTimeVal
+    );
+    const endDate = calculateDate(
+      props.spec.endTimeUnit,
+      props.spec.endTimeVal
+    );
+    const numIntervals = props.spec.intervals;
+    const intervals = createIntervals(startDate, endDate, numIntervals);
 
-    /* Get time data for all device for last 10 minutes */
     const request = new DataAggregatorGetTimeRequest();
     request.setDevicesList([]);
     request.setIntervalsList(intervals);
     request.setGroupBy(DataAggregatorGetTimeRequest.GroupBy.LABEL);
 
-    const token = window.localStorage.getItem('token');
+    const token = window.localStorage.getItem("token");
     grpc.unary(DataAggregator.GetTime, {
-      host: '/rpc',
+      host: "/rpc",
       metadata: new grpc.Metadata({ Authorization: token }),
       onEnd: ({ status, statusMessage, headers, message }) => {
         if (status != 0) {
           console.error(
-            `Error getting res, status ${status}: ${statusMessage}`,
+            `Error getting res, status ${status}: ${statusMessage}`
           );
           return;
         }
@@ -117,19 +131,35 @@ export default function Histogram() {
       },
       request,
     });
+    if (title === "")
+      setTitle(
+        "From " +
+          props.spec.startTimeVal +
+          " " +
+          props.spec.startTimeUnit +
+          " until " +
+          props.spec.endTimeVal +
+          " " +
+          props.spec.endTimeUnit +
+          " ago."
+      );
   }, []);
 
   return (
     <React.Fragment>
-      <Title>Activity in last 10 minutes</Title>
-      <ResponsiveContainer>
+      {/* Alignment is hard...
+          <IconButton aria-label="delete">
+          <DeleteIcon />
+          </IconButton> */}
+      <Title>{title}</Title>
+      <ResponsiveContainer height="80%">
         <BarChart
           data={data}
           margin={{
             top: 16,
             right: 16,
             bottom: 0,
-            left: 24,
+            left: 16,
           }}
         >
           <CartesianGrid strokeDasharray="3 3" />
