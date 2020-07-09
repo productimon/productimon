@@ -30,8 +30,7 @@ import ExitToAppIcon from '@material-ui/icons/ExitToApp';
 
 import Histogram from './Histogram';
 import DisplayTable from './Table';
-// DisplayPie causing runtime errors. Fix up then re-integrate
-// import DisplayPie from './Pie'
+import DisplayPie from './Pie'
 
 //import { mainListItems, secondaryListItems } from './listItems';
 import Menu from '@material-ui/core/Menu';
@@ -352,8 +351,19 @@ function Display() {
           </Container>
         </div>
       </Route>
-      // pie-chart is temporarily disabled due to runtime errors
-      <Route path="/dashboard/pie"></Route>
+      <Route path="/dashboard/pie">
+        <div>
+          <Container maxWidth="lg" className={classes.container}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={12} lg={12}>
+                <Paper className={fixedHeightPaperPie}>
+                  <DisplayPie />
+                </Paper>
+              </Grid>
+            </Grid>
+          </Container>
+        </div>
+      </Route>
       <Route path="/">
         <div>
           <Container maxWidth="lg" className={classes.container}>
@@ -361,6 +371,11 @@ function Display() {
               <Grid item xs={12} md={6} lg={6}>
                 <Paper className={fixedHeightPaperHistogram}>
                   <Histogram />
+                </Paper>
+              </Grid>
+              <Grid item xs={12} md={6} lg={6}>
+                <Paper className={fixedHeightPaperPie}>
+                  <DisplayPie />
                 </Paper>
               </Grid>
               <Grid item xs={12} md={12} lg={12}>
