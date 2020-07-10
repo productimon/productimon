@@ -22,6 +22,15 @@ CREATE TABLE events (
   PRIMARY KEY(uid, did, id)
 );
 
+CREATE TABLE intervals (
+  uid CHAR(36) NOT NULL,
+  did INTEGER NOT NULL,
+  starttime INTEGER NOT NULL,
+  endtime INTEGER NOT NULL,
+  app VARCHAR(255) NOT NULL,
+  PRIMARY KEY(uid, did, starttime)
+);
+
 CREATE TABLE apps (
   name VARCHAR(255) PRIMARY KEY,
   label VARCHAR(255)

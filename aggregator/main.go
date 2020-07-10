@@ -48,10 +48,7 @@ func main() {
 	}
 	grpcServer := grpc.NewServer()
 	reflection.Register(grpcServer)
-	s := &service{
-		auther: auther,
-		db:     db,
-	}
+	s := NewService(auther, db)
 	spb.RegisterDataAggregatorServer(grpcServer, s)
 	go func() {
 		gerr := grpcServer.Serve(lis)

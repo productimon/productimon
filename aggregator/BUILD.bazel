@@ -26,6 +26,7 @@ go_library(
         },
     }),
     deps = [
+        "//aggregator/deviceState:go_default_library",
         "//proto/common:go_default_library",
         "//proto/svc:go_default_library",
         "//viewer/webfe:go_default_library",

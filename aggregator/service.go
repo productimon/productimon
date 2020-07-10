@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 
+	"git.yiad.am/productimon/aggregator/deviceState"
 	cpb "git.yiad.am/productimon/proto/common"
 	spb "git.yiad.am/productimon/proto/svc"
 	"github.com/google/uuid"
@@ -21,6 +22,22 @@ const bcryptStrength = 12
 type service struct {
 	auther *Authenticator
 	db     *sql.DB
+
+	ds *deviceState.DsMap
+}
+
+// TODO: deal with ds recovery upon server rebooting
+func (s *service) lazyInitEidHandler(uid string, did int) (int64, error) {
+	return 0, nil
+}
+
+func NewService(auther *Authenticator, db *sql.DB) (s *service) {
+	s = &service{
+		auther: auther,
+		db:     db,
+	}
+	s.ds = deviceState.NewDsMap(s.lazyInitEidHandler)
+	return
 }
 
 func (s *service) Ping(ctx context.Context, req *spb.DataAggregatorPingRequest) (*spb.DataAggregatorPingResponse, error) {
@@ -125,6 +142,14 @@ func (s *service) addGeneralEvent(uid string, did int, e *cpb.Event, kind cpb.Ev
 	return
 }
 
+func (s *service) eventUpdateState(uid string, did int, e *cpb.Event, eg func(e *cpb.Event) func(ds *deviceState.DeviceState, db *sql.DB)) error {
+	err := s.ds.RunEvent(s.db, uid, did, e.Id, eg(e))
+	if err != nil {
+		log.Println(err)
+	}
+	return err // this is currently ignored by AddEvent
+}
+
 func (s *service) AddEvent(uid string, did int, e *cpb.Event) error {
 	switch k := e.Kind.(type) {
 	case *cpb.Event_AppSwitchEvent:
@@ -138,18 +163,24 @@ func (s *service) AddEvent(uid string, did int, e *cpb.Event) error {
 			return err
 		}
 		tx.Commit()
+		s.eventUpdateState(uid, did, e, deviceState.SwitchApp)
+
 	case *cpb.Event_StartTrackingEvent:
 		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_START_TRACKING_EVENT)
 		if err != nil {
 			return err
 		}
 		tx.Commit()
+		s.eventUpdateState(uid, did, e, deviceState.ClearState)
+
 	case *cpb.Event_StopTrackingEvent:
 		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_STOP_TRACKING_EVENT)
 		if err != nil {
 			return err
 		}
 		tx.Commit()
+		s.eventUpdateState(uid, did, e, deviceState.ClearState)
+
 	case *cpb.Event_KeyStrokeEvent:
 		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_KEY_STROKE_EVENT)
 		if err != nil {
@@ -161,6 +192,8 @@ func (s *service) AddEvent(uid string, did int, e *cpb.Event) error {
 			return err
 		}
 		tx.Commit()
+		s.eventUpdateState(uid, did, e, deviceState.SetActive)
+
 	case *cpb.Event_MouseClickEvent:
 		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_MOUSE_CLICK_EVENT)
 		if err != nil {
@@ -172,8 +205,11 @@ func (s *service) AddEvent(uid string, did int, e *cpb.Event) error {
 			return err
 		}
 		tx.Commit()
+		s.eventUpdateState(uid, did, e, deviceState.SetActive)
+
 	case nil:
 		return errors.New("event not set")
+
 	default:
 		return fmt.Errorf("unknown event type %T", k)
 	}
@@ -257,41 +293,17 @@ func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeReq
 
 	rsp := &spb.DataAggregatorGetTimeResponse{}
 
-	// TODO: optimize this terribly written code written at 3AM
-	//       that does not consider performance whatsoever
 	for _, in := range intervals {
 		rd := &spb.DataAggregatorGetTimeResponse_RangeData{Interval: in}
-		func() {
-			var sid, eid int64
-			if err := s.db.QueryRow("SELECT MIN(id), MAX(id) FROM events WHERE starttime >= ? AND endtime <= ? AND uid = ?"+dFilter, in.Start.Nanos, in.End.Nanos, uid).Scan(&sid, &eid); err != nil {
-				fmt.Println(err)
-				return
-			}
-			rows, err := s.db.Query("SELECT events.id, events.kind, events.starttime, app_switch_events.app FROM events LEFT JOIN app_switch_events ON app_switch_events.id = events.id AND app_switch_events.uid = events.uid AND app_switch_events.did = events.did WHERE events.id >= ? AND events.id <= ? AND events.uid = ? AND events.kind IN (?,?,?)"+dFilter, sid-1, eid, uid, cpb.EventType_APP_SWITCH_EVENT, cpb.EventType_START_TRACKING_EVENT, cpb.EventType_STOP_TRACKING_EVENT)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			currApp := ""
-			lastTime := in.Start.Nanos
+		rows, err := s.db.Query("SELECT MAX(starttime, ?), MIN(endtime, ?), app FROM intervals WHERE uid = ? AND endtime >= ? AND starttime <= ?"+dFilter, in.Start.Nanos, in.End.Nanos, uid, in.Start.Nanos, in.End.Nanos)
+
+		if err == nil {
 			data := make(map[string]int64)
 			for rows.Next() {
-				var eid, ekind, etime int64
+				var stime, etime int64
 				var appname string
-				// for all event types we are interested, starttime=endtime
-				rows.Scan(&eid, &ekind, &etime, &appname)
-				if etime > lastTime {
-					if currApp != "" {
-						data[currApp] += etime - lastTime
-						log.Printf("%s - %d - %d [%d ns]", currApp, lastTime, etime, etime-lastTime)
-					}
-					lastTime = etime
-				}
-				if appname != "" {
-					currApp = transform(appname)
-				} else {
-					currApp = ""
-				}
+				rows.Scan(&stime, &etime, &appname)
+				data[transform(appname)] += etime - stime
 			}
 			for k, v := range data {
 				switch req.GroupBy {
@@ -308,7 +320,10 @@ func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeReq
 					})
 				}
 			}
-		}()
+		} else {
+			log.Println(err)
+		}
+
 		rsp.Data = append(rsp.Data, rd)
 	}
 
