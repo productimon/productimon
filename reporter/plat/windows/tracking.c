@@ -1,13 +1,16 @@
 #include "reporter/plat/tracking.h"
 
+#define UNICODE
+
 #include <processthreadsapi.h>
 #include <psapi.h>
 #include <shlwapi.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <strsafe.h>
 #include <windows.h>
+#include <winnt.h>
 #include <winuser.h>
 #include <winver.h>
 #include <wtsapi32.h>
@@ -44,19 +47,22 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
     return 1;
   }
 
-  char path[MAX_PATH];
-  if (GetModuleFileNameExA(proc_handle, NULL, path, MAX_PATH) == 0) {
+  wchar_t path[MAX_PATH];
+  if (GetModuleFileNameExW(proc_handle, NULL, path, MAX_PATH) == 0) {
     error("Failed to get executable path %d\n", GetLastError);
     goto error_close_handle;
   }
   debug("exec full path: %s\n", path);
 
-  DWORD ver_info_size = GetFileVersionInfoSizeA(path, NULL);
+  DWORD ver_info_size = GetFileVersionInfoSizeW(path, NULL);
   if (ver_info_size == 0) {
     debug("Failed to get version info size\n");
-    PathStripPathA(path);
-    snprintf(buf, size, "%s", path);
     CloseHandle(proc_handle);
+    PathStripPathW(path);
+    if (!WideCharToMultiByte(CP_UTF8, 0, path, -1, buf, size, NULL, NULL)) {
+      error("Failed to convert encoding: %d\n", GetLastError());
+      return 1;
+    }
     return 0;
   }
 
@@ -66,7 +72,7 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
     goto error_close_handle;
   }
 
-  if (!GetFileVersionInfoA(path, 0, ver_info_size, version_buf)) {
+  if (!GetFileVersionInfoW(path, 0, ver_info_size, version_buf)) {
     error("Failed to get version info\n");
     goto error_free_version_buf;
   }
@@ -78,7 +84,7 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
   } * translate;
 
   int translate_size;
-  VerQueryValueA(version_buf, TEXT("\\VarFileInfo\\Translation"),
+  VerQueryValueW(version_buf, TEXT("\\VarFileInfo\\Translation"),
                  (LPVOID *)&translate, &translate_size);
 
   int n_translations = translate_size / sizeof(struct LANGANDCODEPAGE);
@@ -89,24 +95,32 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
     goto use_exec_name;
   }
 
-  char query_str[64];
-  snprintf(query_str, 64, "\\StringFileInfo\\%04x%04x\\FileDescription",
-           translate[0].wLanguage, translate[0].wCodePage);
+  wchar_t query_str[64];
+  StringCchPrintfW(query_str, 64,
+                   TEXT("\\StringFileInfo\\%04x%04x\\FileDescription"),
+                   translate[0].wLanguage, translate[0].wCodePage);
 
-  char *file_description;
+  wchar_t *file_description;
   /* Get program description from the version info */
-  if (!VerQueryValueA(version_buf, query_str, (LPVOID *)&file_description,
+  if (!VerQueryValueW(version_buf, query_str, (LPVOID *)&file_description,
                       NULL)) {
     debug(
         "Failed to get description from version info, use exec name instead\n");
     goto use_exec_name;
   }
-  snprintf(buf, size, "%s", file_description);
+  if (!WideCharToMultiByte(CP_UTF8, 0, file_description, -1, buf, size, NULL,
+                           NULL)) {
+    error("Failed to convert encoding: %d\n", GetLastError());
+    goto use_exec_name;
+  }
   goto success;
 
 use_exec_name:
-  PathStripPathA(path);
-  snprintf(buf, size, "%s", path);
+  PathStripPathW(path);
+  if (!WideCharToMultiByte(CP_UTF8, 0, path, -1, buf, size, NULL, NULL)) {
+    error("Failed to convert encoding: %d\n", GetLastError());
+    goto error_free_version_buf;
+  }
 success:
   ret = 0;
 
@@ -140,7 +154,7 @@ static VOID CALLBACK callback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent,
     debug("Switch event triggered but program name is the same\n");
     return;
   }
-  strcpy(prog_name, new_prog_name);
+  StringCbCopyA(prog_name, 512, new_prog_name);
   printf("Got new program: %s\n", prog_name);
   SendWindowSwitchEvent(prog_name);
 }
