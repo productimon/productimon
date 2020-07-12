@@ -9,12 +9,13 @@ import (
 )
 
 type DeviceState struct {
-	uid       string
-	did       int
-	app       string
-	startTime int64
-	running   bool
-	evq       OrderedEventQueue
+	uid        string
+	did        int
+	app        string
+	startTime  int64
+	activeTime int64
+	running    bool
+	evq        OrderedEventQueue
 }
 
 type LazyInitEidHandler func(uid string, did int) (int64, error)
@@ -33,19 +34,20 @@ func (ds *DeviceState) switchApp(db *sql.DB, app string, timestamp int64) {
 	ds.running = true
 	ds.app = app
 	ds.startTime = timestamp
+	ds.activeTime = 0
 }
 
 func (ds *DeviceState) clearState(db *sql.DB, timestamp int64) {
 	if ds.running {
 		ds.running = false
-		if _, err := db.Exec("INSERT INTO intervals (uid, did, starttime, endtime, app) VALUES(?, ?, ?, ?, ?)", ds.uid, ds.did, ds.startTime, timestamp, ds.app); err != nil {
+		if _, err := db.Exec("INSERT INTO intervals (uid, did, starttime, endtime, activetime, app) VALUES(?, ?, ?, ?, ?, ?)", ds.uid, ds.did, ds.startTime, timestamp, ds.activeTime, ds.app); err != nil {
 			log.Printf("error in clearState: %v", err)
 		}
 	}
 }
 
 func (ds *DeviceState) setActive(db *sql.DB, timestart, timeend int64) {
-	// TODO: implement this
+	ds.activeTime += timeend - timestart
 }
 
 func switchApp(app string, timestamp int64) func(ds *DeviceState, db *sql.DB) {
@@ -76,6 +78,10 @@ func ClearState(e *cpb.Event) func(ds *DeviceState, db *sql.DB) {
 
 func SetActive(e *cpb.Event) func(ds *DeviceState, db *sql.DB) {
 	return setActive(e.Timeinterval.Start.Nanos, e.Timeinterval.End.Nanos)
+}
+
+func Nop(e *cpb.Event) func(ds *DeviceState, db *sql.DB) {
+	return func(ds *DeviceState, db *sql.DB) {}
 }
 
 func NewDsMap(initEidHandler LazyInitEidHandler) *DsMap {

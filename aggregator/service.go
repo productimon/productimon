@@ -26,9 +26,18 @@ type service struct {
 	ds *deviceState.DsMap
 }
 
-// TODO: deal with ds recovery upon server rebooting
+// TODO: what if we recoreded out-of-order events in db and are waiting for an old event when we shutdown server
 func (s *service) lazyInitEidHandler(uid string, did int) (int64, error) {
-	return 0, nil
+	var eid int64
+	err := s.db.QueryRow("SELECT MAX(id) FROM events WHERE uid=? AND did=?", uid, did).Scan(&eid)
+	switch {
+	case err == sql.ErrNoRows:
+		eid = 0
+
+	case err != nil:
+		return -1, err
+	}
+	return eid, nil
 }
 
 func NewService(auther *Authenticator, db *sql.DB) (s *service) {
@@ -205,31 +214,22 @@ func (s *service) AddEvent(uid string, did int, e *cpb.Event) error {
 		tx.Commit()
 		s.eventUpdateState(uid, did, e, deviceState.ClearState)
 
-	case *cpb.Event_KeyStrokeEvent:
-		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_KEY_STROKE_EVENT)
+	case *cpb.Event_ActivityEvent:
+		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_ACTIVITY_EVENT)
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec("INSERT INTO key_stroke_events(uid, did, id, keystrokes) VALUES(?, ?, ?, ?)",
-			uid, did, e.Id, k.KeyStrokeEvent.Keystrokes); err != nil {
+		if _, err := tx.Exec("INSERT INTO activity_events(uid, did, id, keystrokes, mouseclicks) VALUES(?, ?, ?, ?, ?)",
+			uid, did, e.Id, k.ActivityEvent.Keystrokes, k.ActivityEvent.Mouseclicks); err != nil {
 			tx.Rollback()
 			return err
 		}
 		tx.Commit()
-		s.eventUpdateState(uid, did, e, deviceState.SetActive)
-
-	case *cpb.Event_MouseClickEvent:
-		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_MOUSE_CLICK_EVENT)
-		if err != nil {
-			return err
+		if s.isActive(k.ActivityEvent.Keystrokes, k.ActivityEvent.Mouseclicks, e.Timeinterval.Start.Nanos, e.Timeinterval.End.Nanos) {
+			s.eventUpdateState(uid, did, e, deviceState.SetActive)
+		} else {
+			s.eventUpdateState(uid, did, e, deviceState.Nop)
 		}
-		if _, err := tx.Exec("INSERT INTO mouse_click_events(uid, did, id, mouseclicks) VALUES(?, ?, ?, ?)",
-			uid, did, e.Id, k.MouseClickEvent.Mouseclicks); err != nil {
-			tx.Rollback()
-			return err
-		}
-		tx.Commit()
-		s.eventUpdateState(uid, did, e, deviceState.SetActive)
 
 	case nil:
 		return errors.New("event not set")
@@ -280,9 +280,35 @@ func (s *service) GetEvent(req *spb.DataAggregatorGetEventRequest, server spb.Da
 	return nil
 }
 
+// TODO
+func (s *service) isActive(keystrokes, mouseclicks, starttime, endtime int64) bool {
+	return true
+}
+
 func (s *service) getLabel(appname string) string {
 	// TODO: this needs to be fancy
 	return appname
+}
+
+func (s *service) findActiveTime(uid, dFilter string, stime, etime int64) int64 {
+	rows, err := s.db.Query("SELECT I.starttime, I.endtime, A.keystrokes, A.mouseclicks FROM intervals I JOIN activity_events A ON I.id=A.id WHERE I.uid = ? AND I.endtime >= ? AND I.starttime <= ? AND I.kind=?"+dFilter, uid, stime, etime, cpb.EventType_ACTIVITY_EVENT)
+	var ret int64
+	if err == nil {
+		for rows.Next() {
+			var st, et, ks, mc int64
+			rows.Scan(&st, &et, &ks, &mc)
+			if s.isActive(ks, mc, st, et) {
+				if st < stime {
+					st = stime
+				}
+				if et > etime {
+					et = etime
+				}
+				ret += et - st
+			}
+		}
+	}
+	return ret
 }
 
 func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeRequest) (*spb.DataAggregatorGetTimeResponse, error) {
@@ -320,28 +346,36 @@ func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeReq
 
 	for _, in := range intervals {
 		rd := &spb.DataAggregatorGetTimeResponse_RangeData{Interval: in}
-		rows, err := s.db.Query("SELECT MAX(starttime, ?), MIN(endtime, ?), app FROM intervals WHERE uid = ? AND endtime >= ? AND starttime <= ?"+dFilter, in.Start.Nanos, in.End.Nanos, uid, in.Start.Nanos, in.End.Nanos)
+		rows, err := s.db.Query("SELECT MAX(starttime, ?), MIN(endtime, ?), activetime, app FROM intervals WHERE uid = ? AND endtime >= ? AND starttime <= ?"+dFilter, in.Start.Nanos, in.End.Nanos, uid, in.Start.Nanos, in.End.Nanos)
 
 		if err == nil {
 			data := make(map[string]int64)
+			atimes := make(map[string]int64)
 			for rows.Next() {
-				var stime, etime int64
+				var stime, etime, atime int64
 				var appname string
-				rows.Scan(&stime, &etime, &appname)
-				data[transform(appname)] += etime - stime
+				rows.Scan(&stime, &etime, &atime, &appname)
+				appname = transform(appname)
+				if stime == in.Start.Nanos || etime == in.End.Nanos {
+					atime = s.findActiveTime(uid, dFilter, in.Start.Nanos, in.End.Nanos)
+				}
+				data[appname] += etime - stime
+				atimes[appname] += atime
 			}
 			for k, v := range data {
 				switch req.GroupBy {
 				case spb.DataAggregatorGetTimeRequest_APPLICATION:
 					rd.Data = append(rd.Data, &spb.DataAggregatorGetTimeResponse_RangeData_DataPoint{
-						App:   k,
-						Label: s.getLabel(k),
-						Time:  v,
+						App:        k,
+						Label:      s.getLabel(k),
+						Time:       v,
+						Activetime: atimes[k],
 					})
 				case spb.DataAggregatorGetTimeRequest_LABEL:
 					rd.Data = append(rd.Data, &spb.DataAggregatorGetTimeResponse_RangeData_DataPoint{
-						Label: k,
-						Time:  v,
+						Label:      k,
+						Time:       v,
+						Activetime: atimes[k],
 					})
 				}
 			}

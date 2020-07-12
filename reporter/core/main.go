@@ -198,22 +198,14 @@ func HandleKeystroke() {
 func sendInputStats(start, end int64) {
 	statsMutex.Lock()
 	defer statsMutex.Unlock()
-	if nKeystrokes > 0 {
+	if nKeystrokes > 0 || nClicks > 0 {
 		event := &cpb.Event{
 			Id:           getEid(),
 			Timeinterval: &cpb.Interval{Start: &cpb.Timestamp{Nanos: start}, End: &cpb.Timestamp{Nanos: end}},
-			Kind:         &cpb.Event_KeyStrokeEvent{&cpb.KeyStrokeEvent{Keystrokes: nKeystrokes}},
+			Kind:         &cpb.Event_ActivityEvent{&cpb.ActivityEvent{Keystrokes: nKeystrokes, Mouseclicks: nClicks}},
 		}
 		eq <- event
 		nKeystrokes = 0
-	}
-	if nClicks > 0 {
-		event := &cpb.Event{
-			Id:           getEid(),
-			Timeinterval: &cpb.Interval{Start: &cpb.Timestamp{Nanos: start}, End: &cpb.Timestamp{Nanos: end}},
-			Kind:         &cpb.Event_MouseClickEvent{&cpb.MouseClickEvent{Mouseclicks: nClicks}},
-		}
-		eq <- event
 		nClicks = 0
 	}
 }

@@ -5,10 +5,9 @@ option go_package = "git.yiad.am/productimon/proto/common";
 enum EventType {
   UNKNOWN = 0;
   APP_SWITCH_EVENT = 1;
-  KEY_STROKE_EVENT = 2;
-  MOUSE_CLICK_EVENT = 3;
-  START_TRACKING_EVENT = 4;
-  STOP_TRACKING_EVENT = 5;
+  ACTIVITY_EVENT = 2;
+  START_TRACKING_EVENT = 3;
+  STOP_TRACKING_EVENT = 4;
 }
 
 message StartTrackingEvent {}
@@ -18,12 +17,9 @@ message AppSwitchEvent {
   string app_name = 1;
 }
 
-message KeyStrokeEvent {
+message ActivityEvent {
   // number of keystrokes in sampling duration
   int64 keystrokes = 1;
-}
-
-message MouseClickEvent {
   // number of mouse clicks in sampling duration
-  int64 mouseclicks = 1;
+  int64 mouseclicks = 2;
 }

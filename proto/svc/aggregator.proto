@@ -110,6 +110,7 @@ message DataAggregatorGetTimeResponse {
       string app = 1;  // only populated if group_by = APPLICATION
       string label = 2;
       int64 time = 3;  // nanoseconds in duration
+      int64 activetime = 4;  // nanoseconds in duration
     }
     repeated DataPoint data = 2;
   }

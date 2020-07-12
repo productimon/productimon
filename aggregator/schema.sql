@@ -27,6 +27,7 @@ CREATE TABLE intervals (
   did INTEGER NOT NULL,
   starttime INTEGER NOT NULL,
   endtime INTEGER NOT NULL,
+  activetime INTEGER NOT NULL,
   app VARCHAR(255) NOT NULL,
   PRIMARY KEY(uid, did, starttime)
 );
@@ -44,18 +45,11 @@ CREATE TABLE app_switch_events (
   PRIMARY KEY(uid, did, id)
 );
 
-CREATE TABLE key_stroke_events (
+CREATE TABLE activity_events (
   uid CHAR(36) NOT NULL,
   did INTEGER NOT NULL,
   id INTEGER NOT NULL,
   keystrokes INTEGER NOT NULL,
-  PRIMARY KEY(uid, did, id)
-);
-
-CREATE TABLE mouse_click_events (
-  uid CHAR(36) NOT NULL,
-  did INTEGER NOT NULL,
-  id INTEGER NOT NULL,
   mouseclicks INTEGER NOT NULL,
   PRIMARY KEY(uid, did, id)
 );

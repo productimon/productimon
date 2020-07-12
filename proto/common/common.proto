@@ -51,9 +51,8 @@ message Event {
 
   oneof kind {
     AppSwitchEvent app_switch_event = 4;
-    KeyStrokeEvent key_stroke_event = 5;
-    MouseClickEvent mouse_click_event = 6;
-    StartTrackingEvent start_tracking_event = 7;
-    StopTrackingEvent stop_tracking_event = 8;
+    ActivityEvent activity_event = 5;
+    StartTrackingEvent start_tracking_event = 6;
+    StopTrackingEvent stop_tracking_event = 7;
   }
 }
