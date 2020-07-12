@@ -6,6 +6,7 @@
 #include <X11/Xutil.h>
 #include <X11/extensions/XInput2.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +28,7 @@ static volatile bool tracking_started = false;
 static pthread_t tracking_thread;
 static tracking_opt_t *tracking_opts;
 static pthread_mutex_t tracking_mutex;
+static sem_t event_loop_finished;
 
 static int xi_major_opcode;
 
@@ -177,8 +179,6 @@ int init_tracking() {
   return 0;
 }
 
-void exit_tracking() {}
-
 static int start_tracking_impl(tracking_opt_t *opts, bool inhibit) {
   pthread_mutex_lock(&tracking_mutex);
   if (inhibit && tracking_started) {
@@ -288,9 +288,7 @@ int start_tracking(tracking_opt_t *opts) {
   return start_tracking_impl(opts, true);
 }
 
-void stop_tracking() {
-  stop_tracking_impl(false);
-}
+void stop_tracking() { stop_tracking_impl(false); }
 
 static void suspend_tracking() { stop_tracking_impl(true); }
 
@@ -301,6 +299,15 @@ static void resume_tracking() {
 }
 
 bool is_tracking() { return tracking_started; }
+
+void run_event_loop() {
+  if (sem_init(&event_loop_finished, 0, 0)) {
+    perror("Failed into init sem");
+  }
+  sem_wait(&event_loop_finished);
+}
+
+void stop_event_loop() { sem_post(&event_loop_finished); }
 
 #else
 #error "This code only works on Linux"

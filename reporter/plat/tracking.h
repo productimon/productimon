@@ -24,3 +24,5 @@ int init_tracking();
 int start_tracking(tracking_opt_t *opts);
 void stop_tracking();
 bool is_tracking();
+void run_event_loop();
+void stop_event_loop();

@@ -31,6 +31,8 @@ static HHOOK mouse_hook;
 static HHOOK key_hook;
 static HWINEVENTHOOK window_change_hook;
 
+static HANDLE event_loop_finished;
+
 static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
   int ret = 1;
   DWORD pid;
@@ -333,3 +335,17 @@ void stop_tracking() {
 }
 
 bool is_tracking() { return tracking_started; }
+
+void run_event_loop() {
+  event_loop_finished = CreateSemaphore(NULL, 0, 1, NULL);
+  if (event_loop_finished == NULL) {
+    error("Failed to create sem: %d\n", GetLastError());
+  }
+  WaitForSingleObject(event_loop_finished, INFINITE);
+}
+
+void stop_event_loop() {
+  if (!ReleaseSemaphore(event_loop_finished, 1, NULL)) {
+    error("ReleaseSemaphore error: %d\n", GetLastError());
+  }
+}
