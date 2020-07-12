@@ -1,10 +1,16 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "objc_library")
 
 config_setting(
     name = "debug_build",
     values = {
         "compilation_mode": "dbg",
     },
+)
+
+cc_library(
+    name = "tracking-header",
+    hdrs = ["tracking.h"],
+    visibility = ["//reporter:__pkg__"],
 )
 
 cc_library(
@@ -44,6 +50,24 @@ cc_library(
         "-lversion",
         "-lshlwapi",
         "-lwtsapi32",
+    ],
+    visibility = ["//reporter:__pkg__"],
+    deps = [
+        "//reporter/core:core.cc",
+    ],
+)
+
+objc_library(
+    name = "trackinglib-macos",
+    srcs = ["macos/tracking.m"],
+    hdrs = ["tracking.h"],
+    defines = select({
+        "debug_build": ["DEBUG"],
+        "//conditions:default": [],
+    }),
+    sdk_frameworks = [
+        "AppKit",
+        "Security",
     ],
     visibility = ["//reporter:__pkg__"],
     deps = [
