@@ -1,10 +1,15 @@
 #include "reporter/plat/tracking.h"
 
 #import <AppKit/AppKit.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 
 #include "reporter/core/core.h"
+
+static tracking_opt_t *tracking_opts = NULL;
+static bool tracking_started = false;
+static pthread_mutex_t tracking_mutex;
 
 @interface Tracking : NSObject
 - (void)init_observers:(tracking_opt_t *)opts;
@@ -13,14 +18,41 @@
 
 @implementation Tracking
 id event_handler;
+NSNotificationCenter *shared_center;
+NSDistributedNotificationCenter *distributed_center;
+
+- (void)suspend_handler:(NSNotification *)note {
+  pthread_mutex_lock(&tracking_mutex);
+  if (!tracking_started) {
+    pthread_mutex_unlock(&tracking_mutex);
+    return;
+  }
+  NSLog(@"%@", note);
+  SendStopTrackingEvent();
+  tracking_started = false;
+  pthread_mutex_unlock(&tracking_mutex);
+}
+
+- (void)resume_handler:(NSNotification *)note {
+  pthread_mutex_lock(&tracking_mutex);
+  if (tracking_started) {
+    pthread_mutex_unlock(&tracking_mutex);
+    return;
+  }
+  NSLog(@"%@", note);
+  SendStartTrackingEvent();
+  tracking_started = true;
+  pthread_mutex_unlock(&tracking_mutex);
+}
 
 - (void)init_observers:(tracking_opt_t *)opts {
+  shared_center = [[NSWorkspace sharedWorkspace] notificationCenter];
+  distributed_center = [NSDistributedNotificationCenter defaultCenter];
   if (opts->foreground_program) {
-    [[NSWorkspace sharedWorkspace].notificationCenter
-        addObserver:self
-           selector:@selector(app_switch_handler:)
-               name:@"NSWorkspaceDidActivateApplicationNotification"
-             object:nil];
+    [shared_center addObserver:self
+                      selector:@selector(app_switch_handler:)
+                          name:@"NSWorkspaceDidActivateApplicationNotification"
+                        object:nil];
   }
 
   NSEventMask mask = 0;
@@ -45,10 +77,22 @@ id event_handler;
                                                }
                                              }];
   NSLog(@"Got event handler %@\n", event_handler);
+
+  [distributed_center addObserver:self
+                         selector:@selector(suspend_handler:)
+                             name:@"com.apple.screenIsLocked"
+                           object:NULL];
+  [distributed_center addObserver:self
+                         selector:@selector(resume_handler:)
+                             name:@"com.apple.screenIsUnlocked"
+                           object:NULL];
+
+  // TODO NSWorkspaceWillPowerOffNotification for power off
 }
 
 - (void)remove_observers {
-  [[NSWorkspace sharedWorkspace].notificationCenter removeObserver:self];
+  [shared_center removeObserver:self];
+  [distributed_center removeObserver:self];
   [NSEvent removeMonitor:event_handler];
 }
 
@@ -60,8 +104,6 @@ id event_handler;
 }
 @end
 
-static tracking_opt_t *tracking_opts = NULL;
-static bool tracking_started = false;
 static Tracking *tracking;
 
 void run_event_loop() {
@@ -72,11 +114,16 @@ void run_event_loop() {
 
 void stop_event_loop() { [NSApp terminate:nil]; }
 
-int init_tracking() { return 0; }
+int init_tracking() {
+  pthread_mutex_init(&tracking_mutex, NULL);
+  return 0;
+}
 
 int start_tracking(tracking_opt_t *opts) {
+  pthread_mutex_lock(&tracking_mutex);
   if (tracking_started) {
     error("Tracking started already!\n");
+    pthread_mutex_unlock(&tracking_mutex);
     return 1;
   }
   tracking_opts = opts;
@@ -86,12 +133,15 @@ int start_tracking(tracking_opt_t *opts) {
   debug("Tracking started\n");
 
   tracking_started = true;
+  pthread_mutex_unlock(&tracking_mutex);
   return 0;
 }
 
 void stop_tracking() {
+  pthread_mutex_lock(&tracking_mutex);
   if (!tracking_started) {
     error("Tracking stopped already!\n");
+    pthread_mutex_unlock(&tracking_mutex);
     return;
   }
 
@@ -99,6 +149,7 @@ void stop_tracking() {
   SendStopTrackingEvent();
   debug("Tracking stopped\n");
   tracking_started = false;
+  pthread_mutex_unlock(&tracking_mutex);
 }
 
 bool is_tracking() { return tracking_started; }
