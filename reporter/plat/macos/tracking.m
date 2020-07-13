@@ -12,21 +12,47 @@
 @end
 
 @implementation Tracking
+id event_handler;
+
 - (void)init_observers:(tracking_opt_t *)opts {
   if (opts->foreground_program) {
     [[NSWorkspace sharedWorkspace].notificationCenter
         addObserver:self
-           selector:@selector(receiveAppSwitchNtfn:)
+           selector:@selector(app_switch_handler:)
                name:@"NSWorkspaceDidActivateApplicationNotification"
              object:nil];
   }
+
+  NSEventMask mask = 0;
+  if (opts->keystroke) mask |= NSEventMaskKeyDown;
+  if (opts->keystroke)
+    mask |= NSEventMaskLeftMouseDown | NSEventMaskRightMouseDown | NSEventMaskScrollWheel;
+  event_handler =
+      [NSEvent addGlobalMonitorForEventsMatchingMask:mask
+                                             handler:^(NSEvent *event) {
+                                               switch (event.type) {
+                                                 case NSEventTypeLeftMouseDown:
+                                                 case NSEventTypeRightMouseDown:
+                                                 case NSEventTypeScrollWheel:
+                                                   HandleMouseClick();
+                                                   break;
+                                                 case NSEventTypeKeyDown:
+                                                   HandleKeystroke();
+                                                   break;
+                                                 default:
+                                                   NSLog(@"Unexpected event %@\n", event);
+                                                   break;
+                                               }
+                                             }];
+  NSLog(@"Got event handler %@\n", event_handler);
 }
 
 - (void)remove_observers {
   [[NSWorkspace sharedWorkspace].notificationCenter removeObserver:self];
+  [NSEvent removeMonitor:event_handler];
 }
 
-- (void)receiveAppSwitchNtfn:(NSNotification *)notification {
+- (void)app_switch_handler:(NSNotification *)notification {
   NSRunningApplication *app = notification.userInfo[@"NSWorkspaceApplicationKey"];
   const char *app_name = [app.localizedName UTF8String];
   debug("Switched to %s\n", app_name);
