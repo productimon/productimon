@@ -6,9 +6,7 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
-  Label,
   ResponsiveContainer,
-  Tooltip,
   Legend,
 } from "recharts";
 import Title from "./Title";
@@ -80,20 +78,7 @@ function getUniqLabels(response) {
     .sort();
 }
 
-const labelColorMap = new Map();
-const colors = ["#ef5350", "#d81b60", "#2196f3", "#4db6ac", "#9ccc65"];
-var colorIdx = 0;
-function getLabelColor(label) {
-  if (!labelColorMap.has(label)) {
-    labelColorMap.set(label, colors[colorIdx]);
-    colorIdx += 1;
-    colorIdx = colorIdx % colors.length;
-  }
-  return labelColorMap.get(label);
-}
-
 export default function Histogram(props) {
-  const theme = useTheme();
   const [data, setData] = useState([]);
   const [dataKeys, setDataKeys] = useState([]);
   const [title, setTitle] = useState(props.spec.graphTitle);
@@ -165,14 +150,13 @@ export default function Histogram(props) {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" />
           <YAxis />
-          {/* <Tooltip /> */}
           <Legend />
           {dataKeys.map((label, index) => (
             <Bar
               key={index}
               dataKey={label}
               stackId="a"
-              fill={getLabelColor(label)}
+              fill={props.getLabelColor(label)}
             />
           ))}
         </BarChart>

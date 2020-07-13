@@ -9,6 +9,7 @@ import TableRow from "@material-ui/core/TableRow";
 import { TableSortLabel } from "@material-ui/core";
 import Paper from "@material-ui/core/Paper";
 import Title from "./Title";
+import { humanizeDuration, calculateDate } from "./utils";
 
 import { grpc } from "@improbable-eng/grpc-web";
 import {
@@ -17,17 +18,6 @@ import {
 } from "productimon/proto/svc/aggregator_pb";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Interval, Timestamp } from "productimon/proto/common/common_pb";
-import moment from "moment";
-import { calculateDate } from "./utils";
-
-/* format a timediff in nanoseconds to readable string */
-function humanizeDuration(nanoseconds) {
-  const duration = moment.duration(nanoseconds / 10 ** 6);
-  if (nanoseconds < 60 * 10 ** 9) {
-    return `${duration.seconds()} seconds`;
-  }
-  return duration.humanize();
-}
 
 const useStyles = makeStyles({
   table: {
@@ -92,7 +82,7 @@ export default function DisplayTable(props) {
             .map((data) =>
               createData(
                 data.getApp(),
-                humanizeDuration(data.getTime()),
+                humanizeDuration(data.getTime() / 10 ** 9),
                 data.getLabel()
               )
             )

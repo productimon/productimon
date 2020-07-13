@@ -27,12 +27,13 @@ import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
 import NotificationsIcon from "@material-ui/icons/Notifications";
 import ExitToAppIcon from "@material-ui/icons/ExitToApp";
 
+import { useStyles } from "./Theme";
 import DashboardCustomizer from "./DashboardCustomizer";
 import Histogram from "./Histogram";
 import DisplayTable from "./Table";
 import DisplayPie from "./Pie";
+import { google_colors } from "./utils";
 
-//import { mainListItems, secondaryListItems } from './listItems';
 import Menu from "@material-ui/core/Menu";
 import MenuItem from "@material-ui/core/MenuItem";
 import ListItem from "@material-ui/core/ListItem";
@@ -48,93 +49,6 @@ import TableChartIcon from "@material-ui/icons/TableChart";
 import { grpc } from "@improbable-eng/grpc-web";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Empty } from "productimon/proto/common/common_pb";
-
-const drawerWidth = 240;
-
-const useStyles = makeStyles((theme) => ({
-  root: {
-    display: "flex",
-  },
-  toolbar: {
-    paddingRight: 24, // keep right padding when drawer closed
-  },
-  toolbarIcon: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    padding: "0 8px",
-    ...theme.mixins.toolbar,
-  },
-  appBar: {
-    zIndex: theme.zIndex.drawer + 1,
-    transition: theme.transitions.create(["width", "margin"], {
-      easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.leavingScreen,
-    }),
-  },
-  appBarShift: {
-    marginLeft: drawerWidth,
-    width: `calc(100% - ${drawerWidth}px)`,
-    transition: theme.transitions.create(["width", "margin"], {
-      easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  },
-  menuButton: {
-    marginRight: 36,
-  },
-  menuButtonHidden: {
-    display: "none",
-  },
-  title: {
-    flexGrow: 1,
-  },
-  drawerPaper: {
-    position: "relative",
-    whiteSpace: "nowrap",
-    width: drawerWidth,
-    transition: theme.transitions.create("width", {
-      easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  },
-  drawerPaperClose: {
-    overflowX: "hidden",
-    transition: theme.transitions.create("width", {
-      easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.leavingScreen,
-    }),
-    width: theme.spacing(7),
-    [theme.breakpoints.up("sm")]: {
-      width: theme.spacing(9),
-    },
-  },
-  appBarSpacer: theme.mixins.toolbar,
-  content: {
-    flexGrow: 1,
-    height: "100vh",
-    overflow: "auto",
-  },
-  container: {
-    paddingTop: theme.spacing(4),
-    paddingBottom: theme.spacing(4),
-  },
-  paper: {
-    padding: theme.spacing(2),
-    display: "flex",
-    overflow: "auto",
-    flexDirection: "column",
-  },
-  fixedHeightTable: {
-    height: 600,
-  },
-  fixedHeightHistogram: {
-    height: 350,
-  },
-  fixedHeightPie: {
-    height: 300,
-  },
-}));
 
 export default function Dashboard() {
   const history = useHistory();
@@ -319,11 +233,23 @@ export default function Dashboard() {
 
       <main className={classes.content}>
         <div className={classes.appBarSpacer} />
-
         <Display />
       </main>
     </div>
   );
+}
+
+// colorMap is a universal mapping of label -> display color
+const colorMap = new Map();
+var colorIdx = 0;
+
+function getLabelColor(label) {
+  if (!colorMap.has(label)) {
+    colorMap.set(label, google_colors[colorIdx]);
+    colorIdx++;
+    colorIdx = colorIdx % google_colors.length;
+  }
+  return colorMap.get(label);
 }
 
 function Display() {
@@ -373,10 +299,20 @@ function Display() {
 
   const gmap = {
     histogram: (graph) => {
-      return <Histogram spec={graph} />;
+      return (
+        <Histogram
+          spec={graph}
+          getLabelColor={getLabelColor}
+        />
+      );
     },
     piechart: (graph) => {
-      return <DisplayPie spec={graph} />;
+      return (
+        <DisplayPie
+          spec={graph}
+          getLabelColor={getLabelColor}
+        />
+      );
     },
     table: (graph) => {
       return <DisplayTable spec={graph} />;
@@ -399,14 +335,16 @@ function Display() {
           </Container>
         </div>
       </Route>
-
       <Route path="/dashboard/histogram">
         <div>
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={12} lg={12}>
                 <Paper className={fixedHeightPaperHistogram}>
-                  <Histogram spec={initialGraphs[0]} />
+                  <Histogram
+                    spec={initialGraphs[0]}
+                    getLabelColor={getLabelColor}
+                  />
                 </Paper>
               </Grid>
             </Grid>
@@ -419,7 +357,10 @@ function Display() {
             <Grid container spacing={2}>
               <Grid item xs={12} md={12} lg={12}>
                 <Paper className={fixedHeightPaperPie}>
-                  <DisplayPie spec={initialGraphs[1]} />
+                  <DisplayPie
+                    spec={initialGraphs[1]}
+                    getLabelColor={getLabelColor}
+                  />
                 </Paper>
               </Grid>
             </Grid>

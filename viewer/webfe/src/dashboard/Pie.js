@@ -10,52 +10,21 @@ import {
   Legend,
 } from "recharts";
 import Title from "./Title";
-
+import { humanizeDuration, toSec, google_colors, calculateDate } from "./utils";
 import { grpc } from "@improbable-eng/grpc-web";
-import {
-  DataAggregatorGetTimeRequest,
-  DataAggregatorGetTimeResponse,
-} from "productimon/proto/svc/aggregator_pb";
+import { DataAggregatorGetTimeRequest } from "productimon/proto/svc/aggregator_pb";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Interval, Timestamp } from "productimon/proto/common/common_pb";
-import moment from "moment";
-import { calculateDate } from "./utils";
-
-// format a time in seconds to readable string
-// TODO: refactor
-function humanizeDuration(seconds) {
-  const duration = moment.duration(seconds * 10 ** 3);
-  if (seconds < 60) {
-    return `${duration.seconds()} seconds`;
-  }
-  return duration.humanize();
-}
-
-// TODO: make time format customisable
-function toSec(nanoseconds) {
-  return nanoseconds / 10 ** 9;
-}
 
 function createData(program, time, label) {
   return { program, time, label };
 }
 
-// TODO: make color map univseral for all graphs
-const labelColorMap = new Map();
-const colors = ["#ef5350", "#d81b60", "#2196f3", "#4db6ac", "#9ccc65"];
-var colorIdx = 0;
-function getLabelColor(label) {
-  if (!labelColorMap.has(label)) {
-    labelColorMap.set(label, colors[colorIdx]);
-    colorIdx += 1;
-    colorIdx = colorIdx % colors.length;
-  }
-  return labelColorMap.get(label);
-}
+const colors = google_colors;
 
 export default function DisplayPie(props) {
   const theme = useTheme();
-  const [rows, setRows] = React.useState([createData("init", 1, 3)]);
+  const [rows, setRows] = React.useState([]);
   const [title, setTitle] = useState(props.spec.graphTitle);
   var data = [];
 
@@ -133,8 +102,8 @@ export default function DisplayPie(props) {
       <ResponsiveContainer height="80%">
         <PieChart width={200} height={200}>
           <Pie
-            innerRadius={38}
-            outerRadius={76}
+            innerRadius={44}
+            outerRadius={88}
             data={rows}
             dataKey="time"
             nameKey="program"
@@ -143,8 +112,8 @@ export default function DisplayPie(props) {
             }
             labelLine={false}
           >
-            {rows.map((label, index) => (
-              <Cell key={label} fill={colors[index % colors.length]} />
+            {rows.map((data, index) => (
+              <Cell key={index} fill={props.getLabelColor(data.program)} />
             ))}
           </Pie>
           <Tooltip />
