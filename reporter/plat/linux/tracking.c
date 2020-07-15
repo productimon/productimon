@@ -77,9 +77,17 @@ static int get_current_window_name(Display *display, Window root, char *buf,
 
   /* Get its WM_CLASS class name */
   XClassHint class_hint;
+  memset(&class_hint, 0, sizeof(class_hint));
   XGetClassHint(display, active_window, &class_hint);
   prod_debug("WM_CLASS: %s\n", class_hint.res_class);
-  snprintf(buf, size, "%s", class_hint.res_class);
+  if (class_hint.res_class != NULL) {
+    snprintf(buf, size, "%s", class_hint.res_class);
+  } else if (class_hint.res_name != NULL) {
+    prod_debug("fallback to res_name: %s\n", class_hint.res_name);
+    snprintf(buf, size, "%s", class_hint.res_name);
+  } else {
+    snprintf(buf, size, "Unknown");
+  }
   XFree(class_hint.res_name);
   XFree(class_hint.res_class);
   return 0;
