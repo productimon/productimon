@@ -43,11 +43,11 @@ int main(int argc, const char *argv[]) {
   ReadConfig();
 
   if (!InitReporter()) {
-    error("Failed to init core module\n");
+    prod_error("Failed to init core module\n");
     return 1;
   }
   if (init_tracking()) {
-    error("Failed to init tracking\n");
+    prod_error("Failed to init tracking\n");
     return 1;
   }
 

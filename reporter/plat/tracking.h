@@ -6,12 +6,12 @@
 
 #define UNUSED __attribute__((unused))
 
-#define error(...) fprintf(stderr, __VA_ARGS__)
+#define prod_error(...) fprintf(stderr, __VA_ARGS__)
 
 #ifdef DEBUG
-#define debug(...) fprintf(stderr, "[debug] "__VA_ARGS__)
+#define prod_debug(...) fprintf(stderr, "[debug] "__VA_ARGS__)
 #else
-#define debug(...)
+#define prod_debug(...)
 #endif
 
 typedef struct tracking_opt {

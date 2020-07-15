@@ -51,25 +51,25 @@ static int systemd_inhibit(DBusConnection *conn, const char *what,
       "org.freedesktop.login1", "/org/freedesktop/login1",
       "org.freedesktop.login1.Manager", "Inhibit");
   if (NULL == msg) {
-    error("Message Null\n");
+    prod_error("Message Null\n");
     return -1;
   }
 
   dbus_message_iter_init_append(msg, &args);
   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &what)) {
-    error("No memory for args\n");
+    prod_error("No memory for args\n");
     return -1;
   }
   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &who)) {
-    error("No memory for args\n");
+    prod_error("No memory for args\n");
     return -1;
   }
   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &why)) {
-    error("No memory for args\n");
+    prod_error("No memory for args\n");
     return -1;
   }
   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &mode)) {
-    error("No memory for args\n");
+    prod_error("No memory for args\n");
     return -1;
   }
 
@@ -77,17 +77,17 @@ static int systemd_inhibit(DBusConnection *conn, const char *what,
   /* send message and block until reply is available */
   reply_msg = dbus_connection_send_with_reply_and_block(conn, msg, -1, &err);
   if (dbus_error_is_set(&err)) {
-    error("Error on sending method call: %s\n", err.message);
+    prod_error("Error on sending method call: %s\n", err.message);
     dbus_error_free(&err);
     return -1;
   }
   if (reply_msg == NULL) {
-    error("Reply is null\n");
+    prod_error("Reply is null\n");
     return -1;
   }
 
   if (!dbus_message_iter_init(reply_msg, &ret_iter)) {
-    error("Failed to init iter for return vals\n");
+    prod_error("Failed to init iter for return vals\n");
     return -1;
   }
 
@@ -106,26 +106,26 @@ static DBusConnection *setup_dbus_conn() {
   dbus_error_init(&err);
   conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
   if (dbus_error_is_set(&err)) {
-    error("Error on dbus get: %s\n", err.message);
+    prod_error("Error on dbus get: %s\n", err.message);
     dbus_error_free(&err);
     return NULL;
   }
   if (conn == NULL) {
-    error("Connection is NULL\n");
+    prod_error("Connection is NULL\n");
     return NULL;
   }
 
   /* subscribe to PrepareForSleep signals */
   dbus_bus_add_match(conn, SLEEP_SIGNAL_MATCH, &err);
   if (dbus_error_is_set(&err)) {
-    error("Error on dbus add match: %s\n", err.message);
+    prod_error("Error on dbus add match: %s\n", err.message);
     return NULL;
   }
 
   /* subscribe to PropertiesChanged signals */
   dbus_bus_add_match(conn, LOCK_SIGNAL_MATCH, &err);
   if (dbus_error_is_set(&err)) {
-    error("Error on dbus add match: %s\n", err.message);
+    prod_error("Error on dbus add match: %s\n", err.message);
     return NULL;
   }
 
@@ -147,7 +147,7 @@ static bool handle_sleep_message(DBusMessage *msg, dbus_int32_t *sleeping) {
   if (!dbus_message_iter_init(msg, &args)) return false;
   if (dbus_message_iter_get_arg_type(&args) != DBUS_TYPE_BOOLEAN) return false;
   dbus_message_iter_get_basic(&args, sleeping);
-  debug("Got PrepareForSleep signal with value %d\n", *sleeping);
+  prod_debug("Got PrepareForSleep signal with value %d\n", *sleeping);
   return true;
 }
 
@@ -177,7 +177,7 @@ static bool handle_properties_changed_message(DBusMessage *msg,
       if (dbus_message_iter_get_arg_type(&prop_val) != DBUS_TYPE_BOOLEAN)
         return false;
       dbus_message_iter_get_basic(&prop_val, sleeping);
-      debug("Got PropertiesChanged signal with value %d\n", *sleeping);
+      prod_debug("Got PropertiesChanged signal with value %d\n", *sleeping);
       return true;
     }
   } while (dbus_message_iter_next(&array_iter));
@@ -197,7 +197,7 @@ void *dbus_receive_msg_loop(UNUSED void *unused) {
   if (inhibit_fd < 0) {
     goto cleanup;
   }
-  debug("got inhibit fd %d\n", inhibit_fd);
+  prod_debug("got inhibit fd %d\n", inhibit_fd);
 
   /* init complete */
   inhibit_init_success = true;
@@ -211,7 +211,7 @@ void *dbus_receive_msg_loop(UNUSED void *unused) {
 
     /* block until there's incoming message */
     if (!dbus_connection_read_write(conn, DBUS_READ_TIMEOUT)) {
-      error("dbus connection broke\n");
+      prod_error("dbus connection broke\n");
     }
 
     while ((msg = dbus_connection_pop_message(conn)) != NULL) {
@@ -232,7 +232,7 @@ void *dbus_receive_msg_loop(UNUSED void *unused) {
           wakeup_callback();
           inhibit_fd = systemd_inhibit(conn, "sleep", "Productimon",
                                        "Stop stracking...", "delay");
-          debug("Got new inhibit fd %d\n", inhibit_fd);
+          prod_debug("Got new inhibit fd %d\n", inhibit_fd);
         }
       }
       /* free msg */
@@ -257,16 +257,16 @@ int init_inhibit(volatile bool *_tracking_started,
     return 1;
   }
   if (pthread_create(&inhibit_thread, NULL, dbus_receive_msg_loop, NULL)) {
-    error("Failed to create dbus thread\n");
+    prod_error("Failed to create dbus thread\n");
     return 1;
   }
 
   sem_wait(&inhibit_initialised);
   if (!inhibit_init_success) {
-    error("inhibit init failed\n");
+    prod_error("inhibit init failed\n");
     return 1;
   }
-  debug("inhibit init sucess\n");
+  prod_debug("inhibit init sucess\n");
   return 0;
 }
 
@@ -276,5 +276,5 @@ void wait_inhibit_cleanup() {
     inhibit_fd = -1;
   }
   pthread_join(inhibit_thread, NULL);
-  debug("inhibit thread exit\n");
+  prod_debug("inhibit thread exit\n");
 }

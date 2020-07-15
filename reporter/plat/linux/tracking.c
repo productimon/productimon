@@ -38,7 +38,7 @@ static void resume_tracking();
 static int xlib_error_handler(Display *display, XErrorEvent *event) {
   char buf[256];
   XGetErrorText(display, event->type, buf, 256);
-  error("xlib error: %s\n", buf);
+  prod_error("xlib error: %s\n", buf);
   XCloseDisplay(display);
   exit(1);
 }
@@ -58,16 +58,16 @@ static int get_current_window_name(Display *display, Window root, char *buf,
                          &nitems_return, &bytes_after_return, &prop_return);
 
   if (ret || actual_format_ret != 32 || nitems_return != 1) {
-    debug("atom returned %s\n", XGetAtomName(display, actual_type_ret));
-    error("Failed to get active window\n");
+    prod_debug("atom returned %s\n", XGetAtomName(display, actual_type_ret));
+    prod_error("Failed to get active window\n");
     return -1;
   }
-  /* debug("fmt ret: %d, %lu items, %lu bytes remains, prop @ %p\n", */
+  /*prod_debug("fmt ret: %d, %lu items, %lu bytes remains, prop @ %p\n", */
   /*         actual_format_ret, nitems_return, bytes_after_return,
    *         prop_return); */
 
   Window active_window = *(Window *)prop_return;
-  debug("Got active window ID 0x%lX\n", active_window);
+  prod_debug("Got active window ID 0x%lX\n", active_window);
   XFree(prop_return);
 
   if (active_window == 0) {
@@ -78,7 +78,7 @@ static int get_current_window_name(Display *display, Window root, char *buf,
   /* Get its WM_CLASS class name */
   XClassHint class_hint;
   XGetClassHint(display, active_window, &class_hint);
-  debug("WM_CLASS: %s\n", class_hint.res_class);
+  prod_debug("WM_CLASS: %s\n", class_hint.res_class);
   snprintf(buf, size, "%s", class_hint.res_class);
   XFree(class_hint.res_name);
   XFree(class_hint.res_class);
@@ -104,27 +104,27 @@ static int check_x_input_lib(Display *display) {
   xi_major_opcode = 0;
   if (!XQueryExtension(display, "XInputExtension", &xi_major_opcode, &unused1,
                        &unused2)) {
-    error("X Input extension not available\n");
+    prod_error("X Input extension not available\n");
     return 1;
   }
   /* request XI 2.0 */
   int major = 2, minor = 0;
   int queryResult = XIQueryVersion(display, &major, &minor);
   if (queryResult == BadRequest) {
-    error("Need X Input 2.0 (got %d.%d)\n", major, minor);
+    prod_error("Need X Input 2.0 (got %d.%d)\n", major, minor);
     return 1;
   } else if (queryResult != Success) {
-    error("XIQueryVersion failed\n");
+    prod_error("XIQueryVersion failed\n");
     return 1;
   }
-  debug("X Input Extension (%d.%d)\n", major, minor);
+  prod_debug("X Input Extension (%d.%d)\n", major, minor);
   return 0;
 }
 
 static void *event_loop(UNUSED void *arg) {
-  debug("Starting tracking with opts: %d|%d|%d (prog|mouse|key)\n",
-        tracking_opts->foreground_program, tracking_opts->mouse_click,
-        tracking_opts->keystroke);
+  prod_debug("Starting tracking with opts: %d|%d|%d (prog|mouse|key)\n",
+             tracking_opts->foreground_program, tracking_opts->mouse_click,
+             tracking_opts->keystroke);
 
   SendStartTrackingEvent();
 
@@ -173,7 +173,8 @@ static void *event_loop(UNUSED void *arg) {
 
 int init_tracking() {
   if (strcmp(getenv("XDG_SESSION_TYPE"), "x11")) {
-    error("Not using x11 as display server, tracking may not be accurate\n");
+    prod_error(
+        "Not using x11 as display server, tracking may not be accurate\n");
   }
   XSetErrorHandler(xlib_error_handler);
   return 0;
@@ -182,20 +183,20 @@ int init_tracking() {
 static int start_tracking_impl(tracking_opt_t *opts, bool inhibit) {
   pthread_mutex_lock(&tracking_mutex);
   if (inhibit && tracking_started) {
-    error("Tracking tracking_started already!\n");
+    prod_error("Tracking tracking_started already!\n");
     goto exit_error;
   }
 
   // open connection to the X server
   display = XOpenDisplay(NULL);
   if (display == NULL) {
-    error("Cannot open connection to X server\n");
+    prod_error("Cannot open connection to X server\n");
     goto exit_error;
   }
 
   if (check_x_input_lib(display)) {
     xi_major_opcode = 0;
-    error("X Input not available, no mouse/key tracking\n");
+    prod_error("X Input not available, no mouse/key tracking\n");
   }
 
   // init Atoms
@@ -207,12 +208,12 @@ static int start_tracking_impl(tracking_opt_t *opts, bool inhibit) {
   tracking_opts = opts;
 
   if (!(opts->foreground_program || opts->mouse_click || opts->keystroke)) {
-    debug("Nothing to be tracked, not doing anything\n");
+    prod_debug("Nothing to be tracked, not doing anything\n");
     goto exit_success;
   }
 
   if ((opts->mouse_click || opts->keystroke) && !xi_major_opcode) {
-    error("Requested mouse/key stats but X input lib not available!\n");
+    prod_error("Requested mouse/key stats but X input lib not available!\n");
     opts->mouse_click = false;
     opts->keystroke = false;
   }
@@ -246,10 +247,10 @@ exit_error:
 static void stop_tracking_impl(bool suspend) {
   pthread_mutex_lock(&tracking_mutex);
   if (!tracking_started) {
-    error("Tracking not started, not doing anything\n");
+    prod_error("Tracking not started, not doing anything\n");
     goto exit;
   }
-  debug("Stopping tracking\n");
+  prod_debug("Stopping tracking\n");
 
   if (!suspend) {
     tracking_started = false;
@@ -265,7 +266,7 @@ static void stop_tracking_impl(bool suspend) {
   /* manually send a ClientMessage event to the root window
    * in case the tracking thread is blocked at XNextEvent */
   if (!XSendEvent(display, root_window, False, PropertyChangeMask, &event))
-    error(
+    prod_error(
         "Failed to send event to root_window "
         "to unblock the tracking thread\n");
   XFlush(display);

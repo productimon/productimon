@@ -99,7 +99,7 @@ NSDistributedNotificationCenter *distributed_center;
 - (void)app_switch_handler:(NSNotification *)notification {
   NSRunningApplication *app = notification.userInfo[@"NSWorkspaceApplicationKey"];
   const char *app_name = [app.localizedName UTF8String];
-  debug("Switched to %s\n", app_name);
+  prod_debug("Switched to %s\n", app_name);
   SendWindowSwitchEvent((char *)app_name);
 }
 @end
@@ -122,7 +122,7 @@ int init_tracking() {
 int start_tracking(tracking_opt_t *opts) {
   pthread_mutex_lock(&tracking_mutex);
   if (tracking_started) {
-    error("Tracking started already!\n");
+    prod_error("Tracking started already!\n");
     pthread_mutex_unlock(&tracking_mutex);
     return 1;
   }
@@ -130,7 +130,7 @@ int start_tracking(tracking_opt_t *opts) {
 
   SendStartTrackingEvent();
   [tracking init_observers:tracking_opts];
-  debug("Tracking started\n");
+  prod_debug("Tracking started\n");
 
   tracking_started = true;
   pthread_mutex_unlock(&tracking_mutex);
@@ -140,14 +140,14 @@ int start_tracking(tracking_opt_t *opts) {
 void stop_tracking() {
   pthread_mutex_lock(&tracking_mutex);
   if (!tracking_started) {
-    error("Tracking stopped already!\n");
+    prod_error("Tracking stopped already!\n");
     pthread_mutex_unlock(&tracking_mutex);
     return;
   }
 
   [tracking remove_observers];
   SendStopTrackingEvent();
-  debug("Tracking stopped\n");
+  prod_debug("Tracking stopped\n");
   tracking_started = false;
   pthread_mutex_unlock(&tracking_mutex);
 }

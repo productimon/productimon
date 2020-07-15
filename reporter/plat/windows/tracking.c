@@ -43,24 +43,24 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
 
   HANDLE proc_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
   if (proc_handle == NULL) {
-    error("OpenProcess failed: %d\n", GetLastError());
+    prod_error("OpenProcess failed: %d\n", GetLastError());
     return 1;
   }
 
   wchar_t path[MAX_PATH];
   if (GetModuleFileNameExW(proc_handle, NULL, path, MAX_PATH) == 0) {
-    error("Failed to get executable path %d\n", GetLastError);
+    prod_error("Failed to get executable path %d\n", GetLastError);
     goto error_close_handle;
   }
-  debug("exec full path: %s\n", path);
+  prod_debug("exec full path: %s\n", path);
 
   DWORD ver_info_size = GetFileVersionInfoSizeW(path, NULL);
   if (ver_info_size == 0) {
-    debug("Failed to get version info size\n");
+    prod_debug("Failed to get version info size\n");
     CloseHandle(proc_handle);
     PathStripPathW(path);
     if (!WideCharToMultiByte(CP_UTF8, 0, path, -1, buf, size, NULL, NULL)) {
-      error("Failed to convert encoding: %d\n", GetLastError());
+      prod_error("Failed to convert encoding: %d\n", GetLastError());
       return 1;
     }
     return 0;
@@ -68,12 +68,12 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
 
   void *version_buf = malloc(ver_info_size);
   if (version_buf == NULL) {
-    error("Failed to allocate buffer\n");
+    prod_error("Failed to allocate buffer\n");
     goto error_close_handle;
   }
 
   if (!GetFileVersionInfoW(path, 0, ver_info_size, version_buf)) {
-    error("Failed to get version info\n");
+    prod_error("Failed to get version info\n");
     goto error_free_version_buf;
   }
 
@@ -91,7 +91,8 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
 
   // NOTE: it seems like all app on my windows have one translation
   if (n_translations < 1) {
-    debug("Failed to get any version translations, using exec name instead\n");
+    prod_debug(
+        "Failed to get any version translations, using exec name instead\n");
     goto use_exec_name;
   }
 
@@ -104,13 +105,13 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
   /* Get program description from the version info */
   if (!VerQueryValueW(version_buf, query_str, (LPVOID *)&file_description,
                       NULL)) {
-    debug(
+    prod_debug(
         "Failed to get description from version info, use exec name instead\n");
     goto use_exec_name;
   }
   if (!WideCharToMultiByte(CP_UTF8, 0, file_description, -1, buf, size, NULL,
                            NULL)) {
-    error("Failed to convert encoding: %d\n", GetLastError());
+    prod_error("Failed to convert encoding: %d\n", GetLastError());
     goto use_exec_name;
   }
   goto success;
@@ -118,7 +119,7 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
 use_exec_name:
   PathStripPathW(path);
   if (!WideCharToMultiByte(CP_UTF8, 0, path, -1, buf, size, NULL, NULL)) {
-    error("Failed to convert encoding: %d\n", GetLastError());
+    prod_error("Failed to convert encoding: %d\n", GetLastError());
     goto error_free_version_buf;
   }
 success:
@@ -134,8 +135,9 @@ error_close_handle:
 static VOID CALLBACK callback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent,
                               HWND hwnd, LONG idObject, LONG idChild,
                               DWORD dwEventThread, DWORD dwmsEventTime) {
-  debug("Callback: event %ld, hwnd %d, idObject %ld, idChild %ld, time %ld\n",
-        dwEvent, hwnd, idObject, idChild, dwmsEventTime);
+  prod_debug(
+      "Callback: event %ld, hwnd %d, idObject %ld, idChild %ld, time %ld\n",
+      dwEvent, hwnd, idObject, idChild, dwmsEventTime);
 
   static char prog_name[512] = {0};
   char new_prog_name[512];
@@ -146,12 +148,12 @@ static VOID CALLBACK callback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent,
     // otherwise viewer will think the user was using the old program all
     // the time...
     // same on linux
-    error("Failed to get a name for new window\n");
+    prod_error("Failed to get a name for new window\n");
     return;
   }
-  debug("=======> %s <=======\n", new_prog_name);
+  prod_debug("=======> %s <=======\n", new_prog_name);
   if (strcmp(prog_name, new_prog_name) == 0) {
-    debug("Switch event triggered but program name is the same\n");
+    prod_debug("Switch event triggered but program name is the same\n");
     return;
   }
   StringCbCopyA(prog_name, 512, new_prog_name);
@@ -189,27 +191,27 @@ static int install_hooks(bool register_session_ntfn) {
     window_change_hook = SetWinEventHook(
         EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, callback, 0, 0,
         WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
-    debug("SetWinEventHook got %d\n", window_change_hook);
+    prod_debug("SetWinEventHook got %d\n", window_change_hook);
     if (window_change_hook == NULL) {
-      error("Failed to set hook for keyboard: %d\n", GetLastError());
+      prod_error("Failed to set hook for keyboard: %d\n", GetLastError());
       return 1;
     }
   }
 
   if (tracking_opts->keystroke) {
     key_hook = SetWindowsHookExA(WH_KEYBOARD_LL, keystroke_callback, NULL, 0);
-    debug("SetWindowsHookExA for keyboard got %d\n", key_hook);
+    prod_debug("SetWindowsHookExA for keyboard got %d\n", key_hook);
     if (key_hook == NULL) {
-      error("Failed to set hook for keyboard: %d\n", GetLastError());
+      prod_error("Failed to set hook for keyboard: %d\n", GetLastError());
       return 1;
     }
   }
 
   if (tracking_opts->mouse_click) {
     mouse_hook = SetWindowsHookExA(WH_MOUSE_LL, mouseclick_callback, NULL, 0);
-    debug("SetWindowsHookExA for mouseclick got %d\n", mouse_hook);
+    prod_debug("SetWindowsHookExA for mouseclick got %d\n", mouse_hook);
     if (mouse_hook == NULL) {
-      error("Failed to set hook for mouseclick: %d\n", GetLastError());
+      prod_error("Failed to set hook for mouseclick: %d\n", GetLastError());
       return 1;
     }
   }
@@ -220,8 +222,8 @@ static int install_hooks(bool register_session_ntfn) {
    */
   if (register_session_ntfn &&
       !WTSRegisterSessionNotification(window_handle, NOTIFY_FOR_THIS_SESSION)) {
-    error("Failed to regitster for session change notifications: %d\n",
-          GetLastError());
+    prod_error("Failed to regitster for session change notifications: %d\n",
+               GetLastError());
     return 1;
   }
   return 0;
@@ -231,13 +233,13 @@ static void suspend_tracking() {
   SendStopTrackingEvent();
 
   if (tracking_opts->foreground_program && !UnhookWinEvent(window_change_hook))
-    error("Failed to remove window change hook: %d\n", GetLastError());
+    prod_error("Failed to remove window change hook: %d\n", GetLastError());
 
   if (tracking_opts->keystroke && !UnhookWindowsHookEx(key_hook))
-    error("Failed to remove key hook: %d\n", GetLastError());
+    prod_error("Failed to remove key hook: %d\n", GetLastError());
 
   if (tracking_opts->mouse_click && !UnhookWindowsHookEx(mouse_hook))
-    error("Failed to remove mosue hook: %d\n", GetLastError());
+    prod_error("Failed to remove mosue hook: %d\n", GetLastError());
 
   tracking_started = false;
 }
@@ -253,11 +255,11 @@ static void resume_tracking() {
 static LRESULT CALLBACK session_change_callback(WPARAM type) {
   switch (type) {
     case WTS_SESSION_LOCK:
-      debug("system about to lock, suspend tracking...\n");
+      prod_debug("system about to lock, suspend tracking...\n");
       suspend_tracking();
       break;
     case WTS_SESSION_UNLOCK:
-      debug("login detected, resume tracking\n");
+      prod_debug("login detected, resume tracking\n");
       resume_tracking();
       break;
     case WTS_SESSION_LOGOFF:
@@ -268,13 +270,13 @@ static LRESULT CALLBACK session_change_callback(WPARAM type) {
 
 static DWORD WINAPI tracking_loop(_In_ LPVOID lpParameter) {
   SendStartTrackingEvent();
-  debug("Tracking started\n");
+  prod_debug("Tracking started\n");
 
   /* create a hidden message window */
   window_handle = CreateWindowExA(WS_EX_ACCEPTFILES, "Button", "null", 0, 0, 0,
                                   0, 0, HWND_MESSAGE, NULL, NULL, NULL);
   if (window_handle == NULL) {
-    error("Failed to create a message window: %d\n", GetLastError());
+    prod_error("Failed to create a message window: %d\n", GetLastError());
     return 0;  // use synchronisation primitives here to notify the failure to
                // start_tracking
   }
@@ -296,7 +298,7 @@ static DWORD WINAPI tracking_loop(_In_ LPVOID lpParameter) {
     DispatchMessage(&msg);
   }
   SendStopTrackingEvent();
-  debug("Tracking stopped\n");
+  prod_debug("Tracking stopped\n");
   return 0;
 }
 
@@ -304,20 +306,20 @@ int init_tracking() { return 0; }
 
 int start_tracking(tracking_opt_t *opts) {
   if (tracking_started) {
-    error("tracking started already!\n");
+    prod_error("tracking started already!\n");
     return 1;
   }
 
   tracking_opts = opts;
   if (!(opts->foreground_program || opts->mouse_click || opts->keystroke)) {
-    debug("Nothing to be tracked, not doing anything\n");
+    prod_debug("Nothing to be tracked, not doing anything\n");
     return 1;
   }
 
   tracking_thread =
       CreateThread(NULL, 0, tracking_loop, NULL, 0, &tracking_thread_id);
   if (tracking_thread == NULL) {
-    error("Failed to create tracking thread\n");
+    prod_error("Failed to create tracking thread\n");
     return 1;
   }
 
@@ -327,13 +329,13 @@ int start_tracking(tracking_opt_t *opts) {
 
 void stop_tracking() {
   if (!tracking_started) {
-    error("tracking stopped already!\n");
+    prod_error("tracking stopped already!\n");
     return;
   }
 
   if (!PostThreadMessageA(tracking_thread_id, STOP_MSG, STOP_W_PARAM,
                           STOP_L_PARAM))
-    error("Failed to send stop message: %lu\n", GetLastError());
+    prod_error("Failed to send stop message: %lu\n", GetLastError());
 
   WaitForSingleObject(tracking_thread, INFINITE);
   tracking_started = false;
@@ -353,13 +355,13 @@ bool is_tracking() { return tracking_started; }
 void run_event_loop() {
   event_loop_finished = CreateSemaphore(NULL, 0, 1, NULL);
   if (event_loop_finished == NULL) {
-    error("Failed to create sem: %d\n", GetLastError());
+    prod_error("Failed to create sem: %d\n", GetLastError());
   }
   WaitForSingleObject(event_loop_finished, INFINITE);
 }
 
 void stop_event_loop() {
   if (!ReleaseSemaphore(event_loop_finished, 1, NULL)) {
-    error("ReleaseSemaphore error: %d\n", GetLastError());
+    prod_error("ReleaseSemaphore error: %d\n", GetLastError());
   }
 }
