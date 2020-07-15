@@ -10,7 +10,7 @@ import (
 
 type DeviceState struct {
 	uid        string
-	did        int
+	did        int64
 	app        string
 	startTime  int64
 	activeTime int64
@@ -18,14 +18,14 @@ type DeviceState struct {
 	evq        OrderedEventQueue
 }
 
-type LazyInitEidHandler func(uid string, did int) (int64, error)
+type LazyInitEidHandler func(uid string, did int64) (int64, error)
 
 type DsMap struct {
 	states         map[string]*DeviceState
 	initEidHandler LazyInitEidHandler
 }
 
-func idsToKey(uid string, did int) string {
+func idsToKey(uid string, did int64) string {
 	return fmt.Sprintf("%s-%d", uid, did)
 }
 
@@ -91,7 +91,7 @@ func NewDsMap(initEidHandler LazyInitEidHandler) *DsMap {
 	}
 }
 
-func (dsm *DsMap) RunEvent(db *sql.DB, uid string, did int, eid int64, evf func(ds *DeviceState, db *sql.DB)) error {
+func (dsm *DsMap) RunEvent(db *sql.DB, uid string, did, eid int64, evf func(ds *DeviceState, db *sql.DB)) error {
 	key := idsToKey(uid, did)
 	ds, ok := dsm.states[key]
 	if !ok {

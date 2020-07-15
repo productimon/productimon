@@ -27,7 +27,7 @@ type service struct {
 }
 
 // TODO: what if we recoreded out-of-order events in db and are waiting for an old event when we shutdown server
-func (s *service) lazyInitEidHandler(uid string, did int) (int64, error) {
+func (s *service) lazyInitEidHandler(uid string, did int64) (int64, error) {
 	var eid int64
 	err := s.db.QueryRow("SELECT MAX(id) FROM events WHERE uid=? AND did=?", uid, did).Scan(&eid)
 	switch {
@@ -143,7 +143,7 @@ func (s *service) ExtendToken(ctx context.Context, req *cpb.Empty) (*spb.DataAgg
 
 func (s *service) UserDetails(ctx context.Context, req *cpb.Empty) (*spb.DataAggregatorUserDetailsResponse, error) {
 	uid, did, err := s.auther.AuthenticateRequest(ctx)
-	if err != nil || did != -1 {
+	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
 	}
 	var email string
@@ -151,10 +151,20 @@ func (s *service) UserDetails(ctx context.Context, req *cpb.Empty) (*spb.DataAgg
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "User missing from db")
 	}
+	var lastEid int64
+	if did != -1 {
+		if err = s.db.QueryRow("SELECT max(id) FROM events WHERE uid = ? AND did=?", uid, did).Scan(&lastEid); err != nil {
+			log.Printf("Failed to get last eid: %v", err)
+		}
+	}
 	ret := &spb.DataAggregatorUserDetailsResponse{
 		User: &cpb.User{
 			Id:    uid,
 			Email: email,
+		},
+		LastEid: lastEid,
+		Device: &cpb.Device{
+			Id: did,
 		},
 	}
 	return ret, nil
@@ -162,7 +172,7 @@ func (s *service) UserDetails(ctx context.Context, req *cpb.Empty) (*spb.DataAgg
 
 // add a event to events table in a new transaction and return that transaction
 // no need to rollback tx if err != nil
-func (s *service) addGeneralEvent(uid string, did int, e *cpb.Event, kind cpb.EventType) (tx *sql.Tx, err error) {
+func (s *service) addGeneralEvent(uid string, did int64, e *cpb.Event, kind cpb.EventType) (tx *sql.Tx, err error) {
 	tx, err = s.db.Begin()
 	if err != nil {
 		return
@@ -175,7 +185,7 @@ func (s *service) addGeneralEvent(uid string, did int, e *cpb.Event, kind cpb.Ev
 	return
 }
 
-func (s *service) eventUpdateState(uid string, did int, e *cpb.Event, eg func(e *cpb.Event) func(ds *deviceState.DeviceState, db *sql.DB)) error {
+func (s *service) eventUpdateState(uid string, did int64, e *cpb.Event, eg func(e *cpb.Event) func(ds *deviceState.DeviceState, db *sql.DB)) error {
 	err := s.ds.RunEvent(s.db, uid, did, e.Id, eg(e))
 	if err != nil {
 		log.Println(err)
@@ -183,7 +193,7 @@ func (s *service) eventUpdateState(uid string, did int, e *cpb.Event, eg func(e 
 	return err // this is currently ignored by AddEvent
 }
 
-func (s *service) AddEvent(uid string, did int, e *cpb.Event) error {
+func (s *service) AddEvent(uid string, did int64, e *cpb.Event) error {
 	switch k := e.Kind.(type) {
 	case *cpb.Event_AppSwitchEvent:
 		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_APP_SWITCH_EVENT)

@@ -36,7 +36,7 @@ type Authenticator struct {
 // content of JWT claim
 type Claims struct {
 	Uid string
-	Did int
+	Did int64
 	jwt.StandardClaims
 }
 
@@ -118,7 +118,7 @@ func (a *Authenticator) GrpcCreds() (grpc.ServerOption, error) {
 
 }
 
-func (a *Authenticator) SignDeviceCert(uid string, did int) (cert, key []byte, err error) {
+func (a *Authenticator) SignDeviceCert(uid string, did int64) (cert, key []byte, err error) {
 	mycsr := &csr.CertificateRequest{
 		CN: fmt.Sprintf("%d@%s.productimon.com", did, uid),
 		KeyRequest: &csr.KeyRequest{
@@ -163,7 +163,7 @@ func (a *Authenticator) SignToken(uid string) (string, error) {
 }
 
 // Return uid for a given JWT token
-func (a *Authenticator) VerifyToken(token string) (uid string, did int, err error) {
+func (a *Authenticator) VerifyToken(token string) (uid string, did int64, err error) {
 	claims := &Claims{}
 
 	p := jwt.Parser{ValidMethods: []string{jwt.SigningMethodRS256.Name}}
@@ -182,7 +182,7 @@ func (a *Authenticator) VerifyToken(token string) (uid string, did int, err erro
 	return claims.Uid, claims.Did, nil
 }
 
-func (a *Authenticator) verifyCert(cert *x509.Certificate) (uid string, did int, err error) {
+func (a *Authenticator) verifyCert(cert *x509.Certificate) (uid string, did int64, err error) {
 	certPool := x509.NewCertPool()
 	certPool.AddCert(a.cert)
 	opts := x509.VerifyOptions{
@@ -205,7 +205,7 @@ func (a *Authenticator) verifyCert(cert *x509.Certificate) (uid string, did int,
 	return
 }
 
-func (a *Authenticator) AuthenticateRequest(ctx context.Context) (uid string, did int, err error) {
+func (a *Authenticator) AuthenticateRequest(ctx context.Context) (uid string, did int64, err error) {
 	peer, ok := peer.FromContext(ctx)
 	if ok {
 		tlsinfo, ok := peer.AuthInfo.(credentials.TLSInfo)

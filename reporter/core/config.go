@@ -24,6 +24,7 @@ type Config struct {
 	Key         []byte
 	Certificate []byte
 	cert        tls.Certificate
+	LastEid     int64
 }
 
 var config Config
@@ -134,25 +135,33 @@ func login(server string, username string, password string, deviceName string) b
 	config.Key = rsp.Key
 	config.Certificate = rsp.Cert
 	config.cert, err = tls.X509KeyPair(config.Certificate, config.Key)
+	config.LastEid = 0
 	if err != nil {
 		log.Println(err)
 		return false
 	}
 
-	file, err := os.Create(filepath.Join(config.workDir, "config.json"))
-	if err != nil {
-		log.Println(err)
-		return false
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-
-	err = encoder.Encode(config)
-	if err != nil {
+	if err = SaveConfig(); err != nil {
 		log.Println(err)
 		return false
 	}
 	return true
 
+}
+
+func SaveConfig() error {
+	file, err := os.OpenFile(filepath.Join(config.workDir, "config.json"), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0600)
+	if err != nil {
+		log.Printf("Failed to save config: %v\n", err)
+		return err
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	if err = encoder.Encode(config); err != nil {
+		log.Printf("Failed to encode config.json: %v\n", err)
+		return err
+	}
+	log.Println("Config saved")
+	return nil
 }

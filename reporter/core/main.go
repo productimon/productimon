@@ -65,7 +65,7 @@ func retrySendEvent(event *cpb.Event) (*grpc.ClientConn, spb.DataAggregatorClien
 		log.Printf("Failed to get stream to push events: %v", err)
 		return nil, nil, nil, err
 	}
-	log.Println("Reconnected to server\n")
+	log.Println("Reconnected to server")
 	eq <- event // event will be sent out of order, but they're all timestamped
 	return conn, client, eventStream, nil
 }
@@ -85,6 +85,19 @@ func runReporter(init chan bool) {
 		conn.Close()
 	}()
 	client := spb.NewDataAggregatorClient(conn)
+
+	eid = config.LastEid
+	rsp, err := client.UserDetails(context.Background(), &cpb.Empty{})
+	if err != nil {
+		log.Printf("Failed to get user details %v", err)
+		init <- false
+		return
+	}
+	log.Printf("User details: %v", rsp)
+	if rsp.LastEid > eid {
+		eid = rsp.LastEid
+		log.Printf("Using more recent eid from server: %v", eid)
+	}
 
 	eventStream, err := client.PushEvent(context.Background())
 	if err != nil {
@@ -163,6 +176,7 @@ func InitReporterByCreds(server, username, password, deviceName *C.char) bool {
 		return false
 	}
 	init := make(chan bool)
+	log.Printf("Starting from eid %v\n", eid)
 	go runReporter(init)
 	return <-init
 }
@@ -194,6 +208,9 @@ func SendStartTrackingEvent() {
 	eq <- event
 }
 
+// TODO: change this function name to be CoreStopTracking
+// since it does more than just sending a stop tracking event
+// same for SendStartTrackingEvent
 //export SendStopTrackingEvent
 func SendStopTrackingEvent() {
 	done := make(chan bool)
@@ -206,6 +223,8 @@ func SendStopTrackingEvent() {
 	}
 	eq <- event
 	inputTrackingDone <- true
+	config.LastEid = eid
+	SaveConfig()
 }
 
 //export HandleMouseClick

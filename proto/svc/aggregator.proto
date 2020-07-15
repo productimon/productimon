@@ -51,6 +51,8 @@ message DataAggregatorLoginResponse {
 
 message DataAggregatorUserDetailsResponse {
   common.User user = 1;
+  int64 last_eid = 2;
+  common.Device device = 3;
 }
 
 message DataAggregatorPushEventResponse {
