@@ -23,7 +23,7 @@ void *command_loop(UNUSED void *arg) {
     if (strcmp(command, "start\n") == 0) {
       start_tracking(&opts);
     } else if (strcmp(command, "stop\n") == 0) {
-      stop_tracking(&opts);
+      stop_tracking();
     } else if (strcmp(command, "exit\n") == 0) {
       break;
     } else {
@@ -42,7 +42,7 @@ int main(int argc, const char *argv[]) {
   setbuf(stderr, NULL);
   ReadConfig();
 
-  if (!InitReporter()) {
+  if (!InitReporterInteractive()) {
     prod_error("Failed to init core module\n");
     return 1;
   }

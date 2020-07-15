@@ -107,7 +107,6 @@ NSDistributedNotificationCenter *distributed_center;
 static Tracking *tracking;
 
 void run_event_loop() {
-  tracking = [Tracking new];
   [NSApplication sharedApplication];
   [NSApp run];
 }
@@ -115,6 +114,7 @@ void run_event_loop() {
 void stop_event_loop() { [NSApp terminate:nil]; }
 
 int init_tracking() {
+  tracking = [Tracking new];
   pthread_mutex_init(&tracking_mutex, NULL);
   return 0;
 }

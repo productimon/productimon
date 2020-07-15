@@ -130,6 +130,7 @@ func login(server string, username string, password string, deviceName string) b
 		return false
 	}
 
+	config.Server = server
 	config.Key = rsp.Key
 	config.Certificate = rsp.Cert
 	config.cert, err = tls.X509KeyPair(config.Certificate, config.Key)

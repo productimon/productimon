@@ -167,7 +167,7 @@ go_repository(
 # reporter linux libs
 new_local_repository(
     name = "system_libs",
-    build_file = "reporter/system_libs.BUILD",
+    build_file = "third_party/system_libs.BUILD",
     path = "/usr/lib/x86_64-linux-gnu",
 )
 
@@ -566,4 +566,40 @@ go_repository(
     importpath = "golang.org/x/tools",
     sum = "h1:/e+gpKk9r3dJobndpTytxS2gOy6m5uvpg+ISQoEcusQ=",
     version = "v0.0.0-20190311212946-11955173bddd",
+)
+
+http_archive(
+    name = "com_justbuchanan_rules_qt",
+    strip_prefix = "bazel_rules_qt-b293b5afd8772ef7de0069ad01a96e373535ee6e",
+    urls = [
+        "https://github.com/justbuchanan/bazel_rules_qt/archive/b293b5afd8772ef7de0069ad01a96e373535ee6e.tar.gz",
+    ],
+)
+
+# TODO build required qt libs from source
+# http_archive(
+#     name = "qt",
+#     strip_prefix="qtbase-ba3b53cb501a77144aa6259e48a8e0edc3d1481d",
+#     build_file = "@com_justbuchanan_rules_qt//:qt.BUILD",
+#     urls = [
+#         "https://github.com/qt/qtbase/archive/ba3b53cb501a77144aa6259e48a8e0edc3d1481d.tar.gz",
+#     ],
+# )
+
+new_local_repository(
+    name = "qt_linux",
+    build_file = "@com_justbuchanan_rules_qt//:qt.BUILD",
+    path = "/usr/include/x86_64-linux-gnu/qt5/",
+)
+
+new_local_repository(
+    name = "qt_mac",
+    build_file = "//third_party:qt-mac.BUILD",
+    path = "/usr/local/opt/qt/include/",
+)
+
+new_local_repository(
+    name = "qt_msys",
+    build_file = "@com_justbuchanan_rules_qt//:qt.BUILD",
+    path = "C:\\msys64\\mingw64\\include\\",
 )

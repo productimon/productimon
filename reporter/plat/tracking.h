@@ -9,9 +9,13 @@
 #define prod_error(...) fprintf(stderr, __VA_ARGS__)
 
 #ifdef DEBUG
-#define prod_debug(...) fprintf(stderr, "[debug] "__VA_ARGS__)
+#define prod_debug(...) fprintf(stderr, "[debug] " __VA_ARGS__)
 #else
 #define prod_debug(...)
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 typedef struct tracking_opt {
@@ -26,3 +30,7 @@ void stop_tracking();
 bool is_tracking();
 void run_event_loop();
 void stop_event_loop();
+
+#ifdef __cplusplus
+}
+#endif

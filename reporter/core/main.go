@@ -73,13 +73,6 @@ func retrySendEvent(event *cpb.Event) (*grpc.ClientConn, spb.DataAggregatorClien
 func runReporter(init chan bool) {
 	log.Printf("productimon core module initiating")
 
-	// TODO: ask gui code for pwd
-	if len(config.Certificate) == 0 && !interactiveLogin() {
-		log.Println("failed to login")
-		init <- false
-		return
-	}
-
 	// establish grpc connection
 	// TODO think about what happens if the user started with offline env
 	conn, err := ConnectToServer(config.Server, config.cert)
@@ -126,8 +119,8 @@ func runReporter(init chan bool) {
 	}
 }
 
-//export InitReporter
-func InitReporter() bool {
+//export InitReporterInteractive
+func InitReporterInteractive() bool {
 	if build == "DEBUG" {
 		log.Println("Running DEBUG build!")
 		MaxInputReportingInterval = 5 * time.Second
@@ -135,6 +128,40 @@ func InitReporter() bool {
 		MaxInputReportingInterval = 60 * time.Second
 	}
 	log.Printf("MaxInputReportingInterval: %v", MaxInputReportingInterval)
+	if len(config.Certificate) == 0 && !interactiveLogin() {
+		log.Printf("Interactive login failed")
+		return false
+	}
+
+	init := make(chan bool)
+	go runReporter(init)
+	return <-init
+}
+
+//export InitReporterByCert
+func InitReporterByCert() bool {
+	if build == "DEBUG" {
+		log.Println("Running DEBUG build!")
+		MaxInputReportingInterval = 5 * time.Second
+	} else {
+		MaxInputReportingInterval = 60 * time.Second
+	}
+	log.Printf("MaxInputReportingInterval: %v", MaxInputReportingInterval)
+	if len(config.Certificate) == 0 {
+		log.Printf("Cert login requested but no cert in config")
+		return false
+	}
+	init := make(chan bool)
+	go runReporter(init)
+	return <-init
+}
+
+//export InitReporterByCreds
+func InitReporterByCreds(server, username, password, deviceName *C.char) bool {
+	if !login(C.GoString(server), C.GoString(username), C.GoString(password), C.GoString(deviceName)) {
+		log.Println("Login with provided creds failed")
+		return false
+	}
 	init := make(chan bool)
 	go runReporter(init)
 	return <-init
