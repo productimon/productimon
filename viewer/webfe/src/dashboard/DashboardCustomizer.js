@@ -60,11 +60,7 @@ export default function DashboardCustomizer(props) {
   return (
     <div className={classes.root}>
       <ExpansionPanel>
-        <ExpansionPanelSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="panel2a-content"
-          id="panel2a-header"
-        >
+        <ExpansionPanelSummary expandIcon={<ExpandMoreIcon />}>
           <Typography className={classes.heading}>Histogram</Typography>
         </ExpansionPanelSummary>
         <ExpansionPanelDetails>
@@ -76,11 +72,7 @@ export default function DashboardCustomizer(props) {
         </ExpansionPanelDetails>
       </ExpansionPanel>
       <ExpansionPanel>
-        <ExpansionPanelSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="panel1a-content"
-          id="panel1a-header"
-        >
+        <ExpansionPanelSummary expandIcon={<ExpandMoreIcon />}>
           <Typography className={classes.heading}>Piechart</Typography>
         </ExpansionPanelSummary>
         <ExpansionPanelDetails>
@@ -92,11 +84,7 @@ export default function DashboardCustomizer(props) {
         </ExpansionPanelDetails>
       </ExpansionPanel>
       <ExpansionPanel>
-        <ExpansionPanelSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="panel1a-content"
-          id="panel1a-header"
-        >
+        <ExpansionPanelSummary expandIcon={<ExpandMoreIcon />}>
           <Typography className={classes.heading}>Table</Typography>
         </ExpansionPanelSummary>
         <ExpansionPanelDetails>
@@ -144,7 +132,6 @@ function SimpleForm(props) {
       <div className={classes.container}>
         <Box my={3}>Title:</Box>
         <TextField
-          id="start-textfield"
           className={clsx(classes.margin, classes.wideTextField)}
           variant="filled"
           onChange={handleInputChange}
@@ -154,7 +141,6 @@ function SimpleForm(props) {
       <div className={classes.container}>
         <Box my={3}>Start:</Box>
         <TextField
-          id="start-textfield"
           className={clsx(classes.margin, classes.textField)}
           variant="filled"
           onChange={handleInputChange}
@@ -172,7 +158,6 @@ function SimpleForm(props) {
       <div className={classes.container}>
         <Box my={3}>End:</Box>
         <TextField
-          id="end-textfield"
           className={clsx(classes.margin, classes.textField)}
           variant="filled"
           onChange={handleInputChange}
@@ -191,7 +176,6 @@ function SimpleForm(props) {
         <div className={classes.container}>
           <Box my={3}>Intervals:</Box>
           <TextField
-            id="intervals-textfield"
             className={clsx(classes.margin, classes.textField)}
             variant="filled"
             value={graphSpec.intervals}
@@ -204,7 +188,6 @@ function SimpleForm(props) {
         <div className={classes.container}>
           <Box my={3}>Num items:</Box>
           <TextField
-            id="intervals-textfield"
             className={clsx(classes.margin, classes.textField)}
             variant="filled"
             value={graphSpec.numItems}

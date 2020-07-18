@@ -133,7 +133,7 @@ export default function Histogram(props) {
   return (
     <React.Fragment>
       {/* Alignment is hard...
-          <IconButton aria-label="delete">
+          <IconButton>
           <DeleteIcon />
           </IconButton> */}
       <Title>{title}</Title>

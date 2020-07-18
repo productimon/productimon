@@ -111,7 +111,6 @@ export default function Dashboard() {
           <IconButton
             edge="start"
             color="inherit"
-            aria-label="open drawer"
             onClick={handleDrawerOpen}
             className={clsx(
               classes.menuButton,
@@ -130,7 +129,6 @@ export default function Dashboard() {
             Productimon
           </Typography>
           <Menu
-            id="account-menu"
             anchorEl={anchorEl}
             keepMounted
             open={Boolean(anchorEl)}
@@ -141,8 +139,6 @@ export default function Dashboard() {
           </Menu>
 
           <Typography
-            aria-controls="account-menu"
-            aria-haspopup="true"
             onClick={handleClick}
             style={{ textAlign: "right", color: "white" }}
           >
@@ -299,20 +295,10 @@ function Display() {
 
   const gmap = {
     histogram: (graph) => {
-      return (
-        <Histogram
-          spec={graph}
-          getLabelColor={getLabelColor}
-        />
-      );
+      return <Histogram spec={graph} getLabelColor={getLabelColor} />;
     },
     piechart: (graph) => {
-      return (
-        <DisplayPie
-          spec={graph}
-          getLabelColor={getLabelColor}
-        />
-      );
+      return <DisplayPie spec={graph} getLabelColor={getLabelColor} />;
     },
     table: (graph) => {
       return <DisplayTable spec={graph} />;
