@@ -4,14 +4,17 @@ import (
 	"database/sql"
 	"encoding/json"
 	"flag"
-	"log"
 	"net"
 	"net/http"
+
+	"net/http/pprof"
 
 	spb "git.yiad.am/productimon/proto/svc"
 	"git.yiad.am/productimon/viewer/webfe"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	_ "github.com/mattn/go-sqlite3"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -23,8 +26,10 @@ var (
 	flagPrivateKeyPath    string
 	flagDBFilePath        string
 	flagGRPCPublicPort    int
+	flagDebug             bool
 	jsFilename            string
 	mapFilename           string
+	logger                *zap.Logger
 )
 
 func init() {
@@ -34,36 +39,51 @@ func init() {
 	flag.StringVar(&flagPublicKeyPath, "ca_cert", "ca.pem", "Path to CA cert")
 	flag.StringVar(&flagPrivateKeyPath, "ca_key", "ca.key", "Path to CA key")
 	flag.StringVar(&flagDBFilePath, "db_path", "db.sqlite3", "Path to SQLite3 database file")
+	flag.BoolVar(&flagDebug, "debug", false, "enable debug logging")
 }
 
 func main() {
+	var err error
 	flag.Parse()
+	if flagDebug {
+		logconfig := zap.NewDevelopmentConfig()
+		logconfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		logger, err = logconfig.Build()
+	} else {
+		logger, err = zap.NewProduction()
+	}
+	if err != nil {
+		panic(err)
+	}
+	logger.Info("Productimon aggregator starting up...")
+
 	auther, err := NewAuthenticator(flagPublicKeyPath, flagPrivateKeyPath)
 	if err != nil {
-		panic(err)
+		logger.Fatal("can't create authenticator", zap.Error(err))
 	}
-	db, err := sql.Open("sqlite3", flagDBFilePath)
+	db, err := sql.Open("sqlite3", flagDBFilePath+"?_journal_mode=wal&_txlock=immediate&_busy_timeout=5000")
 	if err != nil {
-		panic(err)
+		logger.Fatal("can't open database", zap.Error(err))
 	}
+	// db.SetMaxOpenConns(1)
 	lis, err := net.Listen("tcp", flagGRPCListenAddress)
 	if err != nil {
-		panic(err)
+		logger.Fatal("can't listen on grpc address", zap.Error(err), zap.String("grpc_listen_address", flagGRPCListenAddress))
 	}
 	grpcCreds, err := auther.GrpcCreds()
 	if err != nil {
-		panic(err)
+		logger.Fatal("can't create grpc credentials", zap.Error(err))
 	}
 	grpcServer := grpc.NewServer(grpcCreds)
 	reflection.Register(grpcServer)
-	s := NewService(auther, db)
+	s := NewService(auther, db, logger)
 	spb.RegisterDataAggregatorServer(grpcServer, s)
 	go func() {
-		gerr := grpcServer.Serve(lis)
-		if gerr != nil {
-			panic(gerr)
+		if gerr := grpcServer.Serve(lis); gerr != nil {
+			logger.Fatal("can't serve grpc server", zap.Error(err))
 		}
 	}()
+	go s.runLabelRoutine()
 	wrappedGrpc := grpcweb.WrapServer(grpcServer)
 
 	mux := http.NewServeMux()
@@ -97,13 +117,21 @@ func main() {
 			"api.productimon.com",
 		})
 		if err != nil {
-			log.Println(err)
+			logger.Error("can't encode /rpc.json", zap.Error(err))
 		}
 	})
+
+	if flagDebug {
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	}
 
 	httpServer := &http.Server{Addr: flagHTTPListenAddress, Handler: mux}
 	err = httpServer.ListenAndServe()
 	if err != nil {
-		panic(err)
+		logger.Error("can't listen http server", zap.Error(err), zap.String("address", flagHTTPListenAddress))
 	}
 }

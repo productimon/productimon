@@ -6,12 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"sync"
 
 	"git.yiad.am/productimon/aggregator/deviceState"
 	cpb "git.yiad.am/productimon/proto/common"
 	spb "git.yiad.am/productimon/proto/svc"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -20,8 +21,10 @@ import (
 const bcryptStrength = 12
 
 type service struct {
-	auther *Authenticator
-	db     *sql.DB
+	auther  *Authenticator
+	dbWLock *sync.Mutex
+	db      *sql.DB
+	log     *zap.Logger
 
 	ds *deviceState.DsMap
 }
@@ -40,12 +43,14 @@ func (s *service) lazyInitEidHandler(uid string, did int64) (int64, error) {
 	return eid, nil
 }
 
-func NewService(auther *Authenticator, db *sql.DB) (s *service) {
+func NewService(auther *Authenticator, db *sql.DB, logger *zap.Logger) (s *service) {
 	s = &service{
-		auther: auther,
-		db:     db,
+		auther:  auther,
+		db:      db,
+		dbWLock: &sync.Mutex{},
+		log:     logger,
 	}
-	s.ds = deviceState.NewDsMap(s.lazyInitEidHandler)
+	s.ds = deviceState.NewDsMap(s.lazyInitEidHandler, logger)
 	return
 }
 
@@ -59,7 +64,7 @@ func (s *service) Ping(ctx context.Context, req *spb.DataAggregatorPingRequest) 
 func (s *service) returnToken(ctx context.Context, uid string) (*spb.DataAggregatorLoginResponse, error) {
 	token, err := s.auther.SignToken(uid)
 	if err != nil {
-		log.Println(err)
+		s.log.Error("can't sign token", zap.Error(err), zap.String("uid", uid))
 		return nil, status.Errorf(codes.Internal, "something went wrong with signing token")
 	}
 	return &spb.DataAggregatorLoginResponse{
@@ -71,14 +76,15 @@ func (s *service) Login(ctx context.Context, req *spb.DataAggregatorLoginRequest
 	var uid, storedPassword string
 	err := s.db.QueryRow("SELECT id, password FROM users WHERE email = ? LIMIT 1", req.Email).Scan(&uid, &storedPassword)
 	if err != nil {
-		log.Println(err)
+		s.log.Debug("error logging in", zap.Error(err))
 		return nil, status.Errorf(codes.Unauthenticated, "invalid email/password")
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(req.Password))
 	if err != nil {
-		log.Println(err)
+		s.log.Debug("wrong password", zap.Error(err))
 		return nil, status.Errorf(codes.Unauthenticated, "invalid email/password")
 	}
+	s.log.Info("logged in", zap.String("uid", uid))
 	return s.returnToken(ctx, uid)
 }
 
@@ -93,14 +99,16 @@ func (s *service) DeviceSignin(ctx context.Context, req *spb.DataAggregatorDevic
 	} else {
 		did += 1
 	}
+	s.dbWLock.Lock()
+	defer s.dbWLock.Unlock()
 	_, err = s.db.Exec("INSERT INTO devices(uid, id, name, kind) VALUES(?, ?, ?, ?)", uid, did, req.Device.Name, req.Device.DeviceType)
 	if err != nil {
-		log.Println(err)
+		s.log.Error("can't insert device", zap.Error(err), zap.String("uid", uid), zap.Int64("did", did), zap.String("device_name", req.Device.Name))
 		return nil, status.Errorf(codes.Internal, "something went wrong")
 	}
 	cert, key, err := s.auther.SignDeviceCert(uid, did)
 	if err != nil {
-		log.Println(err)
+		s.log.Error("can't sign device cert", zap.Error(err), zap.String("uid", uid), zap.Int64("did", did), zap.String("device_name", req.Device.Name))
 		return nil, status.Errorf(codes.Internal, "something went wrong")
 	}
 	return &spb.DataAggregatorDeviceSigninResponse{
@@ -114,20 +122,22 @@ func (s *service) Signup(ctx context.Context, req *spb.DataAggregatorSignupReque
 	err := s.db.QueryRow("SELECT 1 FROM users WHERE email = ? LIMIT 1", req.User.Email).Scan(&tmp)
 	switch {
 	case err != nil && err != sql.ErrNoRows:
-		log.Println(err)
+		s.log.Error("error checking user existence for signup", zap.Error(err), zap.String("email", req.User.Email))
 		return nil, status.Errorf(codes.Internal, "something went wrong")
 	case err == nil:
 		return nil, status.Errorf(codes.AlreadyExists, "user already exists")
 	}
 	pwd, err := bcrypt.GenerateFromPassword([]byte(req.User.Password), bcryptStrength)
 	if err != nil {
-		log.Println(err)
+		s.log.Error("error encrypting password", zap.Error(err), zap.String("email", req.User.Email))
 		return nil, status.Errorf(codes.Internal, "something went wrong")
 	}
 	uid := uuid.New().String()
+	s.dbWLock.Lock()
+	defer s.dbWLock.Unlock()
 	_, err = s.db.Exec("INSERT INTO users (id, email, password) VALUES (?, ?, ?)", uid, req.User.Email, pwd)
 	if err != nil {
-		log.Println(err)
+		s.log.Error("error inserting user for signup", zap.Error(err), zap.String("uid", uid), zap.String("email", req.User.Email))
 		return nil, status.Errorf(codes.Internal, "something went wrong")
 	}
 	return s.returnToken(ctx, uid)
@@ -154,7 +164,7 @@ func (s *service) UserDetails(ctx context.Context, req *cpb.Empty) (*spb.DataAgg
 	var lastEid int64
 	if did != -1 {
 		if err = s.db.QueryRow("SELECT max(id) FROM events WHERE uid = ? AND did=?", uid, did).Scan(&lastEid); err != nil {
-			log.Printf("Failed to get last eid: %v", err)
+			s.log.Error("Failed to get last eid", zap.Error(err), zap.String("uid", uid), zap.Int64("did", did))
 		}
 	}
 	ret := &spb.DataAggregatorUserDetailsResponse{
@@ -185,10 +195,10 @@ func (s *service) addGeneralEvent(uid string, did int64, e *cpb.Event, kind cpb.
 	return
 }
 
-func (s *service) eventUpdateState(uid string, did int64, e *cpb.Event, eg func(e *cpb.Event) func(ds *deviceState.DeviceState, db *sql.DB)) error {
-	err := s.ds.RunEvent(s.db, uid, did, e.Id, eg(e))
+func (s *service) eventUpdateState(uid string, did int64, e *cpb.Event, eg func(e *cpb.Event) func(ds *deviceState.DeviceState, db *sql.DB, dblock *sync.Mutex, logger *zap.Logger)) error {
+	err := s.ds.RunEvent(s.db, s.dbWLock, s.log, uid, did, e.Id, eg(e))
 	if err != nil {
-		log.Println(err)
+		s.log.Error("RunEvent error", zap.Error(err), zap.String("uid", uid), zap.Int64("did", did), zap.Int64("eid", e.Id))
 	}
 	return err // this is currently ignored by AddEvent
 }
@@ -196,45 +206,60 @@ func (s *service) eventUpdateState(uid string, did int64, e *cpb.Event, eg func(
 func (s *service) AddEvent(uid string, did int64, e *cpb.Event) error {
 	switch k := e.Kind.(type) {
 	case *cpb.Event_AppSwitchEvent:
+		s.dbWLock.Lock()
 		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_APP_SWITCH_EVENT)
 		if err != nil {
+			s.dbWLock.Unlock()
 			return err
 		}
 		if _, err := tx.Exec("INSERT INTO app_switch_events(uid, did, id, app) VALUES(?, ?, ?, ?)",
 			uid, did, e.Id, k.AppSwitchEvent.AppName); err != nil {
 			tx.Rollback()
+			s.dbWLock.Unlock()
 			return err
 		}
+		s.getDefaultLabel(k.AppSwitchEvent.AppName, tx) // either it exists or we add it to queue
 		tx.Commit()
+		s.dbWLock.Unlock()
 		s.eventUpdateState(uid, did, e, deviceState.SwitchApp)
 
 	case *cpb.Event_StartTrackingEvent:
+		s.dbWLock.Lock()
 		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_START_TRACKING_EVENT)
 		if err != nil {
+			s.dbWLock.Unlock()
 			return err
 		}
 		tx.Commit()
+		s.dbWLock.Unlock()
 		s.eventUpdateState(uid, did, e, deviceState.ClearState)
 
 	case *cpb.Event_StopTrackingEvent:
+		s.dbWLock.Lock()
 		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_STOP_TRACKING_EVENT)
 		if err != nil {
+			s.dbWLock.Unlock()
 			return err
 		}
 		tx.Commit()
+		s.dbWLock.Unlock()
 		s.eventUpdateState(uid, did, e, deviceState.ClearState)
 
 	case *cpb.Event_ActivityEvent:
+		s.dbWLock.Lock()
 		tx, err := s.addGeneralEvent(uid, did, e, cpb.EventType_ACTIVITY_EVENT)
 		if err != nil {
+			s.dbWLock.Unlock()
 			return err
 		}
 		if _, err := tx.Exec("INSERT INTO activity_events(uid, did, id, keystrokes, mouseclicks) VALUES(?, ?, ?, ?, ?)",
 			uid, did, e.Id, k.ActivityEvent.Keystrokes, k.ActivityEvent.Mouseclicks); err != nil {
 			tx.Rollback()
+			s.dbWLock.Unlock()
 			return err
 		}
 		tx.Commit()
+		s.dbWLock.Unlock()
 		if s.isActive(k.ActivityEvent.Keystrokes, k.ActivityEvent.Mouseclicks, e.Timeinterval.Start.Nanos, e.Timeinterval.End.Nanos) {
 			s.eventUpdateState(uid, did, e, deviceState.SetActive)
 		} else {
@@ -252,18 +277,18 @@ func (s *service) AddEvent(uid string, did int64, e *cpb.Event) error {
 }
 
 func (s *service) PushEvent(server spb.DataAggregator_PushEventServer) error {
-	log.Println("Started pushEvent stream")
+	s.log.Info("Started pushEvent stream")
 	ctx := server.Context()
 	uid, did, err := s.auther.AuthenticateRequest(ctx)
 	if err != nil || did == -1 {
-		log.Println(err)
+		s.log.Error("Failed to authenticate pushEvent", zap.Error(err), zap.String("uid", uid), zap.Int64("did", did))
 		return status.Errorf(codes.Unauthenticated, "Invalid token")
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println(ctx.Err())
+			s.log.Warn("context cancelled", zap.Error(ctx.Err()))
 			return ctx.Err()
 		default:
 		}
@@ -271,16 +296,16 @@ func (s *service) PushEvent(server spb.DataAggregator_PushEventServer) error {
 		event, err := server.Recv()
 		switch {
 		case err == io.EOF:
-			log.Println("Client closed the stream, we're closing too")
+			s.log.Info("Client closed the stream, we're closing too")
 			return nil
 		case err != nil:
-			log.Printf("receive error %v", err)
+			s.log.Error("receive error", zap.Error(err))
 			continue
 		}
-		log.Printf("received event %v", event)
+		s.log.Sugar().Info("received event ", event)
 
 		if err = s.AddEvent(uid, did, event); err != nil {
-			log.Printf("error adding event: %v", err)
+			s.log.Error("Failed to add event", zap.Error(err), zap.String("uid", uid), zap.Int64("did", did), zap.Int64("eid", event.Id))
 		}
 	}
 	return nil
@@ -295,15 +320,36 @@ func (s *service) isActive(keystrokes, mouseclicks, starttime, endtime int64) bo
 	return true
 }
 
-func (s *service) getLabel(appname string) string {
-	// TODO: this needs to be fancy
-	return appname
+func (s *service) getLabel(uid, appname string, tx *sql.Tx) (label string) {
+	if err := tx.QueryRow("SELECT label FROM user_apps WHERE uid=? AND name=? LIMIT 1", uid, appname).Scan(&label); err == nil {
+		return
+	}
+	label = s.getDefaultLabel(appname, tx)
+	// if the current label is UNKNOWN (which means we tried to guess it but failed),
+	// and is later updated to a real label, this update is reflected to the user
+	//
+	// if the current label is not UNKNOWN but a valid tag and is later changed to a
+	// different label, i don't want it updated for users who already saw this label
+	// before (it's weird to change user data after they saw it)
+	//
+	// e.g. if zoom is unknown but later changed to videoconference, this is updated
+	// for the user. if zoom is videoconference and the user already saw it, but
+	// admin changes it to meeting later, we don't want this change to take place
+	// automatically for old users. but for new users who never used it before, they
+	// have the new label
+	if label != LABEL_UNKNOWN && label != LABEL_UNCATEGORIZED {
+		if _, err := tx.Exec("INSERT INTO user_apps (uid, name, label) VALUES(?, ?, ?)", uid, appname, label); err != nil {
+			s.log.Error("failed to insert to user_apps", zap.Error(err), zap.String("uid", uid), zap.String("appname", appname), zap.String("label", label))
+		}
+	}
+	return
 }
 
-func (s *service) findActiveTime(uid, dFilter string, stime, etime int64) int64 {
-	rows, err := s.db.Query("SELECT I.starttime, I.endtime, A.keystrokes, A.mouseclicks FROM intervals I JOIN activity_events A ON I.id=A.id WHERE I.uid = ? AND I.endtime >= ? AND I.starttime <= ? AND I.kind=?"+dFilter, uid, stime, etime, cpb.EventType_ACTIVITY_EVENT)
+func (s *service) findActiveTime(uid, dFilter string, stime, etime int64, tx *sql.Tx) int64 {
+	rows, err := tx.Query("SELECT I.starttime, I.endtime, A.keystrokes, A.mouseclicks FROM intervals I JOIN activity_events A ON I.id=A.id WHERE I.uid = ? AND I.endtime >= ? AND I.starttime <= ? AND I.kind=?"+dFilter, uid, stime, etime, cpb.EventType_ACTIVITY_EVENT)
 	var ret int64
 	if err == nil {
+		defer rows.Close()
 		for rows.Next() {
 			var st, et, ks, mc int64
 			rows.Scan(&st, &et, &ks, &mc)
@@ -337,17 +383,39 @@ func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeReq
 		}
 		dFilter += ")"
 	}
-	log.Println(dFilter)
+	s.log.Debug("using device filter", zap.String("dFilter", dFilter))
 
 	intervals := req.GetIntervals()
 
-	var transform func(string) string
+	var merge func(app string, tottime, acttime int64, result map[string]*spb.DataAggregatorGetTimeResponse_RangeData_DataPoint, tx *sql.Tx)
 
 	switch req.GroupBy {
 	case spb.DataAggregatorGetTimeRequest_APPLICATION:
-		transform = func(x string) string { return x }
+		merge = func(app string, tottime, acttime int64, result map[string]*spb.DataAggregatorGetTimeResponse_RangeData_DataPoint, tx *sql.Tx) {
+			dp, ok := result[app]
+			if !ok {
+				dp = &spb.DataAggregatorGetTimeResponse_RangeData_DataPoint{
+					App:   app,
+					Label: s.getLabel(uid, app, tx),
+				}
+				result[app] = dp
+			}
+			dp.Time += tottime
+			dp.Activetime += acttime
+		}
 	case spb.DataAggregatorGetTimeRequest_LABEL:
-		transform = func(x string) string { return s.getLabel(x) }
+		merge = func(app string, tottime, acttime int64, result map[string]*spb.DataAggregatorGetTimeResponse_RangeData_DataPoint, tx *sql.Tx) {
+			label := s.getLabel(uid, app, tx)
+			dp, ok := result[label]
+			if !ok {
+				dp = &spb.DataAggregatorGetTimeResponse_RangeData_DataPoint{
+					Label: label,
+				}
+				result[label] = dp
+			}
+			dp.Time += tottime
+			dp.Activetime += acttime
+		}
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "i don't recognize that GroupBy param, is earth flat now?")
 	}
@@ -356,42 +424,36 @@ func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeReq
 
 	for _, in := range intervals {
 		rd := &spb.DataAggregatorGetTimeResponse_RangeData{Interval: in}
-		rows, err := s.db.Query("SELECT MAX(starttime, ?), MIN(endtime, ?), activetime, app FROM intervals WHERE uid = ? AND endtime >= ? AND starttime <= ?"+dFilter, in.Start.Nanos, in.End.Nanos, uid, in.Start.Nanos, in.End.Nanos)
+		s.dbWLock.Lock()
+		func() {
+			tx, err := s.db.Begin()
+			if err != nil {
+				s.log.Error("can't begin transaction", zap.Error(err))
+				return
+			}
+			defer tx.Commit()
+			rows, err := tx.Query("SELECT MAX(starttime, ?), MIN(endtime, ?), activetime, app FROM intervals WHERE uid = ? AND endtime >= ? AND starttime <= ?"+dFilter, in.Start.Nanos, in.End.Nanos, uid, in.Start.Nanos, in.End.Nanos)
 
-		if err == nil {
-			data := make(map[string]int64)
-			atimes := make(map[string]int64)
+			if err != nil {
+				s.log.Error("error querying for GetTime", zap.Error(err))
+				return
+			}
+			result := make(map[string]*spb.DataAggregatorGetTimeResponse_RangeData_DataPoint)
 			for rows.Next() {
 				var stime, etime, atime int64
 				var appname string
 				rows.Scan(&stime, &etime, &atime, &appname)
-				appname = transform(appname)
 				if stime == in.Start.Nanos || etime == in.End.Nanos {
-					atime = s.findActiveTime(uid, dFilter, in.Start.Nanos, in.End.Nanos)
+					atime = s.findActiveTime(uid, dFilter, in.Start.Nanos, in.End.Nanos, tx)
 				}
-				data[appname] += etime - stime
-				atimes[appname] += atime
+				merge(appname, etime-stime, atime, result, tx)
 			}
-			for k, v := range data {
-				switch req.GroupBy {
-				case spb.DataAggregatorGetTimeRequest_APPLICATION:
-					rd.Data = append(rd.Data, &spb.DataAggregatorGetTimeResponse_RangeData_DataPoint{
-						App:        k,
-						Label:      s.getLabel(k),
-						Time:       v,
-						Activetime: atimes[k],
-					})
-				case spb.DataAggregatorGetTimeRequest_LABEL:
-					rd.Data = append(rd.Data, &spb.DataAggregatorGetTimeResponse_RangeData_DataPoint{
-						Label:      k,
-						Time:       v,
-						Activetime: atimes[k],
-					})
-				}
+			rows.Close()
+			for _, v := range result {
+				rd.Data = append(rd.Data, v)
 			}
-		} else {
-			log.Println(err)
-		}
+		}()
+		s.dbWLock.Unlock()
 
 		rsp.Data = append(rsp.Data, rd)
 	}

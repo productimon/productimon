@@ -1,7 +1,7 @@
 *.DS_Store
 **/*.pb.go
 bazel-*
-db.sqlite3
+db.sqlite3*
 ca.key
 ca.pem
 node_modules

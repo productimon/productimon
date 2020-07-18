@@ -32,8 +32,14 @@ CREATE TABLE intervals (
   PRIMARY KEY(uid, did, starttime)
 );
 
-CREATE TABLE apps (
+CREATE TABLE default_apps (
   name VARCHAR(255) PRIMARY KEY,
+  label VARCHAR(255)
+);
+
+CREATE TABLE user_apps (
+  name VARCHAR(255) PRIMARY KEY,
+  uid CHAR(36) NOT NULL,
   label VARCHAR(255)
 );
 

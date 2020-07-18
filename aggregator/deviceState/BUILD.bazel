@@ -8,7 +8,10 @@ go_library(
     ],
     importpath = "git.yiad.am/productimon/aggregator/deviceState",
     visibility = ["//visibility:public"],
-    deps = ["//proto/common:go_default_library"],
+    deps = [
+        "//proto/common:go_default_library",
+        "@org_uber_go_zap//:go_default_library",
+    ],
 )
 
 go_test(
