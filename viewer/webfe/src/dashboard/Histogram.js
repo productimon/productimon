@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import moment from "moment";
+import { timeUnits } from "./utils.js";
 import { useTheme } from "@material-ui/core/styles";
 import {
   BarChart,
@@ -42,23 +44,69 @@ function createIntervals(startDate, endDate, numIntervals) {
   return ret;
 }
 
-function formatNanoTS(ts) {
-  const date = new Date(ts / 10 ** 6);
-  return `${date.getHours()}:${date.getMinutes()}`;
+/* use interval to deduce a appropriate format for the ts
+ * span and totalSpan in miliseconds */
+function formatNanoTS(ts, span, totalSpan) {
+  // console.log(`formatting ${ts} with total span ${totalSpan} and span ${span}`);
+
+  const m = moment(ts / 10 ** 9, "X");
+
+  const components = [];
+
+  /* only show date if the histogram spans over a year */
+  let dateFmt = "YY-MM-DD";
+  if (totalSpan < timeUnits.Days) {
+    dateFmt = "";
+  } else if (totalSpan < timeUnits.Years) {
+    dateFmt = "MM-DD";
+  }
+  if (dateFmt) components.push(m.format(dateFmt));
+
+  let timeFmt = "";
+  if (span < timeUnits.Minutes) {
+    timeFmt = "HH:mm:ss";
+  } else if (span < timeUnits.Days) {
+    timeFmt = "HH:mm";
+  }
+  if (timeFmt) components.push(m.format(timeFmt));
+
+  return components.join(" ");
 }
 
-function transformRange(data) {
-  const dataPoints = data.getDataList();
-  const ret = {
-    time: formatNanoTS(data.getInterval().getStart()),
-  };
-  dataPoints.forEach((point) => {
-    // TODO convert it to a proper unit
-    // always using seconds for now
+/* Returns a transform function
+ * use closure to capture the total time span
+ * of all the data to be used to deduce an appropriate datetime format
+ * Assume allData in reverse chronological order
+ */
+function transformRange(allData) {
+  /* Time span of the whole histogram */
+  let totalTimeSpan = allData.length
+    ? allData[0].getInterval().getEnd().getNanos() -
+      allData[allData.length - 1].getInterval().getStart().getNanos()
+    : 0;
+  totalTimeSpan /= 10 ** 6;
+  return (data) => {
+    /* Time span of this perticular interval */
+    let timeSpan =
+      data.getInterval().getEnd().getNanos() -
+      data.getInterval().getStart().getNanos();
+    timeSpan /= 10 ** 6;
+    const ret = {
+      label: formatNanoTS(
+        data.getInterval().getStart().getNanos(),
+        timeSpan,
+        totalTimeSpan
+      ),
+    };
+    const dataPoints = data.getDataList();
+    dataPoints.forEach((point) => {
+      // TODO convert it to a proper unit
+      // always using seconds for now
 
-    ret[point.getLabel()] = point.getTime() / 10 ** 9;
-  });
-  return ret;
+      ret[point.getLabel()] = point.getTime() / 10 ** 9;
+    });
+    return ret;
+  };
 }
 
 function getUniqLabels(response) {
@@ -112,7 +160,12 @@ export default function Histogram(props) {
           return;
         }
         setDataKeys(getUniqLabels(message));
-        setData(message.getDataList().map(transformRange).reverse());
+        setData(
+          message
+            .getDataList()
+            .map(transformRange(message.getDataList()))
+            .reverse()
+        );
       },
       request,
     });
@@ -148,9 +201,10 @@ export default function Histogram(props) {
           }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
-          <YAxis />
-          <Legend />
+          <XAxis dataKey="label" />} />
+          <YAxis
+            label={{ value: "seconds", angle: -90, position: "insideLeft" }}
+          />
           {dataKeys.map((label, index) => (
             <Bar
               key={index}
@@ -159,6 +213,7 @@ export default function Histogram(props) {
               fill={props.getLabelColor(label)}
             />
           ))}
+          <Legend />
         </BarChart>
       </ResponsiveContainer>
     </React.Fragment>
