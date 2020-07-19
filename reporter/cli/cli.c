@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "reporter/core/core.h"
+#include "reporter/core/cgo/cgo.h"
 #include "reporter/plat/tracking.h"
 
 #define MAX_CMD_LEN BUFSIZ
@@ -31,7 +31,7 @@ void *command_loop(UNUSED void *arg) {
     }
     printf("> ");
   }
-  QuitReporter(is_tracking());
+  ProdCoreQuitReporter(is_tracking());
   stop_event_loop();
   return NULL;
 }
@@ -40,9 +40,9 @@ int main(int argc, const char *argv[]) {
   pthread_t cli_thread;
   setbuf(stdout, NULL);
   setbuf(stderr, NULL);
-  ReadConfig();
+  ProdCoreReadConfig();
 
-  if (!InitReporterInteractive()) {
+  if (!ProdCoreInitReporterInteractive()) {
     prod_error("Failed to init core module\n");
     return 1;
   }

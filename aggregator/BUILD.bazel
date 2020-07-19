@@ -41,6 +41,8 @@ go_library(
         "@com_github_hashicorp_golang_lru//:go_default_library",
         "@com_github_improbable_eng_grpc_web//go/grpcweb:go_default_library",
         "@com_github_mattn_go_sqlite3//:go_default_library",
+        "@com_github_productimon_wasmws//:go_default_library",
+        "@io_nhooyr_websocket//:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//codes:go_default_library",
         "@org_golang_google_grpc//credentials:go_default_library",

@@ -12,7 +12,7 @@
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QVBoxLayout>
 
-#include "reporter/core/core.h"
+#include "reporter/core/cgo/cgo.h"
 #include "reporter/plat/tracking.h"
 
 bool recording = false;
@@ -52,7 +52,7 @@ void MainWindow::setupMainLayout() {
 }
 
 void MainWindow::quit() {
-  QuitReporter(recording);
+  ProdCoreQuitReporter(recording);
   QApplication::quit();
 }
 

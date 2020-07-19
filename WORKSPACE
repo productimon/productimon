@@ -631,3 +631,24 @@ go_repository(
     sum = "h1:KCa4XfM8CWFCpxXRGok+Q0SS/0XBhMDbHHGABQLvD2A=",
     version = "v1.5.0",
 )
+
+go_repository(
+    name = "io_nhooyr_websocket",
+    importpath = "nhooyr.io/websocket",
+    sum = "h1:s+C3xAMLwGmlI31Nyn/eAehUlZPwfYZu2JXM621Q5/k=",
+    version = "v1.8.6",
+)
+
+go_repository(
+    name = "com_github_klauspost_compress",
+    importpath = "github.com/klauspost/compress",
+    sum = "h1:a/y8CglcM7gLGYmlbP/stPE5sR3hbhFRUjCBfd/0B3I=",
+    version = "v1.10.10",
+)
+
+go_repository(
+    name = "com_github_productimon_wasmws",
+    importpath = "github.com/productimon/wasmws",
+    sum = "h1:GWULhL88aJNhBU9YueXRYfbg5DbxR/CtWXkYFay1rxg=",
+    version = "v0.0.0-20200722143936-311c88976439",
+)

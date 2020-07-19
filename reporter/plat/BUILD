@@ -26,7 +26,7 @@ cc_library(
     }),
     visibility = ["//reporter:__pkg__"],
     deps = [
-        "//reporter/core:core.cc",
+        "//reporter/core/cgo:cgo.cc",
         "@dbus",
         "@system_libs//:pthread",
         "@system_libs//:x11",
@@ -53,7 +53,7 @@ cc_library(
     ],
     visibility = ["//reporter:__pkg__"],
     deps = [
-        "//reporter/core:core.cc",
+        "//reporter/core/cgo:cgo.cc",
     ],
 )
 
@@ -71,7 +71,7 @@ objc_library(
     ],
     visibility = ["//reporter:__pkg__"],
     deps = [
-        "//reporter/core:core.cc",
+        "//reporter/core/cgo:cgo.cc",
     ],
 )
 

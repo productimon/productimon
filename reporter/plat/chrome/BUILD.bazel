@@ -1,0 +1,21 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "git.yiad.am/productimon/reporter/plat/chrome",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//reporter/core/config:go_default_library",
+        "//reporter/core/reporter:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "chrome.wasm",
+    embed = [":go_default_library"],
+    goarch = "wasm",
+    goos = "js",
+    pure = "on",
+    visibility = ["//visibility:public"],
+)

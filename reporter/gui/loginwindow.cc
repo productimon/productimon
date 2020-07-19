@@ -3,7 +3,7 @@
 #include <QtWidgets/QtWidgets>
 #include <string>
 
-#include "reporter/core/core.h"
+#include "reporter/core/cgo/cgo.h"
 #include "reporter/gui/mainwindow.h"
 
 #define TO_C_STR(qtstr) (qtstr.toUtf8().data())
@@ -27,8 +27,8 @@ void LoginWindow::tryLogin() {
 
   prod_debug("login using: %s %s %s %s\n", TO_C_STR(server), TO_C_STR(username),
              TO_C_STR(password), TO_C_STR(deviceName));
-  if (InitReporterByCreds(TO_C_STR(server), TO_C_STR(username),
-                          TO_C_STR(password), TO_C_STR(deviceName))) {
+  if (ProdCoreInitReporterByCreds(TO_C_STR(server), TO_C_STR(username),
+                                  TO_C_STR(password), TO_C_STR(deviceName))) {
     new MainWindow();
     this->hide();
   } else {

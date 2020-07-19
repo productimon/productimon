@@ -76,7 +76,7 @@ func (s *service) Login(ctx context.Context, req *spb.DataAggregatorLoginRequest
 	var uid, storedPassword string
 	err := s.db.QueryRow("SELECT id, password FROM users WHERE email = ? LIMIT 1", req.Email).Scan(&uid, &storedPassword)
 	if err != nil {
-		s.log.Debug("error logging in", zap.Error(err))
+		s.log.Debug("error logging in", zap.Error(err), zap.String("email", req.Email))
 		return nil, status.Errorf(codes.Unauthenticated, "invalid email/password")
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(req.Password))
@@ -95,10 +95,12 @@ func (s *service) DeviceSignin(ctx context.Context, req *spb.DataAggregatorDevic
 	}
 	err = s.db.QueryRow("SELECT MAX(id) FROM devices WHERE uid=?", uid).Scan(&did)
 	if err != nil {
+		s.log.Debug("DeviceSignin: MAX(id) FROM devices failed", zap.Error(err))
 		did = 0
 	} else {
 		did += 1
 	}
+	s.log.Info("DeviceSignin: signing cert", zap.String("uid", uid), zap.Int64("did", did))
 	s.dbWLock.Lock()
 	defer s.dbWLock.Unlock()
 	_, err = s.db.Exec("INSERT INTO devices(uid, id, name, kind) VALUES(?, ?, ?, ?)", uid, did, req.Device.Name, req.Device.DeviceType)

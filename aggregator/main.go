@@ -1,22 +1,28 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"flag"
 	"net"
 	"net/http"
-
 	"net/http/pprof"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	spb "git.yiad.am/productimon/proto/svc"
 	"git.yiad.am/productimon/viewer/webfe"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/productimon/wasmws"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"nhooyr.io/websocket"
 )
 
 var (
@@ -57,6 +63,9 @@ func main() {
 	}
 	logger.Info("Productimon aggregator starting up...")
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	auther, err := NewAuthenticator(flagPublicKeyPath, flagPrivateKeyPath)
 	if err != nil {
 		logger.Fatal("can't create authenticator", zap.Error(err))
@@ -78,16 +87,13 @@ func main() {
 	reflection.Register(grpcServer)
 	s := NewService(auther, db, logger)
 	spb.RegisterDataAggregatorServer(grpcServer, s)
-	go func() {
-		if gerr := grpcServer.Serve(lis); gerr != nil {
-			logger.Fatal("can't serve grpc server", zap.Error(err))
-		}
-	}()
-	go s.runLabelRoutine()
 	wrappedGrpc := grpcweb.WrapServer(grpcServer)
 
 	mux := http.NewServeMux()
-	mux.Handle("/rpc/", http.StripPrefix("/rpc", http.HandlerFunc(wrappedGrpc.ServeHTTP)))
+	mux.Handle("/rpc/", http.StripPrefix("/rpc", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		wrappedGrpc.ServeHTTP(w, r)
+	})))
 
 	mux.HandleFunc("/app.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/javascript")
@@ -106,6 +112,7 @@ func main() {
 
 	mux.HandleFunc("/rpc.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		j := json.NewEncoder(w)
 		err := j.Encode(struct {
 			Port       int
@@ -120,6 +127,11 @@ func main() {
 			logger.Error("can't encode /rpc.json", zap.Error(err))
 		}
 	})
+	// InsecureSkipVerify means not to verify origin header
+	// because when a Chrome extension visits us, it doesn't attach the Origin header
+	// since we're doing mTLS handshake on top of raw websocket, this is safe against CSRF.
+	wsl := wasmws.NewWebSocketListener(ctx, &websocket.AcceptOptions{InsecureSkipVerify: true})
+	mux.HandleFunc("/ws", wsl.ServeHTTP)
 
 	if flagDebug {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -130,8 +142,53 @@ func main() {
 	}
 
 	httpServer := &http.Server{Addr: flagHTTPListenAddress, Handler: mux}
-	err = httpServer.ListenAndServe()
-	if err != nil {
-		logger.Error("can't listen http server", zap.Error(err), zap.String("address", flagHTTPListenAddress))
+
+	go func() {
+		defer cancel()
+		if herr := httpServer.ListenAndServe(); herr != nil {
+			logger.Error("can't listen http server", zap.Error(herr), zap.String("address", flagHTTPListenAddress))
+		}
+	}()
+	go func() {
+		defer cancel()
+		if gerr := grpcServer.Serve(wsl); gerr != nil {
+			logger.Error("can't serve grpc server", zap.Error(err))
+		}
+	}()
+	go func() {
+		defer cancel()
+		if gerr := grpcServer.Serve(lis); gerr != nil {
+			logger.Error("can't serve grpc server", zap.Error(err))
+		}
+	}()
+	go func() {
+		defer cancel()
+		s.runLabelRoutine()
+	}()
+
+	// Handle signals
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		logger.Sugar().Info("Received shutdown signal: ", <-sigs)
+		cancel()
+	}()
+
+	// Shutdown
+	<-ctx.Done()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer shutdownCancel()
+
+	grpcShutdown := make(chan struct{}, 1)
+	go func() {
+		grpcServer.GracefulStop()
+		grpcShutdown <- struct{}{}
+	}()
+
+	httpServer.Shutdown(shutdownCtx)
+	select {
+	case <-grpcShutdown:
+	case <-shutdownCtx.Done():
+		grpcServer.Stop()
 	}
 }

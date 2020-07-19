@@ -15,7 +15,7 @@
 #include <winver.h>
 #include <wtsapi32.h>
 
-#include "reporter/core/core.h"
+#include "reporter/core/cgo/cgo.h"
 
 #define STOP_MSG (WM_USER + 1)
 #define STOP_W_PARAM ((WPARAM)0xDEADBEEF)
@@ -158,7 +158,7 @@ static VOID CALLBACK callback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent,
   }
   StringCbCopyA(prog_name, 512, new_prog_name);
   printf("Got new program: %s\n", prog_name);
-  SendWindowSwitchEvent(prog_name);
+  ProdCoreSwitchWindow(prog_name);
 }
 static LRESULT CALLBACK keystroke_callback(_In_ int nCode, _In_ WPARAM wParam,
                                            _In_ LPARAM lParam) {
@@ -167,7 +167,7 @@ static LRESULT CALLBACK keystroke_callback(_In_ int nCode, _In_ WPARAM wParam,
 
   /* only do reporting for key down event */
   if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
-    HandleKeystroke();
+    ProdCoreHandleKeystroke();
   }
   return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
@@ -180,7 +180,7 @@ static LRESULT CALLBACK mouseclick_callback(_In_ int nCode, _In_ WPARAM wParam,
   /* only do reporting for key down event */
   if (wParam == WM_LBUTTONDOWN || wParam == WM_RBUTTONDOWN ||
       wParam == WM_MOUSEWHEEL) {
-    HandleMouseClick();
+    ProdCoreHandleMouseClick();
   }
   return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
@@ -230,7 +230,7 @@ static int install_hooks(bool register_session_ntfn) {
 }
 
 static void suspend_tracking() {
-  SendStopTrackingEvent();
+  ProdCoreStopTracking();
 
   if (tracking_opts->foreground_program && !UnhookWinEvent(window_change_hook))
     prod_error("Failed to remove window change hook: %d\n", GetLastError());
@@ -245,7 +245,7 @@ static void suspend_tracking() {
 }
 
 static void resume_tracking() {
-  SendStartTrackingEvent();
+  ProdCoreStartTracking();
 
   install_hooks(false);
 
@@ -269,7 +269,7 @@ static LRESULT CALLBACK session_change_callback(WPARAM type) {
 }
 
 static DWORD WINAPI tracking_loop(_In_ LPVOID lpParameter) {
-  SendStartTrackingEvent();
+  ProdCoreStartTracking();
   prod_debug("Tracking started\n");
 
   /* create a hidden message window */
@@ -297,7 +297,7 @@ static DWORD WINAPI tracking_loop(_In_ LPVOID lpParameter) {
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
-  SendStopTrackingEvent();
+  ProdCoreStopTracking();
   prod_debug("Tracking stopped\n");
   return 0;
 }

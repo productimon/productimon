@@ -1,0 +1,20 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "events.go",
+        "helpers.go",
+        "reporter.go",
+    ],
+    #cgo = True,
+    importpath = "git.yiad.am/productimon/reporter/core/reporter",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//proto/common:go_default_library",
+        "//proto/svc:go_default_library",
+        "//reporter/core/auth:go_default_library",
+        "//reporter/core/config:go_default_library",
+        "@org_golang_google_grpc//:go_default_library",
+    ],
+)

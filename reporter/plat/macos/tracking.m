@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "reporter/core/core.h"
+#include "reporter/core/cgo/cgo.h"
 
 static tracking_opt_t *tracking_opts = NULL;
 static bool tracking_started = false;
@@ -28,7 +28,7 @@ NSDistributedNotificationCenter *distributed_center;
     return;
   }
   NSLog(@"%@", note);
-  SendStopTrackingEvent();
+  ProdCoreStopTracking();
   tracking_started = false;
   pthread_mutex_unlock(&tracking_mutex);
 }
@@ -40,7 +40,7 @@ NSDistributedNotificationCenter *distributed_center;
     return;
   }
   NSLog(@"%@", note);
-  SendStartTrackingEvent();
+  ProdCoreStartTracking();
   tracking_started = true;
   pthread_mutex_unlock(&tracking_mutex);
 }
@@ -66,10 +66,10 @@ NSDistributedNotificationCenter *distributed_center;
                                                  case NSEventTypeLeftMouseDown:
                                                  case NSEventTypeRightMouseDown:
                                                  case NSEventTypeScrollWheel:
-                                                   HandleMouseClick();
+                                                   ProdCoreHandleMouseClick();
                                                    break;
                                                  case NSEventTypeKeyDown:
-                                                   HandleKeystroke();
+                                                   ProdCoreHandleKeystroke();
                                                    break;
                                                  default:
                                                    NSLog(@"Unexpected event %@\n", event);
@@ -100,7 +100,7 @@ NSDistributedNotificationCenter *distributed_center;
   NSRunningApplication *app = notification.userInfo[@"NSWorkspaceApplicationKey"];
   const char *app_name = [app.localizedName UTF8String];
   prod_debug("Switched to %s\n", app_name);
-  SendWindowSwitchEvent((char *)app_name);
+  ProdCoreSwitchWindow((char *)app_name);
 }
 @end
 
@@ -128,7 +128,7 @@ int start_tracking(tracking_opt_t *opts) {
   }
   tracking_opts = opts;
 
-  SendStartTrackingEvent();
+  ProdCoreStartTracking();
   [tracking init_observers:tracking_opts];
   prod_debug("Tracking started\n");
 
@@ -146,7 +146,7 @@ void stop_tracking() {
   }
 
   [tracking remove_observers];
-  SendStopTrackingEvent();
+  ProdCoreStopTracking();
   prod_debug("Tracking stopped\n");
   tracking_started = false;
   pthread_mutex_unlock(&tracking_mutex);

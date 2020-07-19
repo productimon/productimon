@@ -14,7 +14,7 @@
 #include <time.h>
 
 #include "inhibit.h"
-#include "reporter/core/core.h"
+#include "reporter/core/cgo/cgo.h"
 
 #ifdef __linux__
 
@@ -104,7 +104,7 @@ static void handle_window_change(Display *display, Window window) {
 
   strcpy(prog_name, new_prog_name);
 
-  SendWindowSwitchEvent(prog_name);
+  ProdCoreSwitchWindow(prog_name);
 }
 
 static int check_x_input_lib(Display *display) {
@@ -134,7 +134,7 @@ static void *event_loop(UNUSED void *arg) {
              tracking_opts->foreground_program, tracking_opts->mouse_click,
              tracking_opts->keystroke);
 
-  SendStartTrackingEvent();
+  ProdCoreStartTracking();
 
   long event_mask = 0;
   if (tracking_opts->foreground_program) {
@@ -168,14 +168,14 @@ static void *event_loop(UNUSED void *arg) {
     if (XGetEventData(display, cookie) && cookie->type == GenericEvent &&
         cookie->extension == xi_major_opcode) {
       if (cookie->evtype == XI_RawKeyPress) {
-        HandleKeystroke();
+        ProdCoreHandleKeystroke();
       } else if (cookie->evtype == XI_RawButtonPress) {
-        HandleMouseClick();
+        ProdCoreHandleMouseClick();
       }
     }
   }
 
-  SendStopTrackingEvent();
+  ProdCoreStopTracking();
   return NULL;
 }
 
