@@ -1,43 +1,38 @@
 import React, { useEffect, useState } from "react";
-import { useTheme } from "@material-ui/core/styles";
 import {
-  PieChart,
+  PieChart as RechartsPieChart,
   Pie,
-  Sector,
   Cell,
   ResponsiveContainer,
   Tooltip,
   Legend,
 } from "recharts";
-import Title from "./Title";
-import { humanizeDuration, toSec, google_colors, calculateDate } from "./utils";
+
 import { grpc } from "@improbable-eng/grpc-web";
 import { DataAggregatorGetTimeRequest } from "productimon/proto/svc/aggregator_pb";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Interval, Timestamp } from "productimon/proto/common/common_pb";
 
+import { getLabelColor, humanizeDuration, toSec, calculateDate } from "../Utils";
+
 function createData(program, time, label) {
   return { program, time, label };
 }
 
-const colors = google_colors;
-
-export default function DisplayPie(props) {
-  const theme = useTheme();
+export default function PieChart(props) {
   const [rows, setRows] = React.useState([]);
-  const [title, setTitle] = useState(props.spec.graphTitle);
   var data = [];
 
   useEffect(() => {
     const interval = new Interval();
     const start = new Timestamp();
     const startDate = calculateDate(
-      props.spec.startTimeUnit,
-      props.spec.startTimeVal
+      props.graphSpec.startTimeUnit,
+      props.graphSpec.startTimeVal
     );
     const endDate = calculateDate(
-      props.spec.endTimeUnit,
-      props.spec.endTimeVal
+      props.graphSpec.endTimeUnit,
+      props.graphSpec.endTimeVal
     );
 
     start.setNanos(startDate * 10 ** 6);
@@ -50,7 +45,7 @@ export default function DisplayPie(props) {
     // Get time data for all device and all intervals
     request.setDevicesList([]);
     request.setIntervalsList([interval]);
-    request.setGroupBy(DataAggregatorGetTimeRequest.GroupBy.APPLICATION);
+    request.setGroupBy(DataAggregatorGetTimeRequest.GroupBy.LABEL);
 
     const token = window.localStorage.getItem("token");
     grpc.unary(DataAggregator.GetTime, {
@@ -72,7 +67,7 @@ export default function DisplayPie(props) {
         // Cumulatively store the amount of time used in apps other than main displayed
         var othTime = 0;
         for (var i = 0; i < sorted.length; i++) {
-          if (i < props.spec.numItems) {
+          if (i < props.graphSpec.numItems) {
             data.push(
               createData(
                 sorted[i].getApp(),
@@ -91,33 +86,29 @@ export default function DisplayPie(props) {
       },
       request,
     });
-    if (props.spec.graphTitle === "")
-      setTitle(props.spec.numItems + " most used");
   }, []);
 
   // TODO: add legend to the pie chart
   return (
     <React.Fragment>
-      <Title>{title}</Title>
-      <ResponsiveContainer height="80%">
-        <PieChart width={200} height={200}>
+      <ResponsiveContainer height="100%">
+        <RechartsPieChart width={200} height={200}>
           <Pie
             innerRadius={44}
             outerRadius={88}
             data={rows}
             dataKey="time"
-            nameKey="program"
-            label={({ program, time }) =>
-              `${program}: ${humanizeDuration(time)}`
-            }
+            nameKey="label"
+            label={({ label, time }) => `${label}: ${humanizeDuration(time)}`}
             labelLine={false}
           >
             {rows.map((data, index) => (
-              <Cell key={index} fill={props.getLabelColor(data.program)} />
+              <Cell key={index} fill={getLabelColor(data.label)} />
             ))}
           </Pie>
-          <Tooltip />
-        </PieChart>
+          { props.fullscreen && <Tooltip />}
+          <Legend />
+        </RechartsPieChart>
       </ResponsiveContainer>
     </React.Fragment>
   );

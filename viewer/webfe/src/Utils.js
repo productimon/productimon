@@ -1,4 +1,5 @@
 import moment from "moment";
+import React from "react";
 
 // Number of miliseconds per unit
 export const timeUnits = {
@@ -17,7 +18,7 @@ export function calculateDate(unit, val) {
 }
 
 // set of colors taken from google charts
-export const google_colors = [
+const google_colors = [
   "#3366cc",
   "#dc3912",
   "#ff9900",
@@ -51,6 +52,19 @@ export const google_colors = [
   "#743411",
 ];
 
+// colorMap is a universal mapping of label -> display color
+const colorMap = new Map();
+var colorIdx = 0;
+
+export function getLabelColor(label) {
+  if (!colorMap.has(label)) {
+    colorMap.set(label, google_colors[colorIdx]);
+    colorIdx++;
+    colorIdx = colorIdx % google_colors.length;
+  }
+  return colorMap.get(label);
+}
+
 // format a time in seconds to readable string
 export function humanizeDuration(seconds) {
   const duration = moment.duration(seconds * 10 ** 3);
@@ -63,4 +77,10 @@ export function humanizeDuration(seconds) {
 // TODO: make time format customisable
 export function toSec(nanoseconds) {
   return nanoseconds / 10 ** 9;
+}
+
+export function redirectToLogin(history) {
+  window.localStorage.removeItem("token");
+  history.push("/");
+  return <p>Redirecting to login...</p>;
 }

@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
 import moment from "moment";
-import { timeUnits } from "./utils.js";
-import { useTheme } from "@material-ui/core/styles";
 import {
   BarChart,
   Bar,
@@ -9,9 +7,9 @@ import {
   XAxis,
   YAxis,
   ResponsiveContainer,
+  Tooltip,
   Legend,
 } from "recharts";
-import Title from "./Title";
 
 import { grpc } from "@improbable-eng/grpc-web";
 import {
@@ -20,9 +18,8 @@ import {
 } from "productimon/proto/svc/aggregator_pb";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Interval, Timestamp } from "productimon/proto/common/common_pb";
-import IconButton from "@material-ui/core/IconButton";
-import DeleteIcon from "@material-ui/icons/Delete";
-import { calculateDate } from "./utils";
+
+import { getLabelColor, timeUnits, calculateDate } from "../Utils";
 
 // startDate and endDate are miliseconds.
 function createIntervals(startDate, endDate, numIntervals) {
@@ -54,11 +51,11 @@ function formatNanoTS(ts, span, totalSpan) {
   const components = [];
 
   /* only show date if the histogram spans over a year */
-  let dateFmt = "YY-MM-DD";
-  if (totalSpan < timeUnits.Days) {
+  let dateFmt = "DD-MM-YY";
+  if (totalSpan <= timeUnits.Days) {
     dateFmt = "";
   } else if (totalSpan < timeUnits.Years) {
-    dateFmt = "MM-DD";
+    dateFmt = "DD-MM";
   }
   if (dateFmt) components.push(m.format(dateFmt));
 
@@ -129,18 +126,17 @@ function getUniqLabels(response) {
 export default function Histogram(props) {
   const [data, setData] = useState([]);
   const [dataKeys, setDataKeys] = useState([]);
-  const [title, setTitle] = useState(props.spec.graphTitle);
 
   useEffect(() => {
     const startDate = calculateDate(
-      props.spec.startTimeUnit,
-      props.spec.startTimeVal
+      props.graphSpec.startTimeUnit,
+      props.graphSpec.startTimeVal
     );
     const endDate = calculateDate(
-      props.spec.endTimeUnit,
-      props.spec.endTimeVal
+      props.graphSpec.endTimeUnit,
+      props.graphSpec.endTimeVal
     );
-    const numIntervals = props.spec.intervals;
+    const numIntervals = props.graphSpec.intervals;
     const intervals = createIntervals(startDate, endDate, numIntervals);
 
     const request = new DataAggregatorGetTimeRequest();
@@ -169,53 +165,37 @@ export default function Histogram(props) {
       },
       request,
     });
-    if (title === "")
-      setTitle(
-        "From " +
-          props.spec.startTimeVal +
-          " " +
-          props.spec.startTimeUnit +
-          " until " +
-          props.spec.endTimeVal +
-          " " +
-          props.spec.endTimeUnit +
-          " ago."
-      );
   }, []);
 
   return (
-    <React.Fragment>
-      {/* Alignment is hard...
-          <IconButton>
-          <DeleteIcon />
-          </IconButton> */}
-      <Title>{title}</Title>
-      <ResponsiveContainer height="80%">
-        <BarChart
-          data={data}
-          margin={{
-            top: 16,
-            right: 16,
-            bottom: 0,
-            left: 16,
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="label" />} />
-          <YAxis
-            label={{ value: "seconds", angle: -90, position: "insideLeft" }}
+    <ResponsiveContainer>
+      <BarChart
+        data={data}
+        margin={{
+          top: 16,
+          right: 16,
+          bottom: 0,
+          left: 16,
+        }}
+        barCategoryGap={props.fullscreen ? "20%" : "10%"}
+      >
+        {/* TODO have adaptive unit for the tooltip label too */}
+        {props.fullscreen && <Tooltip />}
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="label" />
+        <YAxis
+          label={{ value: "seconds", angle: -90, position: "insideLeft" }}
+        />
+        <Legend />
+        {dataKeys.map((label, index) => (
+          <Bar
+            key={index}
+            dataKey={label}
+            stackId="a"
+            fill={getLabelColor(label)}
           />
-          {dataKeys.map((label, index) => (
-            <Bar
-              key={index}
-              dataKey={label}
-              stackId="a"
-              fill={props.getLabelColor(label)}
-            />
-          ))}
-          <Legend />
-        </BarChart>
-      </ResponsiveContainer>
-    </React.Fragment>
+        ))}
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
