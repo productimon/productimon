@@ -109,13 +109,13 @@ function SimpleForm(props) {
   const classes = useStyles();
   const [graphSpec, setGraphSpec] = React.useState({
     graphType: props.graphType,
-    graphTitle: "",
-    startTimeUnit: "",
-    startTimeVal: "",
-    endTimeUnit: "",
-    endTimeVal: "",
-    intervals: "",
-    numItems: "",
+    graphTitle: "Last year",
+    startTimeUnit: "Years",
+    startTimeVal: "1",
+    endTimeUnit: "Seconds",
+    endTimeVal: "0",
+    intervals: "52",
+    numItems: "5",
   });
 
   const handleInputChange = (event) => {
@@ -128,6 +128,7 @@ function SimpleForm(props) {
         <Box my={3}>Title:</Box>
         <TextField
           className={clsx(classes.margin, classes.wideTextField)}
+          value={graphSpec.graphTitle}
           variant="filled"
           onChange={handleInputChange}
           name="graphTitle"
@@ -137,6 +138,7 @@ function SimpleForm(props) {
         <Box my={3}>Start:</Box>
         <TextField
           className={clsx(classes.margin, classes.textField)}
+          value={graphSpec.startTimeVal}
           variant="filled"
           onChange={handleInputChange}
           name="startTimeVal"
@@ -154,6 +156,7 @@ function SimpleForm(props) {
         <Box my={3}>End:</Box>
         <TextField
           className={clsx(classes.margin, classes.textField)}
+          value={graphSpec.endTimeVal}
           variant="filled"
           onChange={handleInputChange}
           name="endTimeVal"

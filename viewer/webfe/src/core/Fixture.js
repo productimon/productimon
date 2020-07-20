@@ -137,7 +137,7 @@ export default function Fixture(props) {
         className={clsx(classes.appBar, {
           [classes.appBarShift]: props.loggedIn && open,
         })}
-        style={{ backgroundColor: props.loggedIn ? "#484848" : "brown"}}
+        style={{ backgroundColor: props.loggedIn ? "#484848" : "brown" }}
       >
         <Toolbar className={classes.toolbar}>
           <IconButton

@@ -8,9 +8,8 @@ import Paper from "@material-ui/core/Paper";
 import { useParams } from "react-router-dom";
 import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
-// import IconButton from "@material-ui/core/IconButton";
-// import DeleteIcon from "@material-ui/icons/Delete";
-//
+import IconButton from "@material-ui/core/IconButton";
+import DeleteIcon from "@material-ui/icons/Delete";
 
 import Histogram from "./Histogram";
 import Table from "./Table";
@@ -25,6 +24,10 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     flexFlow: "column",
     overflowX: "hidden",
+  },
+  titleAndButton: {
+    display: "flex",
+    flexFlow: "row",
   },
 }));
 
@@ -54,20 +57,26 @@ export default function Graph(props) {
   // check props.fullscreen
   return (
     <div className={classes.box}>
-      {/* Alignment is hard...
-          <IconButton>
+      <div className={classes.titleAndButton}>
+        <Typography
+          onClick={() => history.push(`/dashboard/graph/${graphSpec.graphId}`)}
+          className={classes.link}
+          component="h2"
+          variant="h6"
+          color="primary"
+          gutterBottom
+        >
+          {graphSpec.graphTitle || defaultTitle}
+        </Typography>
+        <IconButton
+          style={{ marginLeft: "auto" }}
+          onClick={() => {
+            props.onRemove(graphSpec);
+          }}
+        >
           <DeleteIcon />
-          </IconButton> */}
-      <Typography
-        onClick={() => history.push(`/dashboard/graph/${graphSpec.graphId}`)}
-        className={classes.link}
-        component="h2"
-        variant="h6"
-        color="primary"
-        gutterBottom
-      >
-        {graphSpec.graphTitle || defaultTitle}
-      </Typography>
+        </IconButton>
+      </div>
       {renderGraph(props)}
     </div>
   );

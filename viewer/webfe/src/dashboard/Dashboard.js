@@ -75,6 +75,7 @@ export default function Dashboard(props) {
     props.setLoggedIn(false);
     return redirectToLogin(history);
   }
+
   grpc.unary(DataAggregator.UserDetails, {
     host: "/rpc",
     metadata: new grpc.Metadata({ Authorization: token }),
@@ -101,7 +102,9 @@ export default function Dashboard(props) {
 
   const classes = useStyles();
 
-  // This is passed as a prop to the DashboardCustomizer. Right now this just updates a list of graphs that are rendered. In the future this will send the graph to the aggregator to save it to the account.
+  // This is passed as a prop to the DashboardCustomizer.
+  // Right now this just updates a list of graphs that are rendered.
+  // In the future this will send the graph to the aggregator to save it to the account.
   const addGraph = (graphSpec) => {
     const newId = Math.max(...Object.keys(graphs), -1) + 1;
     const newGraphs = {
@@ -121,6 +124,15 @@ export default function Dashboard(props) {
     window.localStorage.setItem("graphs", JSON.stringify(newGraphs));
   };
 
+  const removeGraph = (graphSpec) => {
+    const newGraphs = Object.keys(graphs)
+      .filter((id) => id != graphSpec.graphId)
+      .reduce((ret, graphId) => ({ ...ret, [graphId]: graphs[graphId] }), {});
+    setGraphs(newGraphs);
+    window.localStorage.setItem("graphs", JSON.stringify(newGraphs));
+    history.push("/dashboard");
+  };
+
   return (
     <Switch>
       <Route path="/dashboard/customize">
@@ -137,7 +149,11 @@ export default function Dashboard(props) {
         </div>
       </Route>
       <Route path="/dashboard/graph/:graphId">
-        <FullScreenGraph onUpdate={updateGraph} graphs={graphs} />
+        <FullScreenGraph
+          graphs={graphs}
+          onUpdate={updateGraph}
+          onRemove={removeGraph}
+        />
       </Route>
       <Route path="/">
         <Container maxWidth="lg" className={classes.container}>
@@ -148,7 +164,7 @@ export default function Dashboard(props) {
                   className={clsx(classes.paper, classes.dashboardGraph)}
                   key={index}
                 >
-                  <Graph graphSpec={graph} />
+                  <Graph graphSpec={graph} onRemove={removeGraph} />
                 </Paper>
               </Grid>
             ))}
