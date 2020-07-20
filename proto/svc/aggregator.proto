@@ -27,7 +27,7 @@ service DataAggregator {
       returns (DataAggregatorGetTimeResponse);
 
   /* goals */
-  rpc AddGoal(common.Goal) returns (common.Empty);
+  rpc AddGoal(common.Goal) returns (common.Goal);
   rpc DeleteGoal(common.Goal) returns (common.Empty);
   rpc EditGoal(common.Goal) returns (common.Empty);
   // TODO: add filters

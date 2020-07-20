@@ -115,7 +115,7 @@ func (s *Service) UpdateGoal(uid string, gid int64) {
 	var err error
 	s.dbWLock.Lock()
 	defer s.dbWLock.Unlock()
-	if err = s.db.QueryRow("SELECT title, goaltype, is_label, item, base_duration, target_duration, starttime, endtime, progress FROM goals WHERE uid = ? AND id = ?", uid, gid).Scan(&title, &goaltype, isLabel, &item, &baseDuration, &targetDuration, &startTime, &endTime, &oldProgress); err != nil {
+	if err = s.db.QueryRow("SELECT title, goaltype, is_label, item, base_duration, target_duration, starttime, endtime, progress FROM goals WHERE uid = ? AND id = ?", uid, gid).Scan(&title, &goaltype, &isLabel, &item, &baseDuration, &targetDuration, &startTime, &endTime, &oldProgress); err != nil {
 		s.log.Error("Error updating goal", zap.Error(err), zap.String("uid", uid), zap.Int64("gid", gid))
 		return
 	}
@@ -159,7 +159,7 @@ func (s *Service) UpdateGoal(uid string, gid int64) {
 	}
 }
 
-func (s *Service) AddGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, error) {
+func (s *Service) AddGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Goal, error) {
 	uid, did, err := s.auther.AuthenticateRequest(ctx)
 	if err != nil || did != -1 {
 		return nil, status.Error(codes.Unauthenticated, "Invalid token")
@@ -194,7 +194,7 @@ func (s *Service) AddGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, erro
 		s.log.Error("insert goal failed", zap.Error(err))
 		return nil, status.Error(codes.Internal, "error adding goal")
 	}
-	return &cpb.Empty{}, nil
+	return goal, nil
 }
 
 func (s *Service) DeleteGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, error) {
@@ -221,7 +221,7 @@ func (s *Service) GetGoals(ctx context.Context, req *cpb.Empty) (*spb.DataAggreg
 		return nil, status.Error(codes.Unauthenticated, "Invalid token")
 	}
 
-	rows, err := s.db.Query("SELECT id, title, is_label, item, is_percent, goal_duration, starttime, endtime, compare_starttime, compare_endtime, equalized, progress, goaltype FROM goals WHERE uid = ?", uid)
+	rows, err := s.db.Query("SELECT id, title, is_label, item, is_percent, goal_duration, starttime, endtime, compare_starttime, compare_endtime, equalized, progress, goaltype FROM goals WHERE uid = ? ORDER BY starttime", uid)
 
 	rsp := &spb.DataAggregatorGetGoalsResponse{}
 	switch {

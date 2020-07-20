@@ -20,6 +20,15 @@ export function calculateDate(unit, val) {
   return new Date().getTime() - val * mult;
 }
 
+export function parseDateTime(date, time) {
+  const dateTime = date + "T" + time;
+  return Date.parse(dateTime) * 10 ** 6;
+}
+
+export function nowNano() {
+  return new Date() * 10 ** 6;
+}
+
 // set of colors taken from google charts
 const google_colors = [
   "#3366cc",
@@ -111,4 +120,8 @@ export function rpc(methodDescriptor, request) {
       request,
     });
   });
+}
+
+export function formatNano(ns, format = "lll") {
+  return moment(toSec(ns), "X").format(format);
 }

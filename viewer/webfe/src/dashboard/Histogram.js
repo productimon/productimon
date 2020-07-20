@@ -344,10 +344,10 @@ export default function Histogram(props) {
               labelFormatter={(interval) => {
                 const [start, end] = interval.split("-");
                 const startFull = moment(start / timeUnits.Seconds, "X").format(
-                  "LLLL"
+                  "llll"
                 );
                 const endFull = moment(end / timeUnits.Seconds, "X").format(
-                  "LLLL"
+                  "llll"
                 );
                 return `${startFull} to ${endFull}`;
               }}

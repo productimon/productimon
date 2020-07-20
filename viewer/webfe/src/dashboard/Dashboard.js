@@ -24,6 +24,7 @@ import FullScreenGraph from "./FullScreenGraph";
 import AdminLabelManagement from "./AdminLabelManagement";
 import AdminManagement from "./AdminManagement";
 import AdminServerStatus from "./AdminServerStatus";
+import Goals from "./goal/Goals";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -93,6 +94,7 @@ const initialGraphs = {
 export default function Dashboard(props) {
   const history = useHistory();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const classes = useStyles();
 
   const { graphs, setGraphs } = props;
   useEffect(() => {
@@ -100,8 +102,6 @@ export default function Dashboard(props) {
     const localGraphs = graphJson ? JSON.parse(graphJson) : initialGraphs;
     setGraphs(localGraphs);
   }, []);
-
-  const classes = useStyles();
 
   // This is passed as a prop to the DashboardCustomizer.
   // Right now this just updates a list of graphs that are rendered.
@@ -204,6 +204,7 @@ export default function Dashboard(props) {
     setGraphs(newGraphs);
     window.localStorage.setItem("graphs", JSON.stringify(newGraphs));
   };
+
   const [editing, setEditing] = React.useState(false);
 
   const toggleEditingMode = (event) => {
@@ -274,6 +275,9 @@ export default function Dashboard(props) {
           onUpdate={updateGraph}
           onRemove={removeGraph}
         />
+      </Route>
+      <Route path={["/dashboard/goals/view", "/dashboard/goals/add"]}>
+        <Goals />
       </Route>
       <Route path="/">
         <Container maxWidth="lg" className={classes.container}>

@@ -87,6 +87,7 @@ export default function Graph(props) {
             onClick={() => {
               props.onRemove(graphSpec);
             }}
+            size="small"
           >
             <DeleteIcon />
           </IconButton>

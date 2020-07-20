@@ -29,6 +29,7 @@ import SupervisorAccountIcon from "@material-ui/icons/SupervisorAccount";
 import StorageIcon from "@material-ui/icons/Storage";
 import TextFieldsIcon from "@material-ui/icons/TextFields";
 import ListItemText from "@material-ui/core/ListItemText";
+import FormatListBulletedIcon from "@material-ui/icons/FormatListBulleted";
 
 import { redirectToLogin } from "../Utils";
 import { graphTitle } from "../dashboard/Graph";
@@ -241,6 +242,17 @@ export default function Fixture(props) {
               <DashboardIcon />
             </ListItemIcon>
             <ListItemText primary="Labels" />
+          </ListItem>
+
+          <ListItem
+            button
+            onClick={() => gotoLink("/dashboard/goals/view")}
+            selected={location.pathname.startsWith("/dashboard/goals")}
+          >
+            <ListItemIcon>
+              <FormatListBulletedIcon />
+            </ListItemIcon>
+            <ListItemText primary="Goals" />
           </ListItem>
 
           <Divider />
