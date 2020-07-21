@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
   Tooltip,
   Legend,
+  Label,
 } from "recharts";
 
 import { grpc } from "@improbable-eng/grpc-web";
@@ -97,10 +98,9 @@ function transformRange(allData) {
     };
     const dataPoints = data.getDataList();
     dataPoints.forEach((point) => {
-      // TODO convert it to a proper unit
-      // always using seconds for now
-
-      ret[point.getLabel()] = point.getTime() / 10 ** 9;
+      // convert it to miliseconds,
+      // normalised later below after the transform map
+      ret[point.getLabel()] = point.getTime() / 10 ** 6;
     });
     return ret;
   };
@@ -126,6 +126,7 @@ function getUniqLabels(response) {
 export default function Histogram(props) {
   const [data, setData] = useState([]);
   const [dataKeys, setDataKeys] = useState([]);
+  const [unitLabel, setUnitLabel] = useState("");
 
   useEffect(() => {
     const startDate = calculateDate(
@@ -155,12 +156,29 @@ export default function Histogram(props) {
           );
           return;
         }
-        setDataKeys(getUniqLabels(message));
+        const keys = getUniqLabels(message);
+        setDataKeys(keys);
+        const data = message
+          .getDataList()
+          .map(transformRange(message.getDataList()))
+          .reverse();
+
+        const timeVals = data.map((ent) =>
+          keys.reduce((sum, key) => sum + Math.floor(ent[key]) || 0, 0)
+        );
+        // get the fisrt unit less than the largest unit that can cover our max timeval
+        const [unit, factor] = Object.entries(timeUnits)
+          .reverse()
+          .find(([_, factor]) => factor < Math.max(...timeVals));
+        setUnitLabel(unit);
         setData(
-          message
-            .getDataList()
-            .map(transformRange(message.getDataList()))
-            .reverse()
+          data.map((ent) => ({
+            ...ent,
+            ...keys.reduce(
+              (obj, key) => ({ ...obj, [key]: ent[key] / factor || 0 }),
+              {}
+            ),
+          }))
         );
       },
       request,
@@ -183,9 +201,9 @@ export default function Histogram(props) {
         {props.fullscreen && <Tooltip />}
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="label" />
-        <YAxis
-          label={{ value: "seconds", angle: -90, position: "insideLeft" }}
-        />
+        <YAxis>
+          <Label value={unitLabel} angle={-90} position="insideLeft" />
+        </YAxis>
         <Legend />
         {dataKeys.map((label, index) => (
           <Bar
