@@ -10,7 +10,18 @@ import {
   Tooltip,
   Legend,
   Label,
+  ReferenceLine,
 } from "recharts";
+
+import { makeStyles } from "@material-ui/core/styles";
+import FormGroup from "@material-ui/core/FormGroup";
+import FormLabel from "@material-ui/core/FormLabel";
+import FormControl from "@material-ui/core/FormControl";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import Switch from "@material-ui/core/Switch";
+import Select from "@material-ui/core/Select";
+import InputLabel from "@material-ui/core/InputLabel";
+import MenuItem from "@material-ui/core/MenuItem";
 
 import { grpc } from "@improbable-eng/grpc-web";
 import {
@@ -21,6 +32,22 @@ import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Interval, Timestamp } from "productimon/proto/common/common_pb";
 
 import { getLabelColor, timeUnits, calculateDate } from "../Utils";
+
+const useStyles = makeStyles((theme) => ({
+  formBox: {
+    justifyContent: "center",
+  },
+  select: {
+    margin: theme.spacing(1),
+    minWidth: 120,
+  },
+  formControl: {
+    margin: theme.spacing(3),
+  },
+  center: {
+    textAlign: "center",
+  },
+}));
 
 // startDate and endDate are miliseconds.
 function createIntervals(startDate, endDate, numIntervals) {
@@ -75,8 +102,10 @@ function formatNanoTS(ts, span, totalSpan) {
  * use closure to capture the total time span
  * of all the data to be used to deduce an appropriate datetime format
  * Assume allData in reverse chronological order
+ * getSymbol is the function to retrive the symbol out of
+ * the data point passed to the returned mapping function
  */
-function transformRange(allData) {
+function transformRange(allData, getSymbol) {
   /* Time span of the whole histogram */
   let totalTimeSpan = allData.length
     ? allData[0].getInterval().getEnd().getNanos() -
@@ -89,24 +118,33 @@ function transformRange(allData) {
       data.getInterval().getEnd().getNanos() -
       data.getInterval().getStart().getNanos();
     timeSpan /= 10 ** 6;
-    const ret = {
-      label: formatNanoTS(
-        data.getInterval().getStart().getNanos(),
-        timeSpan,
-        totalTimeSpan
-      ),
-    };
-    const dataPoints = data.getDataList();
-    dataPoints.forEach((point) => {
-      // convert it to miliseconds,
-      // normalised later below after the transform map
-      ret[point.getLabel()] = point.getTime() / 10 ** 6;
-    });
-    return ret;
+
+    return data.getDataList().reduce(
+      (ret, point) => {
+        const total = ret.Total + Math.floor(point.getTime() / 10 ** 6);
+        const active = ret.Active + Math.floor(point.getActivetime() / 10 ** 6);
+        return {
+          ...ret,
+          Total: total,
+          [getSymbol(point)]: Math.floor(point.getTime() / 10 ** 6),
+          Active: active,
+          "Non-active": total - active,
+        };
+      },
+      {
+        label: formatNanoTS(
+          data.getInterval().getStart().getNanos(),
+          timeSpan,
+          totalTimeSpan
+        ),
+        Total: 0,
+        Active: 0,
+      }
+    );
   };
 }
 
-function getUniqLabels(response) {
+function getUniqSymbols(response, getSymbol) {
   return response
     .getDataList()
     .reduce(
@@ -114,7 +152,7 @@ function getUniqLabels(response) {
         ...result,
         range
           .getDataList()
-          .reduce((labels, datapoint) => [...labels, datapoint.getLabel()], []),
+          .reduce((labels, datapoint) => [...labels, getSymbol(datapoint)], []),
       ],
       []
     )
@@ -127,6 +165,8 @@ export default function Histogram(props) {
   const [data, setData] = useState([]);
   const [dataKeys, setDataKeys] = useState([]);
   const [unitLabel, setUnitLabel] = useState("");
+
+  const classes = useStyles();
 
   useEffect(() => {
     const startDate = calculateDate(
@@ -143,7 +183,11 @@ export default function Histogram(props) {
     const request = new DataAggregatorGetTimeRequest();
     request.setDevicesList([]);
     request.setIntervalsList(intervals);
-    request.setGroupBy(DataAggregatorGetTimeRequest.GroupBy.LABEL);
+    request.setGroupBy(
+      props.graphSpec.stack === "application"
+        ? DataAggregatorGetTimeRequest.GroupBy.APPLICATION
+        : DataAggregatorGetTimeRequest.GroupBy.LABEL
+    );
 
     const token = window.localStorage.getItem("token");
     grpc.unary(DataAggregator.GetTime, {
@@ -156,26 +200,55 @@ export default function Histogram(props) {
           );
           return;
         }
-        const keys = getUniqLabels(message);
-        setDataKeys(keys);
+
+        // get all symbols (label/application)
+        const getSymbol =
+          props.graphSpec.stack === "application"
+            ? (point) => point.getApp()
+            : (point) => point.getLabel();
+
+        // decide what to stack on the bars
+        let displayedKeys;
+        switch (props.graphSpec.stack) {
+          case "application":
+          case "label":
+            displayedKeys = getUniqSymbols(message, getSymbol);
+            break;
+          case "active":
+            displayedKeys = ["Active", "Non-active"];
+            break;
+          default:
+            displayedKeys = ["Total"];
+            break;
+        }
+        setDataKeys(displayedKeys);
+
+        // format and aggregate time values
         const data = message
           .getDataList()
-          .map(transformRange(message.getDataList()))
+          .map(transformRange(message.getDataList(), getSymbol))
           .reverse();
 
-        const timeVals = data.map((ent) =>
-          keys.reduce((sum, key) => sum + Math.floor(ent[key]) || 0, 0)
-        );
+        // adaptive unit for y-axis
         // get the fisrt unit less than the largest unit that can cover our max timeval
         const [unit, factor] = Object.entries(timeUnits)
           .reverse()
-          .find(([_, factor]) => factor < Math.max(...timeVals));
+          .find(
+            ([unit, factor]) =>
+              factor < Math.max(...data.map((ent) => ent.Total), 0) ||
+              unit == "Seconds"
+          );
         setUnitLabel(unit);
+
+        // normalise the displayedKeys and Total (which is used for the Average overlay)
         setData(
           data.map((ent) => ({
             ...ent,
-            ...keys.reduce(
-              (obj, key) => ({ ...obj, [key]: ent[key] / factor || 0 }),
+            ...["Total", ...displayedKeys].reduce(
+              (obj, key) => ({
+                ...obj,
+                [key]: parseFloat((ent[key] / factor).toFixed(2)) || 0,
+              }),
               {}
             ),
           }))
@@ -183,37 +256,104 @@ export default function Histogram(props) {
       },
       request,
     });
-  }, []);
+  }, [props.graphSpec]);
+
+  const handleCheckbox = (e) => {
+    const newGraphSpec = {
+      ...props.graphSpec,
+      [e.target.name]: e.target.checked,
+    };
+    props.onUpdate(newGraphSpec);
+  };
+  const handleChange = (e) => {
+    const newGraphSpec = {
+      ...props.graphSpec,
+      [e.target.name]: e.target.value,
+    };
+    props.onUpdate(newGraphSpec);
+  };
 
   return (
-    <ResponsiveContainer>
-      <BarChart
-        data={data}
-        margin={{
-          top: 16,
-          right: 16,
-          bottom: 0,
-          left: 16,
-        }}
-        barCategoryGap={props.fullscreen ? "20%" : "10%"}
-      >
-        {/* TODO have adaptive unit for the tooltip label too */}
-        {props.fullscreen && <Tooltip />}
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="label" />
-        <YAxis>
-          <Label value={unitLabel} angle={-90} position="insideLeft" />
-        </YAxis>
-        <Legend />
-        {dataKeys.map((label, index) => (
-          <Bar
-            key={index}
-            dataKey={label}
-            stackId="a"
-            fill={getLabelColor(label)}
-          />
-        ))}
-      </BarChart>
-    </ResponsiveContainer>
+    <React.Fragment>
+      <ResponsiveContainer style={{ flexShrink: 1 }}>
+        <BarChart
+          data={data}
+          margin={{
+            top: 16,
+            right: props.graphSpec.average ? 60 : 16,
+            bottom: 0,
+            left: 16,
+          }}
+          barCategoryGap={props.fullscreen ? "20%" : "10%"}
+        >
+          {/* TODO have adaptive unit for the tooltip label too */}
+          {props.fullscreen && <Tooltip />}
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="label" />
+          <YAxis>
+            <Label value={unitLabel} angle={-90} position="insideLeft" />
+          </YAxis>
+          <Legend />
+          {dataKeys.map((label, index) => (
+            <Bar
+              key={index}
+              dataKey={label}
+              stackId="a"
+              fill={getLabelColor(label)}
+            />
+          ))}
+          {props.graphSpec.average && data.length && (
+            <ReferenceLine
+              y={
+                data.map((ent) => ent.Total).reduce((a, b) => a + b, 0) /
+                data.length
+              }
+              stroke="rgba(0, 0, 0, 0.5)"
+              strokeDasharray="3 3"
+            >
+              <Label value="Average" position="right" />
+            </ReferenceLine>
+          )}
+        </BarChart>
+      </ResponsiveContainer>
+      {props.fullscreen && (
+        <FormControl component="fieldset" className={classes.formControl}>
+          <FormLabel className={classes.center} component="legend">
+            Overlay options
+          </FormLabel>
+          <FormGroup className={classes.formBox} row>
+            <FormControlLabel
+              labelPlacement="start"
+              control={
+                <Switch
+                  checked={Boolean(props.graphSpec.average)}
+                  onChange={handleCheckbox}
+                  name="average"
+                  color="primary"
+                />
+              }
+              label="Average overlay"
+            />
+            <FormControlLabel
+              labelPlacement="start"
+              control={
+                <Select
+                  value={props.graphSpec.stack || ""}
+                  name="stack"
+                  onChange={handleChange}
+                  className={classes.select}
+                >
+                  <MenuItem value="">None</MenuItem>
+                  <MenuItem value="label">Label</MenuItem>
+                  <MenuItem value="application">Application</MenuItem>
+                  <MenuItem value="active">Active time</MenuItem>
+                </Select>
+              }
+              label="Stack"
+            />
+          </FormGroup>
+        </FormControl>
+      )}
+    </React.Fragment>
   );
 }

@@ -52,11 +52,18 @@ const google_colors = [
   "#743411",
 ];
 
+const fixedColorMap = {
+  Active: "#dc3912",
+  "Non-active": "#3366cc",
+  Total: "#3366cc",
+};
+
 // colorMap is a universal mapping of label -> display color
 const colorMap = new Map();
 var colorIdx = 0;
 
 export function getLabelColor(label) {
+  if (fixedColorMap[label]) return fixedColorMap[label];
   if (!colorMap.has(label)) {
     colorMap.set(label, google_colors[colorIdx]);
     colorIdx++;

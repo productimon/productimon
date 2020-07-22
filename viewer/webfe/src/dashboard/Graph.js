@@ -24,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
     height: "100%",
     display: "flex",
     flexFlow: "column",
-    overflow: "hidden",
+    overflowX: "hidden",
   },
 }));
 

@@ -27,9 +27,9 @@ export default function FullScreenGraph(props) {
   const graphSpec = props.graphs[graphId];
   const classes = useStyles();
   return (
-    <Container key={graphId} maxWidth="lg" className={classes.container}>
+    <Container maxWidth="lg" className={classes.container}>
       <Paper className={classes.paper}>
-        <Graph {...props} graphSpec={graphSpec} fullscreen />
+        <Graph {...props} key={graphId} graphSpec={graphSpec} fullscreen />
       </Paper>
     </Container>
   );

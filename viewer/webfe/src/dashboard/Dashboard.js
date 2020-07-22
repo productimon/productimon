@@ -103,10 +103,19 @@ export default function Dashboard(props) {
 
   // This is passed as a prop to the DashboardCustomizer. Right now this just updates a list of graphs that are rendered. In the future this will send the graph to the aggregator to save it to the account.
   const addGraph = (graphSpec) => {
-    const newId = Math.max(...Object.keys(graphs)) + 1;
+    const newId = Math.max(...Object.keys(graphs), -1) + 1;
     const newGraphs = {
       [newId]: { graphId: newId, ...graphSpec },
       ...graphs,
+    };
+    setGraphs(newGraphs);
+    window.localStorage.setItem("graphs", JSON.stringify(newGraphs));
+  };
+
+  const updateGraph = (graphSpec) => {
+    const newGraphs = {
+      ...graphs,
+      [graphSpec.graphId]: { ...graphSpec },
     };
     setGraphs(newGraphs);
     window.localStorage.setItem("graphs", JSON.stringify(newGraphs));
@@ -128,7 +137,7 @@ export default function Dashboard(props) {
         </div>
       </Route>
       <Route path="/dashboard/graph/:graphId">
-        <FullScreenGraph graphs={graphs} />
+        <FullScreenGraph onUpdate={updateGraph} graphs={graphs} />
       </Route>
       <Route path="/">
         <Container maxWidth="lg" className={classes.container}>
