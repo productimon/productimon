@@ -8,6 +8,7 @@ go_library(
     ],
     importpath = "git.yiad.am/productimon/aggregator/nlp",
     visibility = ["//visibility:public"],
+    deps = ["@com_github_agnivade_levenshtein//:go_default_library"],
 )
 
 go_test(

@@ -652,3 +652,10 @@ go_repository(
     sum = "h1:GWULhL88aJNhBU9YueXRYfbg5DbxR/CtWXkYFay1rxg=",
     version = "v0.0.0-20200722143936-311c88976439",
 )
+
+go_repository(
+    name = "com_github_agnivade_levenshtein",
+    importpath = "github.com/agnivade/levenshtein",
+    sum = "h1:n6qGwyHG61v3ABce1rPVZklEYRT8NFpCMrpZdBUbYGM=",
+    version = "v1.1.0",
+)

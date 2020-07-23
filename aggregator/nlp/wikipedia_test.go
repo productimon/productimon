@@ -20,6 +20,7 @@ func TestWikipedia(t *testing.T) {
 		{app: "Find My", label: "Location aware"},
 		{app: "Firefox", label: "Web browser"},
 		{app: "Gedit", label: "Text editor"},
+		{app: "gnome-screenshot", label: "Screenshot software"},
 		{app: "Gnome-terminal", label: "Terminal Emulator"},
 		{app: "Google Docs", label: "Collaborative software"},
 		{app: "Messenger", label: "Instant messaging"},
