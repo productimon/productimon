@@ -65,9 +65,14 @@ func ProdCoreHandleKeystroke() {
 	r.HandleKeystroke()
 }
 
+//export ProdCoreIsTracking
+func ProdCoreIsTracking() bool {
+	return r.IsTracking()
+}
+
 //export ProdCoreQuitReporter
-func ProdCoreQuitReporter(isTracking C.char) {
-	r.Quit(isTracking != 0)
+func ProdCoreQuitReporter() {
+	r.Quit()
 }
 
 func main() {

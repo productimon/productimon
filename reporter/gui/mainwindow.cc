@@ -15,8 +15,6 @@
 #include "reporter/core/cgo/cgo.h"
 #include "reporter/plat/tracking.h"
 
-bool recording = false;
-
 MainWindow::MainWindow() {
   autoRun = true;
   forgroundProg = true;
@@ -52,18 +50,17 @@ void MainWindow::setupMainLayout() {
 }
 
 void MainWindow::quit() {
-  ProdCoreQuitReporter(recording);
+  stop_tracking();
+  ProdCoreQuitReporter();
   QApplication::quit();
 }
 
 void MainWindow::startStopRecorder() {
-  if (recording) {
-    recording = false;
+  if (ProdCoreIsTracking()) {
     stop_tracking();
     trayIcon->showMessage("Productimon Data Reporter", "Tracking stopped");
     startStopAction->setText(tr("Start Recorder"));
   } else {
-    recording = true;
     start_tracking(&tracking_opts);
     trayIcon->showMessage("Productimon Data Reporter", "Tracking started");
     startStopAction->setText(tr("Stop Recorder"));

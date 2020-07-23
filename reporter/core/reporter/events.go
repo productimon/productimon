@@ -65,6 +65,11 @@ func (r *Reporter) eventLoop(conn *grpc.ClientConn, client spb.DataAggregatorCli
 // Call this in platform specific code when you detect that the user
 // switches window.
 func (r *Reporter) SwitchWindow(programName string) {
+	r.stateMutex.RLock()
+	defer r.stateMutex.RUnlock()
+	if !r.isTracking {
+		return
+	}
 	done := make(chan bool)
 	r.reportInputStats <- done
 	<-done // wait until input event has been sent because we need entire stats interval to be for the same app
@@ -79,9 +84,13 @@ func (r *Reporter) SwitchWindow(programName string) {
 
 // Call this to start tracking.
 func (r *Reporter) StartTracking() {
-	r.inputTrackingDone = make(chan bool)
-	r.reportInputStats = make(chan chan bool)
-	go r.runInputTracking(r.reportInputStats, r.inputTrackingDone)
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
+	if r.isTracking {
+		return
+	}
+	r.isTracking = true
+	go r.runInputTracking()
 	event := &cpb.Event{
 		Id:           r.getEid(),
 		Timeinterval: nowInterval(),
@@ -92,6 +101,12 @@ func (r *Reporter) StartTracking() {
 
 // Call this to stop tracking.
 func (r *Reporter) StopTracking() {
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
+	if !r.isTracking {
+		return
+	}
+	r.isTracking = false
 	done := make(chan bool)
 	r.reportInputStats <- done
 	<-done // wait until input event has been sent
@@ -108,23 +123,23 @@ func (r *Reporter) StopTracking() {
 
 // Call this in platform specific code to register a mouse click.
 func (r *Reporter) HandleMouseClick() {
-	r.statsMutex.Lock()
+	r.inputStatsMutex.Lock()
 	r.nClicks++
-	r.statsMutex.Unlock()
+	r.inputStatsMutex.Unlock()
 }
 
 // Call this in platform specific code to register a keystroke.
 func (r *Reporter) HandleKeystroke() {
-	r.statsMutex.Lock()
+	r.inputStatsMutex.Lock()
 	r.nKeystrokes++
-	r.statsMutex.Unlock()
+	r.inputStatsMutex.Unlock()
 }
 
 // Check current click and keystroke counters and generate an ActivityEvent
 // if needed.
+// It is caller's responsibility to make sure r.isTracking is true
 func (r *Reporter) sendInputStats(start, end int64) {
-	r.statsMutex.Lock()
-	defer r.statsMutex.Unlock()
+	r.inputStatsMutex.Lock()
 	if r.nKeystrokes > 0 || r.nClicks > 0 {
 		event := &cpb.Event{
 			Id:           r.getEid(),
@@ -135,27 +150,34 @@ func (r *Reporter) sendInputStats(start, end int64) {
 		r.nKeystrokes = 0
 		r.nClicks = 0
 	}
+	r.inputStatsMutex.Unlock()
 }
 
 // blocking goroutine for generating ActivityEvents with Config.MaxInputReportingInterval
 // or before every window switch.
-func (r *Reporter) runInputTracking(reportInputStats chan chan bool, finish chan bool) {
+func (r *Reporter) runInputTracking() {
 	timer := time.NewTicker(r.Config.MaxInputReportingInterval)
 	for {
 		start := time.Now().UnixNano()
 		select {
-		case <-finish: // quit InputTracking goroutine
+		case <-r.inputTrackingDone: // quit InputTracking goroutine
 			timer.Stop()
 			return
-		case done := <-reportInputStats: // report stats before switching
+		case done := <-r.reportInputStats: // report stats before switching
+			// we don't lock stateMutex here because this is called upon WindowSwitch or StopTracking
+			// both of them would acquire stateMutex
 			end := time.Now().UnixNano()
 			r.sendInputStats(start, end)
 			done <- true
 			timer.Stop()
 			timer = time.NewTicker(r.Config.MaxInputReportingInterval) // restart the timer for new program
 		case <-timer.C: // tick for max interval
-			end := time.Now().UnixNano()
-			r.sendInputStats(start, end)
+			r.stateMutex.RLock()
+			if r.isTracking {
+				end := time.Now().UnixNano()
+				r.sendInputStats(start, end)
+			}
+			r.stateMutex.RUnlock()
 		}
 	}
 }

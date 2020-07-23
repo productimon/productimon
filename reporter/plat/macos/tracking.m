@@ -8,7 +8,6 @@
 #include "reporter/core/cgo/cgo.h"
 
 static tracking_opt_t *tracking_opts = NULL;
-static bool tracking_started = false;
 static pthread_mutex_t tracking_mutex;
 
 @interface Tracking : NSObject
@@ -23,25 +22,15 @@ NSDistributedNotificationCenter *distributed_center;
 
 - (void)suspend_handler:(NSNotification *)note {
   pthread_mutex_lock(&tracking_mutex);
-  if (!tracking_started) {
-    pthread_mutex_unlock(&tracking_mutex);
-    return;
-  }
   NSLog(@"%@", note);
   ProdCoreStopTracking();
-  tracking_started = false;
   pthread_mutex_unlock(&tracking_mutex);
 }
 
 - (void)resume_handler:(NSNotification *)note {
   pthread_mutex_lock(&tracking_mutex);
-  if (tracking_started) {
-    pthread_mutex_unlock(&tracking_mutex);
-    return;
-  }
   NSLog(@"%@", note);
   ProdCoreStartTracking();
-  tracking_started = true;
   pthread_mutex_unlock(&tracking_mutex);
 }
 
@@ -121,10 +110,10 @@ int init_tracking() {
 
 int start_tracking(tracking_opt_t *opts) {
   pthread_mutex_lock(&tracking_mutex);
-  if (tracking_started) {
+  if (ProdCoreIsTracking()) {
     prod_error("Tracking started already!\n");
     pthread_mutex_unlock(&tracking_mutex);
-    return 1;
+    return 0;
   }
   tracking_opts = opts;
 
@@ -132,14 +121,13 @@ int start_tracking(tracking_opt_t *opts) {
   [tracking init_observers:tracking_opts];
   prod_debug("Tracking started\n");
 
-  tracking_started = true;
   pthread_mutex_unlock(&tracking_mutex);
   return 0;
 }
 
 void stop_tracking() {
   pthread_mutex_lock(&tracking_mutex);
-  if (!tracking_started) {
+  if (!ProdCoreIsTracking()) {
     prod_error("Tracking stopped already!\n");
     pthread_mutex_unlock(&tracking_mutex);
     return;
@@ -148,8 +136,5 @@ void stop_tracking() {
   [tracking remove_observers];
   ProdCoreStopTracking();
   prod_debug("Tracking stopped\n");
-  tracking_started = false;
   pthread_mutex_unlock(&tracking_mutex);
 }
-
-bool is_tracking() { return tracking_started; }

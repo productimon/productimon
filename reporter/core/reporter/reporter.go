@@ -20,20 +20,27 @@ type Reporter struct {
 	eq   chan *cpb.Event
 	done chan chan bool
 
-	nClicks     int64
-	nKeystrokes int64
-	statsMutex  sync.Mutex
+	nClicks         int64
+	nKeystrokes     int64
+	inputStatsMutex sync.Mutex
 
 	eid      int64
 	eidMutex sync.Mutex
 
 	inputTrackingDone chan bool
 	reportInputStats  chan chan bool
+
+	isTracking bool
+	stateMutex sync.RWMutex
 }
 
 // Create a new Reporter with config
 func NewReporter(config *config.Config) *Reporter {
-	return &Reporter{Config: config}
+	return &Reporter{
+		Config:            config,
+		inputTrackingDone: make(chan bool),
+		reportInputStats:  make(chan chan bool),
+	}
 }
 
 // Get next sequential event ID, called when you generate a new event.
@@ -103,6 +110,13 @@ func (r *Reporter) IsLoggedIn() bool {
 	return auth.IsLoggedIn(r.Config.Server, r.Config.Cert())
 }
 
+// Returns if reporter is tracking
+func (r *Reporter) IsTracking() bool {
+	r.stateMutex.RLock()
+	defer r.stateMutex.RUnlock()
+	return r.isTracking
+}
+
 // Login and register as a new device. Certificate is stored in r.Config
 func (r *Reporter) Login(server, username, password, deviceName string) bool {
 	key, cert, err := auth.Login(server, username, password, deviceName)
@@ -128,10 +142,8 @@ func (r *Reporter) Run() bool {
 }
 
 // Clean up and completely exit the reporter (to be differented from StopTracking).
-func (r *Reporter) Quit(isTracking bool) {
-	if isTracking {
-		r.StopTracking()
-	}
+func (r *Reporter) Quit() {
+	r.StopTracking()
 	cleanup := make(chan bool)
 	r.done <- cleanup
 	<-cleanup

@@ -24,7 +24,7 @@
   (msg.message == STOP_MSG && msg.wParam == STOP_W_PARAM && \
    msg.lParam == STOP_L_PARAM)
 
-static bool tracking_started = false;
+static HANDLE tracking_mutex = NULL;
 static HANDLE tracking_thread = NULL;
 static DWORD tracking_thread_id;
 static tracking_opt_t *tracking_opts;
@@ -229,8 +229,7 @@ static int install_hooks(bool register_session_ntfn) {
 }
 
 static void suspend_tracking() {
-  ProdCoreStopTracking();
-
+  WaitForSingleObject(tracking_mutex, INFINITE);
   if (tracking_opts->foreground_program && !UnhookWinEvent(window_change_hook))
     prod_error("Failed to remove window change hook: %d\n", GetLastError());
 
@@ -240,15 +239,18 @@ static void suspend_tracking() {
   if (tracking_opts->mouse_click && !UnhookWindowsHookEx(mouse_hook))
     prod_error("Failed to remove mosue hook: %d\n", GetLastError());
 
-  tracking_started = false;
+  ProdCoreStopTracking();
+
+  ReleaseMutex(tracking_mutex);
 }
 
 static void resume_tracking() {
+  WaitForSingleObject(tracking_mutex, INFINITE);
   ProdCoreStartTracking();
 
   install_hooks(false);
 
-  tracking_started = true;
+  ReleaseMutex(tracking_mutex);
 }
 
 static LRESULT CALLBACK session_change_callback(WPARAM type) {
@@ -301,17 +303,24 @@ static DWORD WINAPI tracking_loop(_In_ LPVOID lpParameter) {
   return 0;
 }
 
-int init_tracking() { return 0; }
+int init_tracking() {
+  tracking_mutex = CreateMutex(NULL, FALSE, NULL);
+  if (tracking_mutex == NULL) return 1;
+  return 0;
+}
 
 int start_tracking(tracking_opt_t *opts) {
-  if (tracking_started) {
+  WaitForSingleObject(tracking_mutex, INFINITE);
+  if (ProdCoreIsTracking()) {
     prod_error("tracking started already!\n");
-    return 1;
+    ReleaseMutex(tracking_mutex);
+    return 0;
   }
 
   tracking_opts = opts;
   if (!(opts->foreground_program || opts->mouse_click || opts->keystroke)) {
     prod_debug("Nothing to be tracked, not doing anything\n");
+    ReleaseMutex(tracking_mutex);
     return 1;
   }
 
@@ -319,15 +328,17 @@ int start_tracking(tracking_opt_t *opts) {
       CreateThread(NULL, 0, tracking_loop, NULL, 0, &tracking_thread_id);
   if (tracking_thread == NULL) {
     prod_error("Failed to create tracking thread\n");
+    ReleaseMutex(tracking_mutex);
     return 1;
   }
 
-  tracking_started = true;
+  ReleaseMutex(tracking_mutex);
   return 0;
 }
 
 void stop_tracking() {
-  if (!tracking_started) {
+  WaitForSingleObject(tracking_mutex, INFINITE);
+  if (!ProdCoreIsTracking()) {
     prod_error("tracking stopped already!\n");
     return;
   }
@@ -337,7 +348,6 @@ void stop_tracking() {
     prod_error("Failed to send stop message: %lu\n", GetLastError());
 
   WaitForSingleObject(tracking_thread, INFINITE);
-  tracking_started = false;
 
   tracking_thread = NULL;
   tracking_thread_id = 0;
@@ -346,10 +356,9 @@ void stop_tracking() {
   mouse_hook = NULL;
   key_hook = NULL;
   window_change_hook = NULL;
+  ReleaseMutex(tracking_mutex);
   return;
 }
-
-bool is_tracking() { return tracking_started; }
 
 void run_event_loop() {
   event_loop_finished = CreateSemaphore(NULL, 0, 1, NULL);

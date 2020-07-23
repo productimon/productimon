@@ -24,14 +24,16 @@ void *command_loop(UNUSED void *arg) {
       start_tracking(&opts);
     } else if (strcmp(command, "stop\n") == 0) {
       stop_tracking();
-    } else if (strcmp(command, "exit\n") == 0) {
+    } else if (strcmp(command, "exit\n") == 0 ||
+               strcmp(command, "quit\n") == 0) {
       break;
     } else {
       printf("unknown command\n");
     }
     printf("> ");
   }
-  ProdCoreQuitReporter(is_tracking());
+  stop_tracking();
+  ProdCoreQuitReporter();
   stop_event_loop();
   return NULL;
 }

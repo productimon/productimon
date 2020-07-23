@@ -24,7 +24,6 @@ static Atom active_window_prop;
 static Display *display;
 static Window root_window;
 
-static volatile bool tracking_started = false;
 static pthread_t tracking_thread;
 static tracking_opt_t *tracking_opts;
 static pthread_mutex_t tracking_mutex;
@@ -134,8 +133,6 @@ static void *event_loop(UNUSED void *arg) {
              tracking_opts->foreground_program, tracking_opts->mouse_click,
              tracking_opts->keystroke);
 
-  ProdCoreStartTracking();
-
   long event_mask = 0;
   if (tracking_opts->foreground_program) {
     // receive property change events
@@ -175,7 +172,6 @@ static void *event_loop(UNUSED void *arg) {
     }
   }
 
-  ProdCoreStopTracking();
   return NULL;
 }
 
@@ -184,16 +180,19 @@ int init_tracking() {
     prod_error(
         "Not using x11 as display server, tracking may not be accurate\n");
   }
+  pthread_mutex_init(&tracking_mutex, NULL);
   XSetErrorHandler(xlib_error_handler);
   return 0;
 }
 
 static int start_tracking_impl(tracking_opt_t *opts, bool inhibit) {
   pthread_mutex_lock(&tracking_mutex);
-  if (inhibit && tracking_started) {
+  if (ProdCoreIsTracking()) {
     prod_error("Tracking tracking_started already!\n");
-    goto exit_error;
+    goto exit_success;
   }
+
+  ProdCoreStartTracking();
 
   // open connection to the X server
   display = XOpenDisplay(NULL);
@@ -226,18 +225,13 @@ static int start_tracking_impl(tracking_opt_t *opts, bool inhibit) {
     opts->keystroke = false;
   }
 
-  tracking_started = true;
-
-  if (inhibit &&
-      init_inhibit(&tracking_started, suspend_tracking, resume_tracking)) {
-    tracking_started = false;
+  if (inhibit && init_inhibit(suspend_tracking, resume_tracking)) {
     goto exit_error;
   }
 
   int ret = pthread_create(&tracking_thread, NULL, event_loop, display);
   if (ret) {
     perror("Cannot create the tracking thread");
-    tracking_started = false;
     if (inhibit) wait_inhibit_cleanup();
     goto exit_error;
   }
@@ -248,20 +242,20 @@ exit_success:
   return 0;
 
 exit_error:
+  ProdCoreStopTracking();
   pthread_mutex_unlock(&tracking_mutex);
   return 1;
 }
 
 static void stop_tracking_impl(bool suspend) {
   pthread_mutex_lock(&tracking_mutex);
-  if (!tracking_started) {
+  if (!ProdCoreIsTracking()) {
     prod_error("Tracking not started, not doing anything\n");
     goto exit;
   }
   prod_debug("Stopping tracking\n");
 
   if (!suspend) {
-    tracking_started = false;
     wait_inhibit_cleanup();
   }
 
@@ -287,6 +281,8 @@ static void stop_tracking_impl(bool suspend) {
 
   XCloseDisplay(display);
   display = NULL;
+
+  ProdCoreStopTracking();
   printf("Tracking stopped\n");
 
 exit:
@@ -306,8 +302,6 @@ static void resume_tracking() {
    * no need to init it again */
   start_tracking_impl(tracking_opts, false);
 }
-
-bool is_tracking() { return tracking_started; }
 
 void run_event_loop() {
   if (sem_init(&event_loop_finished, 0, 0)) {

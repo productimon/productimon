@@ -16,8 +16,8 @@
 #include <unistd.h>
 
 #include "reporter/plat/tracking.h"
+#include "reporter/core/cgo/cgo.h"
 
-#define MILISECOND 1000
 #define SLEEP_SIGNAL_MATCH                                    \
   "type='signal',interface='org.freedesktop.login1.Manager'," \
   "member='PrepareForSleep'"
@@ -25,7 +25,7 @@
   "type='signal',interface='org.freedesktop.DBus.Properties'," \
   "member='PropertiesChanged'"
 
-#define DBUS_READ_TIMEOUT 1 * MILISECOND
+#define DBUS_READ_TIMEOUT (-1)
 
 static inhibit_hook_f sleep_callback;
 static inhibit_hook_f wakeup_callback;
@@ -33,8 +33,8 @@ static inhibit_hook_f wakeup_callback;
 static pthread_t inhibit_thread;
 static sem_t inhibit_initialised;
 static volatile bool inhibit_init_success;
-static volatile bool *tracking_started;
 static volatile int inhibit_fd = -1;
+static DBusConnection *dbusconn = NULL;
 
 /* Call systemd inhibit through dbus, return the fd or -1 on error */
 static int systemd_inhibit(DBusConnection *conn, const char *what,
@@ -104,7 +104,7 @@ static DBusConnection *setup_dbus_conn() {
 
   DBusError err;
   dbus_error_init(&err);
-  conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
+  conn = dbus_bus_get_private(DBUS_BUS_SYSTEM, &err);
   if (dbus_error_is_set(&err)) {
     prod_error("Error on dbus get: %s\n", err.message);
     dbus_error_free(&err);
@@ -114,6 +114,9 @@ static DBusConnection *setup_dbus_conn() {
     prod_error("Connection is NULL\n");
     return NULL;
   }
+
+  /* don't call _exit() when it disconnects */
+  dbus_connection_set_exit_on_disconnect(conn, false);
 
   /* subscribe to PrepareForSleep signals */
   dbus_bus_add_match(conn, SLEEP_SIGNAL_MATCH, &err);
@@ -186,13 +189,13 @@ static bool handle_properties_changed_message(DBusMessage *msg,
 
 /* runs in a separate thread to receive msg from dbus */
 void *dbus_receive_msg_loop(UNUSED void *unused) {
-  DBusConnection *conn = setup_dbus_conn();
-  if (conn == NULL) {
+  dbusconn = setup_dbus_conn();
+  if (dbusconn == NULL) {
     goto exit;
   }
 
   /* register inhibitor */
-  inhibit_fd = systemd_inhibit(conn, "sleep", "Productimon",
+  inhibit_fd = systemd_inhibit(dbusconn, "sleep", "Productimon",
                                "Stop stracking...", "delay");
   if (inhibit_fd < 0) {
     goto cleanup;
@@ -207,14 +210,13 @@ void *dbus_receive_msg_loop(UNUSED void *unused) {
   dbus_int32_t sleeping = false;
 
   while (1) {
-    if (!*tracking_started) break;
-
     /* block until there's incoming message */
-    if (!dbus_connection_read_write(conn, DBUS_READ_TIMEOUT)) {
+    if (!dbus_connection_read_write(dbusconn, DBUS_READ_TIMEOUT)) {
       prod_error("dbus connection broke\n");
+      break;
     }
 
-    while ((msg = dbus_connection_pop_message(conn)) != NULL) {
+    while ((msg = dbus_connection_pop_message(dbusconn)) != NULL) {
       bool trigger = false;
       if (dbus_message_is_signal(msg, "org.freedesktop.login1.Manager",
                                  "PrepareForSleep")) {
@@ -230,7 +232,7 @@ void *dbus_receive_msg_loop(UNUSED void *unused) {
           inhibit_fd = -1;
         } else {
           wakeup_callback();
-          inhibit_fd = systemd_inhibit(conn, "sleep", "Productimon",
+          inhibit_fd = systemd_inhibit(dbusconn, "sleep", "Productimon",
                                        "Stop stracking...", "delay");
           prod_debug("Got new inhibit fd %d\n", inhibit_fd);
         }
@@ -240,18 +242,23 @@ void *dbus_receive_msg_loop(UNUSED void *unused) {
     }
   }
 cleanup:
-  dbus_connection_unref(conn);
+  /* it's safe to close multiple times but we must close before unref */
+  dbus_connection_close(dbusconn);
+  dbus_connection_unref(dbusconn);
+  dbusconn = NULL;
 
 exit:
   return NULL;
 }
 
-int init_inhibit(volatile bool *_tracking_started,
-                 inhibit_hook_f _sleep_callback,
+int init_inhibit(inhibit_hook_f _sleep_callback,
                  inhibit_hook_f _wakeup_callback) {
+  /* tell D-Bus to do locking */
+  /* since D-Bus 1.7 it is safe to call this function from any thread, any number of times */
+  /* this is the first entry-point in inhibit.c */
+  dbus_threads_init_default();
   sleep_callback = _sleep_callback;
   wakeup_callback = _wakeup_callback;
-  tracking_started = _tracking_started;
   if (sem_init(&inhibit_initialised, 0, 0)) {
     perror("Error to init sem");
     return 1;
@@ -274,6 +281,9 @@ void wait_inhibit_cleanup() {
   if (inhibit_fd != -1) {
     close(inhibit_fd);
     inhibit_fd = -1;
+  }
+  if (dbusconn != NULL) {
+    dbus_connection_close(dbusconn);
   }
   pthread_join(inhibit_thread, NULL);
   prod_debug("inhibit thread exit\n");
