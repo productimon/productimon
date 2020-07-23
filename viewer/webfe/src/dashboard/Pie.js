@@ -8,6 +8,8 @@ import {
   Legend,
 } from "recharts";
 
+import Typography from "@material-ui/core/Typography";
+
 import { grpc } from "@improbable-eng/grpc-web";
 import { DataAggregatorGetTimeRequest } from "productimon/proto/svc/aggregator_pb";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
@@ -29,7 +31,6 @@ function createData(program, time, label) {
 export default function PieChart({ graphSpec, fullscreen }) {
   const [sectors, setSectors] = React.useState([]);
   const [totalTime, setTotalTime] = React.useState(0);
-  var data = [];
 
   const numItems = graphSpec.numItems || 5;
 
@@ -99,14 +100,15 @@ export default function PieChart({ graphSpec, fullscreen }) {
       },
       request,
     });
-  }, []);
+  }, [graphSpec]);
 
   return (
     <React.Fragment>
       <ResponsiveContainer height="100%">
         <RechartsPieChart>
           <Pie
-            innerRadius="50%"
+            innerRadius="40%"
+            outerRadius="60%"
             data={sectors}
             dataKey="time"
             nameKey="label"

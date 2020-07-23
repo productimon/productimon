@@ -28,6 +28,7 @@ import TableChartIcon from "@material-ui/icons/TableChart";
 import ListItemText from "@material-ui/core/ListItemText";
 
 import { redirectToLogin } from "../Utils";
+import { graphTitle } from "../dashboard/Graph";
 
 const drawerWidth = 240;
 
@@ -233,7 +234,7 @@ export default function Fixture(props) {
               }
             >
               <ListItemIcon>{graphIconMap[graph.graphType]}</ListItemIcon>
-              <ListItemText primary={graph.graphTitle} />
+              <ListItemText primary={graphTitle(graph)} />
             </ListItem>
           ))}
         </List>

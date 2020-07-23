@@ -316,7 +316,7 @@ export default function Histogram(props) {
           )}
         </BarChart>
       </ResponsiveContainer>
-      {props.fullscreen && (
+      {props.options && (
         <FormControl component="fieldset" className={classes.formControl}>
           <FormLabel className={classes.center} component="legend">
             Overlay options

@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import clsx from "clsx";
 import { useHistory } from "react-router-dom";
 
 import Container from "@material-ui/core/Container";
@@ -20,10 +19,10 @@ const useStyles = makeStyles((theme) => ({
     cursor: "pointer",
   },
   box: {
-    height: "100%",
     display: "flex",
     flexFlow: "column",
     overflowX: "hidden",
+    height: "100%",
   },
   titleAndButton: {
     display: "flex",
@@ -31,17 +30,25 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function renderGraph(props) {
-  switch (props.graphSpec.graphType) {
-    case "histogram":
-      return <Histogram {...props} />;
-    case "piechart":
-      return <Pie {...props} />;
-    case "table":
-      return <Table {...props} />;
-  }
-  console.error(`Unknown graph type ${graphSpec.graphType}`);
-  return null;
+export const graphTypes = {
+  histogram: {
+    heading: "Histogram",
+    render: (props) => <Histogram {...props} />,
+  },
+  piechart: {
+    heading: "Piechart",
+    render: (props) => <Pie {...props} />,
+  },
+  table: {
+    heading: "Table",
+    render: (props) => <Table {...props} />,
+  },
+};
+
+export function graphTitle(graphSpec) {
+  // TODO could have a generic title generation here if title is not given
+  const defaultTitle = graphTypes[graphSpec.graphType].heading;
+  return graphSpec.graphTitle || defaultTitle;
 }
 
 export default function Graph(props) {
@@ -50,8 +57,15 @@ export default function Graph(props) {
   const history = useHistory();
 
   if (!graphSpec) return <p>No such graph</p>;
-  // TODO could have a generic title generation here if title is not given
-  const defaultTitle = graphSpec.graphType;
+
+  // disable title link when in preview or fullscreen
+  const titleProps =
+    props.preview || props.fullscreen
+      ? {}
+      : {
+          onClick: () => history.push(`/dashboard/graph/${graphSpec.graphId}`),
+          className: classes.link,
+        };
 
   // TODO make graphs more interative in fullscreen mode?
   // check props.fullscreen
@@ -59,25 +73,26 @@ export default function Graph(props) {
     <div className={classes.box}>
       <div className={classes.titleAndButton}>
         <Typography
-          onClick={() => history.push(`/dashboard/graph/${graphSpec.graphId}`)}
-          className={classes.link}
+          {...titleProps}
           component="h2"
           variant="h6"
           color="primary"
           gutterBottom
         >
-          {graphSpec.graphTitle || defaultTitle}
+          {props.preview ? "Preview" : graphTitle(graphSpec)}
         </Typography>
-        <IconButton
-          style={{ marginLeft: "auto" }}
-          onClick={() => {
-            props.onRemove(graphSpec);
-          }}
-        >
-          <DeleteIcon />
-        </IconButton>
+        {props.preview || (
+          <IconButton
+            style={{ marginLeft: "auto" }}
+            onClick={() => {
+              props.onRemove(graphSpec);
+            }}
+          >
+            <DeleteIcon />
+          </IconButton>
+        )}
       </div>
-      {renderGraph(props)}
+      {graphTypes[graphSpec.graphType].render(props)}
     </div>
   );
 }

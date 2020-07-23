@@ -1,5 +1,6 @@
 import React from "react";
 import clsx from "clsx";
+import { useHistory } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
 import ExpansionPanel from "@material-ui/core/ExpansionPanel";
@@ -14,7 +15,8 @@ import Select from "@material-ui/core/Select";
 import Box from "@material-ui/core/Box";
 import Button from "@material-ui/core/Button";
 
-import { timeUnits } from "../Utils";
+import { timeUnits, calculateDate } from "../Utils";
+import Graph, { graphTypes } from "./Graph";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -47,45 +49,90 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: "AliceBlue",
     padding: "20px",
   },
+  graphBox: {
+    flex: 1,
+    marginLeft: "50px",
+  },
+  fixedHeight: {
+    height: 600, // TODO should be less when we remove the graph-specific options from the form
+  },
 }));
+
+function validateGraphSpec(graphSpec) {
+  return (
+    graphSpec.startTimeUnit &&
+    graphSpec.endTimeUnit &&
+    graphSpec.startTimeVal >= 0 &&
+    graphSpec.endTimeVal >= 0 &&
+    calculateDate(graphSpec.startTimeUnit, graphSpec.startTimeVal) <
+      calculateDate(graphSpec.endTimeUnit, graphSpec.endTimeVal) &&
+    (!graphSpec.intervals ||
+      (graphSpec.intervals > 0 && graphSpec.intervals <= 500)) &&
+    (!graphSpec.numItems ||
+      (graphSpec.numItems > 0 && graphSpec.numItems <= 10))
+  );
+}
 
 export default function DashboardCustomizer(props) {
   const classes = useStyles();
+  // TODO extract graph-specific options to their own component
+  // to avoid these props
+  // can auto deduce an appropriate interval for histogram by checking
+  // the units
+  const graphSpecificProps = {
+    histogram: { intervals: true },
+    piechart: { numItems: true },
+    table: {},
+  };
+
+  // TODO change expansionpanel to tabs so that we don't have to deal with multiple graphSpec at once
+  // currently there's only one copy of graphSpec shared by multiple forms
+  const [graphSpec, setGraphSpec] = React.useState({
+    graphType: "",
+    graphTitle: "New graph",
+    startTimeUnit: "Minutes",
+    startTimeVal: "1",
+    endTimeUnit: "Seconds",
+    endTimeVal: "0",
+    intervals: "5",
+    numItems: "3",
+  });
+
+  const updateGraph = (newGraphSpec) => {
+    setGraphSpec(newGraphSpec);
+  };
 
   return (
     <div className={classes.root}>
-      <ExpansionPanel>
-        <ExpansionPanelSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography className={classes.heading}>Histogram</Typography>
-        </ExpansionPanelSummary>
-        <ExpansionPanelDetails>
-          <SimpleForm
-            intervals={true}
-            onAdd={props.onAdd}
-            graphType="histogram"
-          />
-        </ExpansionPanelDetails>
-      </ExpansionPanel>
-      <ExpansionPanel>
-        <ExpansionPanelSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography className={classes.heading}>Piechart</Typography>
-        </ExpansionPanelSummary>
-        <ExpansionPanelDetails>
-          <SimpleForm
-            numItems={true}
-            onAdd={props.onAdd}
-            graphType="piechart"
-          />
-        </ExpansionPanelDetails>
-      </ExpansionPanel>
-      <ExpansionPanel>
-        <ExpansionPanelSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography className={classes.heading}>Table</Typography>
-        </ExpansionPanelSummary>
-        <ExpansionPanelDetails>
-          <SimpleForm onAdd={props.onAdd} graphType="table" />
-        </ExpansionPanelDetails>
-      </ExpansionPanel>
+      {Object.entries(graphTypes).map(([graphType, { heading, render }]) => (
+        <ExpansionPanel key={graphType}>
+          <ExpansionPanelSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography className={classes.heading}>{heading}</Typography>
+          </ExpansionPanelSummary>
+          <ExpansionPanelDetails className={classes.fixedHeight}>
+            <SimpleForm
+              {...graphSpecificProps[graphType]}
+              onAdd={props.onAdd}
+              graphSpec={{ ...graphSpec, graphType: graphType }}
+              setGraphSpec={setGraphSpec}
+            />
+            <div className={classes.graphBox}>
+              {validateGraphSpec(graphSpec) ? (
+                <Graph
+                  graphSpec={{ ...graphSpec, graphType: graphType }}
+                  onUpdate={updateGraph}
+                  preview
+                  options
+                />
+              ) : (
+                <Typography>
+                  No preview at this point, check your input options
+                </Typography>
+              )}
+            </div>
+          </ExpansionPanelDetails>
+        </ExpansionPanel>
+      ))}
     </div>
   );
 }
@@ -107,16 +154,8 @@ function TimeUnitSelect(props) {
 
 function SimpleForm(props) {
   const classes = useStyles();
-  const [graphSpec, setGraphSpec] = React.useState({
-    graphType: props.graphType,
-    graphTitle: "Last year",
-    startTimeUnit: "Years",
-    startTimeVal: "1",
-    endTimeUnit: "Seconds",
-    endTimeVal: "0",
-    intervals: "52",
-    numItems: "5",
-  });
+  const { graphSpec, setGraphSpec } = props;
+  const history = useHistory();
 
   const handleInputChange = (event) => {
     setGraphSpec({ ...graphSpec, [event.target.name]: event.target.value });
@@ -132,6 +171,7 @@ function SimpleForm(props) {
           variant="filled"
           onChange={handleInputChange}
           name="graphTitle"
+          value={graphSpec.graphTitle}
         />
       </div>
       <div className={classes.container}>
@@ -142,6 +182,7 @@ function SimpleForm(props) {
           variant="filled"
           onChange={handleInputChange}
           name="startTimeVal"
+          value={graphSpec.startTimeVal}
         />
         <FormControl variant="filled" className={classes.formControl}>
           <TimeUnitSelect
@@ -160,6 +201,7 @@ function SimpleForm(props) {
           variant="filled"
           onChange={handleInputChange}
           name="endTimeVal"
+          value={graphSpec.endTimeVal}
         />
         <FormControl variant="filled" className={classes.formControl}>
           <TimeUnitSelect
@@ -217,9 +259,11 @@ function SimpleForm(props) {
       <Button
         variant="contained"
         style={{ marginTop: "20px" }}
+        disabled={!validateGraphSpec(graphSpec)}
         color="primary"
         onClick={() => {
           props.onAdd(graphSpec);
+          history.push("/dashboard");
         }}
       >
         Add to Dashboard

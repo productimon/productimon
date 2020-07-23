@@ -29,7 +29,13 @@ export default function FullScreenGraph(props) {
   return (
     <Container maxWidth="lg" className={classes.container}>
       <Paper className={classes.paper}>
-        <Graph {...props} key={graphId} graphSpec={graphSpec} fullscreen />
+        <Graph
+          {...props}
+          key={graphId}
+          graphSpec={graphSpec}
+          fullscreen
+          options
+        />
       </Paper>
     </Container>
   );

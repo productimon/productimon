@@ -89,7 +89,7 @@ export default function Table(props) {
       },
       request,
     });
-  }, []);
+  }, [props.graphSpec]);
 
   // TODO enable sort table by col
   return (
