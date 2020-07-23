@@ -52,7 +52,6 @@ static int get_name_from_handle(HWND hwnd, char *buf, size_t size) {
     prod_error("Failed to get executable path %d\n", GetLastError);
     goto error_close_handle;
   }
-  prod_debug("exec full path: %s\n", path);
 
   DWORD ver_info_size = GetFileVersionInfoSizeW(path, NULL);
   if (ver_info_size == 0) {
