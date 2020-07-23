@@ -46,10 +46,14 @@ func newConfig() *Config {
 
 func (c *Config) Cert() tls.Certificate {
 	if len(c.cert.Certificate) == 0 {
-		var err error
-		if c.cert, err = tls.X509KeyPair(c.Certificate, c.Key); err != nil {
-			log.Println(err)
-		}
+		c.ReloadCert()
 	}
 	return c.cert
+}
+
+func (c *Config) ReloadCert() {
+	var err error
+	if c.cert, err = tls.X509KeyPair(c.Certificate, c.Key); err != nil {
+		log.Println(err)
+	}
 }

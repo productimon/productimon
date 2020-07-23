@@ -112,6 +112,8 @@ func (r *Reporter) Login(server, username, password, deviceName string) bool {
 	r.Config.Server = server
 	r.Config.Key = key
 	r.Config.Certificate = cert
+	r.Config.ReloadCert()
+	r.Config.Save()
 	return true
 }
 
