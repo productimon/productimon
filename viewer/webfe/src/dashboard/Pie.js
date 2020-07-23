@@ -13,27 +13,34 @@ import { DataAggregatorGetTimeRequest } from "productimon/proto/svc/aggregator_p
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Interval, Timestamp } from "productimon/proto/common/common_pb";
 
-import { getLabelColor, humanizeDuration, toSec, calculateDate } from "../Utils";
+import {
+  getLabelColor,
+  humanizeDuration,
+  toSec,
+  calculateDate,
+} from "../Utils";
+
+const DISPLAY_LABEL_THRESHOLD = 0.03;
 
 function createData(program, time, label) {
-  return { program, time, label };
+  return { program, time, label, humanizedTime: humanizeDuration(time) };
 }
 
-export default function PieChart(props) {
-  const [rows, setRows] = React.useState([]);
+export default function PieChart({ graphSpec, fullscreen }) {
+  const [sectors, setSectors] = React.useState([]);
+  const [totalTime, setTotalTime] = React.useState(0);
   var data = [];
+
+  const numItems = graphSpec.numItems || 5;
 
   useEffect(() => {
     const interval = new Interval();
     const start = new Timestamp();
     const startDate = calculateDate(
-      props.graphSpec.startTimeUnit,
-      props.graphSpec.startTimeVal
+      graphSpec.startTimeUnit,
+      graphSpec.startTimeVal
     );
-    const endDate = calculateDate(
-      props.graphSpec.endTimeUnit,
-      props.graphSpec.endTimeVal
-    );
+    const endDate = calculateDate(graphSpec.endTimeUnit, graphSpec.endTimeVal);
 
     start.setNanos(startDate * 10 ** 6);
     const end = new Timestamp();
@@ -64,49 +71,63 @@ export default function PieChart(props) {
           .getDataList()
           .sort((a, b) => b.getTime() - a.getTime());
 
-        // Cumulatively store the amount of time used in apps other than main displayed
-        var othTime = 0;
-        for (var i = 0; i < sorted.length; i++) {
-          if (i < props.graphSpec.numItems) {
-            data.push(
-              createData(
-                sorted[i].getApp(),
-                toSec(sorted[i].getTime()),
-                sorted[i].getLabel()
-              )
+        setTotalTime(
+          toSec(sorted.reduce((sum, point) => sum + point.getTime(), 0))
+        );
+
+        const entries = sorted
+          .slice(0, numItems)
+          .map((data) =>
+            createData(data.getApp(), toSec(data.getTime()), data.getLabel())
+          );
+        if (sorted.length > numItems) {
+          const other = sorted
+            .slice(numItems)
+            .reduce(
+              (ret, point) =>
+                createData(
+                  "Other",
+                  (ret.time || 0) + toSec(point.getTime()),
+                  "Other"
+                ),
+              {}
             );
-          } else {
-            othTime += sorted[i].getTime();
-          }
+          setSectors([...entries, other]);
+        } else {
+          setSectors(entries);
         }
-        if (othTime > 0) {
-          data.push(createData("Other", toSec(othTime), "other"));
-        }
-        setRows(data);
       },
       request,
     });
   }, []);
 
-  // TODO: add legend to the pie chart
   return (
     <React.Fragment>
       <ResponsiveContainer height="100%">
-        <RechartsPieChart width={200} height={200}>
+        <RechartsPieChart>
           <Pie
-            innerRadius={44}
-            outerRadius={88}
-            data={rows}
+            innerRadius="50%"
+            data={sectors}
             dataKey="time"
             nameKey="label"
-            label={({ label, time }) => `${label}: ${humanizeDuration(time)}`}
+            label={({ label, time, humanizedTime }) =>
+              time / totalTime > DISPLAY_LABEL_THRESHOLD
+                ? `${label}: ${humanizedTime}`
+                : null
+            }
             labelLine={false}
           >
-            {rows.map((data, index) => (
+            {sectors.map((data, index) => (
               <Cell key={index} fill={getLabelColor(data.label)} />
             ))}
           </Pie>
-          { props.fullscreen && <Tooltip />}
+          {fullscreen && (
+            <Tooltip
+              formatter={(_, __, { payload: { humanizedTime } }) =>
+                humanizedTime
+              }
+            />
+          )}
           <Legend />
         </RechartsPieChart>
       </ResponsiveContainer>
