@@ -52,6 +52,7 @@ export default function SignIn(props) {
   // TODO do in using a customised route with redirection
   // in App.js
   if (window.localStorage.getItem("token")) history.push("/dashboard");
+  else props.setLoggedIn(false);
 
   const doLogin = function (e) {
     e.preventDefault();
@@ -64,6 +65,7 @@ export default function SignIn(props) {
       onEnd: ({ status, statusMessage, headers, message }) => {
         if (status != 0) {
           alert(statusMessage);
+          props.setLoggedIn(false);
           console.error("response ", status, statusMessage, headers, message);
           return;
         }

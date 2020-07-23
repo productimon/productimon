@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useHistory } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
 import MaterialTable from "@material-ui/core/Table";
@@ -10,9 +11,8 @@ import TableRow from "@material-ui/core/TableRow";
 import { TableSortLabel } from "@material-ui/core";
 import Paper from "@material-ui/core/Paper";
 
-import { humanizeDuration, calculateDate } from "../Utils";
+import { rpc, humanizeDuration, calculateDate } from "../Utils";
 
-import { grpc } from "@improbable-eng/grpc-web";
 import {
   DataAggregatorGetTimeRequest,
   DataAggregatorGetTimeResponse,
@@ -34,6 +34,7 @@ function createData(program, hours, label) {
 
 export default function Table(props) {
   const classes = useStyles();
+  const history = useHistory();
 
   const [rows, setRows] = React.useState([createData("init", 1, 3)]);
 
@@ -62,17 +63,8 @@ export default function Table(props) {
     request.setIntervalsList([interval]);
     request.setGroupBy(DataAggregatorGetTimeRequest.GroupBy.APPLICATION);
 
-    const token = window.localStorage.getItem("token");
-    grpc.unary(DataAggregator.GetTime, {
-      host: "/rpc",
-      metadata: new grpc.Metadata({ Authorization: token }),
+    rpc(DataAggregator.GetTime, history, {
       onEnd: ({ status, statusMessage, headers, message }) => {
-        if (status != 0) {
-          console.error(
-            `Error getting res, status ${status}: ${statusMessage}`
-          );
-          return;
-        }
         setRows(
           message
             .getDataList()[0]

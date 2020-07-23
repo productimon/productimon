@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useHistory } from "react-router-dom";
 import moment from "moment";
 import {
   BarChart,
@@ -23,7 +24,6 @@ import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
 import MenuItem from "@material-ui/core/MenuItem";
 
-import { grpc } from "@improbable-eng/grpc-web";
 import {
   DataAggregatorGetTimeRequest,
   DataAggregatorGetTimeResponse,
@@ -31,7 +31,7 @@ import {
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Interval, Timestamp } from "productimon/proto/common/common_pb";
 
-import { getLabelColor, timeUnits, calculateDate } from "../Utils";
+import { getLabelColor, timeUnits, calculateDate, rpc } from "../Utils";
 
 const useStyles = makeStyles((theme) => ({
   formBox: {
@@ -165,6 +165,7 @@ export default function Histogram(props) {
   const [data, setData] = useState([]);
   const [dataKeys, setDataKeys] = useState([]);
   const [unitLabel, setUnitLabel] = useState("");
+  const history = useHistory();
 
   const classes = useStyles();
 
@@ -189,18 +190,8 @@ export default function Histogram(props) {
         : DataAggregatorGetTimeRequest.GroupBy.LABEL
     );
 
-    const token = window.localStorage.getItem("token");
-    grpc.unary(DataAggregator.GetTime, {
-      host: "/rpc",
-      metadata: new grpc.Metadata({ Authorization: token }),
+    rpc(DataAggregator.GetTime, history, {
       onEnd: ({ status, statusMessage, headers, message }) => {
-        if (status != 0) {
-          console.error(
-            `Error getting res, status ${status}: ${statusMessage}`
-          );
-          return;
-        }
-
         // get all symbols (label/application)
         const getSymbol =
           props.graphSpec.stack === "application"

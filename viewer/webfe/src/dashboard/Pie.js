@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useHistory } from "react-router-dom";
 import {
   PieChart as RechartsPieChart,
   Pie,
@@ -8,14 +9,12 @@ import {
   Legend,
 } from "recharts";
 
-import Typography from "@material-ui/core/Typography";
-
-import { grpc } from "@improbable-eng/grpc-web";
 import { DataAggregatorGetTimeRequest } from "productimon/proto/svc/aggregator_pb";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Interval, Timestamp } from "productimon/proto/common/common_pb";
 
 import {
+  rpc,
   getLabelColor,
   humanizeDuration,
   toSec,
@@ -31,6 +30,7 @@ function createData(program, time, label) {
 export default function PieChart({ graphSpec, fullscreen }) {
   const [sectors, setSectors] = React.useState([]);
   const [totalTime, setTotalTime] = React.useState(0);
+  const history = useHistory();
 
   const numItems = graphSpec.numItems || 5;
 
@@ -55,17 +55,8 @@ export default function PieChart({ graphSpec, fullscreen }) {
     request.setIntervalsList([interval]);
     request.setGroupBy(DataAggregatorGetTimeRequest.GroupBy.LABEL);
 
-    const token = window.localStorage.getItem("token");
-    grpc.unary(DataAggregator.GetTime, {
-      host: "/rpc",
-      metadata: new grpc.Metadata({ Authorization: token }),
+    rpc(DataAggregator.GetTime, history, {
       onEnd: ({ status, statusMessage, headers, message }) => {
-        if (status != 0) {
-          console.error(
-            `Error getting res, status ${status}: ${statusMessage}`
-          );
-          return;
-        }
         // Sort data by most used applications
         const sorted = message
           .getDataList()[0]

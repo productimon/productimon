@@ -1,6 +1,8 @@
 import moment from "moment";
 import React from "react";
 
+import { grpc } from "@improbable-eng/grpc-web";
+
 // Number of miliseconds per unit
 export const timeUnits = {
   Seconds: 10 ** 3,
@@ -90,4 +92,25 @@ export function redirectToLogin(history) {
   window.localStorage.removeItem("token");
   history.push("/");
   return <p>Redirecting to login...</p>;
+}
+
+export function rpc(methodDescriptor, history, props) {
+  const token = window.localStorage.getItem("token");
+  if (!token) redirectToLogin(history);
+  return grpc.unary(methodDescriptor, {
+    host: "/rpc",
+    metadata: new grpc.Metadata({ Authorization: token }),
+    ...props,
+    onEnd: (unaryOutput) => {
+      if (unaryOutput.status != 0) {
+        console.error(unaryOutput);
+        // TODO if this terminates current component rendering
+        // react will prints out errors
+        // this is probably not the correct way to do this
+        redirectToLogin(history);
+        return;
+      }
+      props.onEnd(unaryOutput);
+    },
+  });
 }

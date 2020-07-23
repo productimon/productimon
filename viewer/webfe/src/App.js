@@ -30,7 +30,11 @@ export default function App() {
   return (
     <div className={classes.root}>
       <Router>
-        <Fixture graphs={graphs} loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+        <Fixture
+          graphs={graphs}
+          loggedIn={loggedIn}
+          setLoggedIn={setLoggedIn}
+        />
         <main className={classes.content}>
           <div className={classes.appBarSpacer} />
           <Switch>
@@ -41,7 +45,7 @@ export default function App() {
               <SignUp setLoggedIn={setLoggedIn} />
             </Route>
             <Route path="/dashboard">
-              <Dashboard graphs={graphs} setGraphs={setGraphs} setLoggedIn={setLoggedIn} />
+              <Dashboard graphs={graphs} setGraphs={setGraphs} />
             </Route>
           </Switch>
         </main>

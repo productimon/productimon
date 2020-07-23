@@ -8,11 +8,10 @@ import Grid from "@material-ui/core/Grid";
 import Paper from "@material-ui/core/Paper";
 
 import DashboardCustomizer from "./DashboardCustomizer";
-import { redirectToLogin } from "../Utils";
+import { rpc } from "../Utils";
 import Graph from "./Graph";
 import FullScreenGraph from "./FullScreenGraph";
 
-import { grpc } from "@improbable-eng/grpc-web";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Empty } from "productimon/proto/common/common_pb";
 
@@ -69,25 +68,10 @@ export default function Dashboard(props) {
   const history = useHistory();
 
   // redirect user to login page if unable to get user details
-  const token = window.localStorage.getItem("token");
   const request = new Empty();
-  if (!token) {
-    props.setLoggedIn(false);
-    return redirectToLogin(history);
-  }
 
-  grpc.unary(DataAggregator.UserDetails, {
-    host: "/rpc",
-    metadata: new grpc.Metadata({ Authorization: token }),
+  rpc(DataAggregator.UserDetails, history, {
     onEnd: ({ status, statusMessage, headers, message }) => {
-      if (status != 0) {
-        console.error("response ", status, statusMessage, headers, message);
-        props.setLoggedIn(false);
-        // TODO if this terminates current component rendering
-        // react will prints out errors
-        // this is probably not the correct way to do this
-        return redirectToLogin(history);
-      }
       console.log(`Authenticated as ${message.getUser().getEmail()}`);
     },
     request,
