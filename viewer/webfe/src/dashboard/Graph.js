@@ -81,7 +81,7 @@ export default function Graph(props) {
         >
           {props.preview ? "Preview" : graphTitle(graphSpec)}
         </Typography>
-        {props.preview || (
+        {props.removeButton && (
           <IconButton
             style={{ marginLeft: "auto" }}
             onClick={() => {
