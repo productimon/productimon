@@ -17,6 +17,11 @@ service DataAggregator {
   rpc GetEvent(DataAggregatorGetEventRequest) returns (stream common.Event);
   rpc GetTime(DataAggregatorGetTimeRequest)
       returns (DataAggregatorGetTimeResponse);
+  rpc AddGoal(common.Goal) returns (common.Empty);
+  rpc DeleteGoal(common.Goal) returns (common.Empty);
+  rpc EditGoal(common.Goal) returns (common.Empty);
+  // TODO: add filters
+  rpc GetGoals(common.Empty) returns (DataAggregatorGetGoalsResponse);
 }
 
 message DataAggregatorPingRequest {
@@ -111,10 +116,14 @@ message DataAggregatorGetTimeResponse {
     message DataPoint {
       string app = 1;  // only populated if group_by = APPLICATION
       string label = 2;
-      int64 time = 3;  // nanoseconds in duration
+      int64 time = 3;        // nanoseconds in duration
       int64 activetime = 4;  // nanoseconds in duration
     }
     repeated DataPoint data = 2;
   }
   repeated RangeData data = 1;
+}
+
+message DataAggregatorGetGoalsResponse {
+  repeated common.Goal goals = 1;
 }

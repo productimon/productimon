@@ -462,3 +462,19 @@ func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeReq
 
 	return rsp, nil
 }
+
+func (s *service) AddGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
+}
+
+func (s *service) DeleteGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
+}
+
+func (s *service) EditGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
+}
+
+func (s *service) GetGoals(ctx context.Context, req *cpb.Empty) (*spb.DataAggregatorGetGoalsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
+}

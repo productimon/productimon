@@ -56,3 +56,58 @@ message Event {
     StopTrackingEvent stop_tracking_event = 7;
   }
 }
+
+message Goal {
+  // sequential ID under user
+  int64 id = 1;
+
+  repeated Device devices = 2;
+
+  // item is the application/label that goal is relevant to
+  oneof item {
+    string label = 3;
+    string application = 4;
+  }
+
+  oneof amount {
+    // percentage to increase/decrease usage
+    // ie 1.9 = 190% increase, -0.2 = 20% reduction
+    // percentAmount must then be >= -1
+    float percentAmount = 5;
+    // fixed amount to increase/decrease usage in Nanoseconds
+    int64 fixedAmount = 6;
+  }
+
+  // Interval for which goal is active
+  Interval goalInterval = 7;
+  // Interval for which we compare goal period to
+  // Set to empty to disable comparision (use only fixedAmount)
+  Interval compareInterval = 8;
+
+  // specify which days of the week goal is applied to
+  // ie. reduce usage of social media on Tuesdays and Thursdays
+  // least significant bit is Sunday
+  // most significant bit is Monday
+  int32 daysOfWeek = 9;
+
+  // If compareEqualized = true, then divide compareInterval data by
+  // compareInterval/goalInterval, this will equalize the data relative to
+  // interval lengths
+  //
+  // if false then even though compareInterval can be a different length to
+  // goalInterval we wont equalize compareInterval data
+  bool compareEqualized = 10;
+
+  // indicates if time period for goal has expired
+  bool completed = 11;
+
+  // value from 0 to 1, describing percentage progress of goal
+  // Negative progress on a goal is still described by 0%
+  float progress = 12;
+
+  oneof notification {
+    string email = 13;
+    string sms = 14;
+    int64 device = 15;
+  }
+}
