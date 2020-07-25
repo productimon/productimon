@@ -6,6 +6,8 @@
 #include "reporter/plat/tracking.h"
 
 int main(int argc, char *argv[]) {
+  ProdCoreReadConfig();
+
   QApplication app(argc, argv);
 
   app.setQuitOnLastWindowClosed(false);
@@ -14,8 +16,6 @@ int main(int argc, char *argv[]) {
     prod_error("Failed to init tracking\n");
     return 1;
   }
-
-  ProdCoreReadConfig();
 
   /* try login using cert key first */
   if (ProdCoreInitReporterByCert()) {

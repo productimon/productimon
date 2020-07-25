@@ -5,6 +5,8 @@ import (
 	"flag"
 	"log"
 	"time"
+
+	"git.yiad.am/productimon/internal"
 )
 
 type Config struct {
@@ -23,13 +25,12 @@ var (
 	DefaultMaxInputReportingInterval time.Duration
 	DefaultServer                    string
 	DefaultWorkDir                   string
-	build                            string
 )
 
 func init() {
 	flag.StringVar(&DefaultWorkDir, "work_dir", defaultWorkDir(), "Path to productimon working dir")
 	flag.StringVar(&DefaultServer, "server", "127.0.0.1:4201", "Server Address (this will get overriden by config file, if exists)")
-	if build == "DEBUG" {
+	if internal.IsDebugBuild() {
 		flag.DurationVar(&DefaultMaxInputReportingInterval, "max_input_reporting_interval", 5*time.Second, "Maximum duration to split an activity event (shorter means more accurate)")
 	} else {
 		flag.DurationVar(&DefaultMaxInputReportingInterval, "max_input_reporting_interval", 60*time.Second, "Maximum duration to split an activity event (shorter means more accurate)")

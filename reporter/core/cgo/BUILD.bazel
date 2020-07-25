@@ -13,58 +13,72 @@ go_library(
         "@org_golang_x_crypto//ssh/terminal:go_default_library",
     ] + select({
         "@io_bazel_rules_go//go/platform:aix": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:android": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:darwin": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:dragonfly": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:freebsd": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:illumos": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:ios": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:linux": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:nacl": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:netbsd": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:openbsd": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:plan9": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:solaris": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:windows": [
+            "//internal:go_default_library",
             "//reporter/core/config:go_default_library",
             "//reporter/core/reporter:go_default_library",
         ],

@@ -1,0 +1,28 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+config_setting(
+    name = "debug_build",
+    values = {
+        "compilation_mode": "dbg",
+    },
+)
+
+BUILD_TAGS = {
+    "git.yiad.am/productimon/internal.BuildTimestamp": "{BUILD_TIMESTAMP}",
+    "git.yiad.am/productimon/internal.Builder": "{STABLE_BUILDER}",
+    "git.yiad.am/productimon/internal.GitCommit": "{STABLE_GIT_COMMIT}",
+    "git.yiad.am/productimon/internal.GitVersion": "{STABLE_GIT_VERSION}",
+}
+
+go_library(
+    name = "go_default_library",
+    srcs = ["version.go"],
+    importpath = "git.yiad.am/productimon/internal",
+    visibility = ["//:__subpackages__"],
+    x_defs = select({
+        "debug_build": dict(BUILD_TAGS.items() + {
+            "git.yiad.am/productimon/internal.BuildMode": "debug",
+        }.items()),
+        "//conditions:default": BUILD_TAGS,
+    }),
+)

@@ -1,12 +1,5 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
-config_setting(
-    name = "debug_build",
-    values = {
-        "compilation_mode": "dbg",
-    },
-)
-
 go_library(
     name = "go_default_library",
     srcs = [
@@ -16,10 +9,5 @@ go_library(
     ],
     importpath = "git.yiad.am/productimon/reporter/core/config",
     visibility = ["//visibility:public"],
-    x_defs = select({
-        "debug_build": {
-            "build": "DEBUG",
-        },
-        "//conditions:default": {},
-    }),
+    deps = ["//internal:go_default_library"],
 )

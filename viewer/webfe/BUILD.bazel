@@ -2,13 +2,6 @@ load("@io_bazel_rules_go//extras:embed_data.bzl", "go_embed_data")
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@npm//webpack-cli:index.bzl", webpack = "webpack_cli")
 
-config_setting(
-    name = "debug_build",
-    values = {
-        "compilation_mode": "dbg",
-    },
-)
-
 BUNDLE_DATA = glob([
     "src/**/*.js",
     "src/**/*.css",
@@ -55,7 +48,7 @@ webpack(
 go_embed_data(
     name = "webfe_data",
     srcs = select({
-        "debug_build": [":bundle_debug"],
+        "//internal:debug_build": [":bundle_debug"],
         "//conditions:default": [":bundle"],
     }) + [
         ":index.html",

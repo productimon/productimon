@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"git.yiad.am/productimon/internal"
 	spb "git.yiad.am/productimon/proto/svc"
 	"git.yiad.am/productimon/viewer/webfe"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
@@ -50,7 +51,7 @@ func init() {
 
 func main() {
 	var err error
-	flag.Parse()
+	internal.ParseFlags()
 	if flagDebug {
 		logconfig := zap.NewDevelopmentConfig()
 		logconfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder

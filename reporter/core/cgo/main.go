@@ -4,8 +4,7 @@ package main
 
 import "C"
 import (
-	"flag"
-
+	"git.yiad.am/productimon/internal"
 	"git.yiad.am/productimon/reporter/core/config"
 	"git.yiad.am/productimon/reporter/core/reporter"
 )
@@ -14,7 +13,7 @@ var r *reporter.Reporter
 
 //export ProdCoreReadConfig
 func ProdCoreReadConfig() {
-	flag.Parse()
+	internal.ParseFlags()
 	r = reporter.NewReporter(config.NewConfig())
 }
 
