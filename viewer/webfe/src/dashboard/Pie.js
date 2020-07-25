@@ -9,6 +9,14 @@ import {
   Legend,
 } from "recharts";
 
+import { makeStyles } from "@material-ui/core/styles";
+import FormGroup from "@material-ui/core/FormGroup";
+import FormLabel from "@material-ui/core/FormLabel";
+import FormControl from "@material-ui/core/FormControl";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
+
 import { DataAggregatorGetTimeRequest } from "productimon/proto/svc/aggregator_pb";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Interval, Timestamp } from "productimon/proto/common/common_pb";
@@ -23,16 +31,46 @@ import {
 
 const DISPLAY_LABEL_THRESHOLD = 0.03;
 
-function createData(program, time, label) {
-  return { program, time, label, humanizedTime: humanizeDuration(time) };
+// TODO refactor, samething in histogram
+// TODO groupBy is likely a generic options to all of the graphs
+// put it in the customise form and make it so
+const useStyles = makeStyles((theme) => ({
+  formBox: {
+    justifyContent: "center",
+  },
+  select: {
+    margin: theme.spacing(1),
+    minWidth: 120,
+  },
+  formControl: {
+    margin: theme.spacing(3),
+  },
+  center: {
+    textAlign: "center",
+  },
+}));
+
+function createData(symbol, time) {
+  return { symbol, time, humanizedTime: humanizeDuration(time) };
 }
 
-export default function PieChart({ graphSpec, fullscreen }) {
+export default function PieChart({ graphSpec, options, fullscreen, onUpdate }) {
   const [sectors, setSectors] = React.useState([]);
   const [totalTime, setTotalTime] = React.useState(0);
-  const history = useHistory();
 
+  const history = useHistory();
+  const classes = useStyles();
+
+  const localGroupBy = graphSpec.groupBy || "label";
   const numItems = graphSpec.numItems || 5;
+
+  const handleChange = (e) => {
+    const newGraphSpec = {
+      ...graphSpec,
+      [e.target.name]: e.target.value,
+    };
+    onUpdate(newGraphSpec);
+  };
 
   useEffect(() => {
     const interval = new Interval();
@@ -53,7 +91,16 @@ export default function PieChart({ graphSpec, fullscreen }) {
     // Get time data for all device and all intervals
     request.setDevicesList([]);
     request.setIntervalsList([interval]);
-    request.setGroupBy(DataAggregatorGetTimeRequest.GroupBy.LABEL);
+    request.setGroupBy(
+      localGroupBy === "application"
+        ? DataAggregatorGetTimeRequest.GroupBy.APPLICATION
+        : DataAggregatorGetTimeRequest.GroupBy.LABEL
+    );
+
+    const getSymbol =
+      graphSpec.groupBy === "application"
+        ? (point) => point.getApp()
+        : (point) => point.getLabel();
 
     rpc(DataAggregator.GetTime, history, {
       onEnd: ({ status, statusMessage, headers, message }) => {
@@ -69,19 +116,13 @@ export default function PieChart({ graphSpec, fullscreen }) {
 
         const entries = sorted
           .slice(0, numItems)
-          .map((data) =>
-            createData(data.getApp(), toSec(data.getTime()), data.getLabel())
-          );
+          .map((data) => createData(getSymbol(data), toSec(data.getTime())));
         if (sorted.length > numItems) {
           const other = sorted
             .slice(numItems)
             .reduce(
               (ret, point) =>
-                createData(
-                  "Other",
-                  (ret.time || 0) + toSec(point.getTime()),
-                  "Other"
-                ),
+                createData("Other", (ret.time || 0) + toSec(point.getTime())),
               {}
             );
           setSectors([...entries, other]);
@@ -102,16 +143,16 @@ export default function PieChart({ graphSpec, fullscreen }) {
             outerRadius="60%"
             data={sectors}
             dataKey="time"
-            nameKey="label"
-            label={({ label, time, humanizedTime }) =>
+            nameKey="symbol"
+            label={({ symbol, time, humanizedTime }) =>
               time / totalTime > DISPLAY_LABEL_THRESHOLD
-                ? `${label}: ${humanizedTime}`
+                ? `${symbol}: ${humanizedTime}`
                 : null
             }
             labelLine={false}
           >
             {sectors.map((data, index) => (
-              <Cell key={index} fill={getLabelColor(data.label)} />
+              <Cell key={index} fill={getLabelColor(data.symbol)} />
             ))}
           </Pie>
           {fullscreen && (
@@ -124,6 +165,30 @@ export default function PieChart({ graphSpec, fullscreen }) {
           <Legend />
         </RechartsPieChart>
       </ResponsiveContainer>
+      {options && (
+        <FormControl component="fieldset" className={classes.formControl}>
+          <FormLabel className={classes.center} component="legend">
+            Piechart Options
+          </FormLabel>
+          <FormGroup className={classes.formBox} row>
+            <FormControlLabel
+              labelPlacement="start"
+              control={
+                <Select
+                  value={localGroupBy || ""}
+                  name="groupBy"
+                  onChange={handleChange}
+                  className={classes.select}
+                >
+                  <MenuItem value="label">Label</MenuItem>
+                  <MenuItem value="application">Application</MenuItem>
+                </Select>
+              }
+              label="Group by"
+            />
+          </FormGroup>
+        </FormControl>
+      )}
     </React.Fragment>
   );
 }
