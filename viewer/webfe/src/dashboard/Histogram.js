@@ -30,7 +30,13 @@ import {
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Interval, Timestamp } from "productimon/proto/common/common_pb";
 
-import { getLabelColor, timeUnits, calculateDate, rpc } from "../Utils";
+import {
+  rpc,
+  getLabelColor,
+  timeUnits,
+  calculateDate,
+  humanizeDuration,
+} from "../Utils";
 
 const useStyles = makeStyles((theme) => ({
   formBox: {
@@ -70,10 +76,8 @@ function createIntervals(startDate, endDate, numIntervals) {
 
 /* use interval to deduce a appropriate format for the ts
  * span and totalSpan in miliseconds */
-function formatNanoTS(ts, span, totalSpan) {
-  // console.log(`formatting ${ts} with total span ${totalSpan} and span ${span}`);
-
-  const m = moment(ts / 10 ** 9, "X");
+function formatMiliTS(ts, span, totalSpan) {
+  const m = moment(ts / timeUnits.Seconds, "X");
 
   const components = [];
 
@@ -98,44 +102,32 @@ function formatNanoTS(ts, span, totalSpan) {
 }
 
 /* Returns a transform function
- * use closure to capture the total time span
- * of all the data to be used to deduce an appropriate datetime format
- * Assume allData in reverse chronological order
  * getSymbol is the function to retrive the symbol out of
  * the data point passed to the returned mapping function
  */
-function transformRange(allData, getSymbol) {
-  /* Time span of the whole histogram */
-  let totalTimeSpan = allData.length
-    ? allData[0].getInterval().getEnd().getNanos() -
-      allData[allData.length - 1].getInterval().getStart().getNanos()
-    : 0;
-  totalTimeSpan /= 10 ** 6;
+function transformRange(getSymbol) {
   return (data) => {
-    /* Time span of this perticular interval */
-    let timeSpan =
-      data.getInterval().getEnd().getNanos() -
-      data.getInterval().getStart().getNanos();
-    timeSpan /= 10 ** 6;
+    const startMili = data.getInterval().getStart().getNanos() / 10 ** 6;
+    const endMili = data.getInterval().getEnd().getNanos() / 10 ** 6;
 
     return data.getDataList().reduce(
       (ret, point) => {
-        const total = ret.Total + Math.floor(point.getTime() / 10 ** 6);
+        const time = Math.floor(point.getTime() / 10 ** 6);
+        const total = ret.Total + time;
         const active = ret.Active + Math.floor(point.getActivetime() / 10 ** 6);
         return {
           ...ret,
           Total: total,
-          [getSymbol(point)]: Math.floor(point.getTime() / 10 ** 6),
+          [getSymbol(point)]: time,
           Active: active,
           "Non-active": total - active,
         };
       },
       {
-        label: formatNanoTS(
-          data.getInterval().getStart().getNanos(),
-          timeSpan,
-          totalTimeSpan
-        ),
+        // we need both val for formatting the label in the legend
+        // to show the interval in full datetime format
+        // but rechart does not allow pass of object using dataKey
+        interval: `${startMili}-${endMili}`,
         Total: 0,
         Active: 0,
       }
@@ -165,6 +157,7 @@ export default function Histogram(props) {
   const [dataKeys, setDataKeys] = useState([]);
   const [unitLabel, setUnitLabel] = useState("");
   const history = useHistory();
+  const [totalTimeSpan, setTotalTimeSpan] = useState(0);
 
   const classes = useStyles();
 
@@ -213,11 +206,18 @@ export default function Histogram(props) {
         }
         setDataKeys(displayedKeys);
 
+        const allData = message.getDataList();
+
         // format and aggregate time values
-        const data = message
-          .getDataList()
-          .map(transformRange(message.getDataList(), getSymbol))
-          .reverse();
+        const data = allData.map(transformRange(getSymbol)).reverse();
+
+        /* Time span of the whole histogram, assuming backend returns data in reverse chronological order */
+        let totalTimeSpan = allData.length
+          ? allData[0].getInterval().getEnd().getNanos() -
+            allData[allData.length - 1].getInterval().getStart().getNanos()
+          : 0;
+        totalTimeSpan /= 10 ** 6;
+        setTotalTimeSpan(totalTimeSpan);
 
         // adaptive unit for y-axis
         // get the fisrt unit less than the largest unit that can cover our max timeval
@@ -237,6 +237,8 @@ export default function Histogram(props) {
             ...["Total", ...displayedKeys].reduce(
               (obj, key) => ({
                 ...obj,
+                // for each field we normalise, we preserve the raw value to be used in a formatter for the tooltip
+                [`${key}-raw`]: ent[key] || 0,
                 [key]: parseFloat((ent[key] / factor).toFixed(2)) || 0,
               }),
               {}
@@ -276,10 +278,32 @@ export default function Histogram(props) {
           }}
           barCategoryGap={props.fullscreen ? "20%" : "10%"}
         >
-          {/* TODO have adaptive unit for the tooltip label too */}
-          {props.fullscreen && <Tooltip />}
+          {props.fullscreen && (
+            <Tooltip
+              formatter={(_, key, props) => {
+                const timeInMili = props.payload[`${key}-raw`];
+                return humanizeDuration(timeInMili / timeUnits.Seconds);
+              }}
+              labelFormatter={(interval) => {
+                const [start, end] = interval.split("-");
+                const startFull = moment(start / timeUnits.Seconds, "X").format(
+                  "LLLL"
+                );
+                const endFull = moment(end / timeUnits.Seconds, "X").format(
+                  "LLLL"
+                );
+                return `${startFull} to ${endFull}`;
+              }}
+            />
+          )}
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="label" />
+          <XAxis
+            dataKey="interval"
+            tickFormatter={(interval) => {
+              const [start, end] = interval.split("-");
+              return formatMiliTS(start, end - start, totalTimeSpan);
+            }}
+          />
           <YAxis>
             <Label value={unitLabel} angle={-90} position="insideLeft" />
           </YAxis>
