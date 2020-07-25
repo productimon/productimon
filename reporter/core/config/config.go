@@ -19,8 +19,6 @@ type Config struct {
 	MaxInputReportingInterval time.Duration
 }
 
-var config Config
-
 var (
 	DefaultMaxInputReportingInterval time.Duration
 	DefaultServer                    string

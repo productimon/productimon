@@ -14,10 +14,12 @@ function userStopTracking() {
   });
 }
 
-function onCoreLoaded() {
+function onCoreLoaded(loggedin) {
   console.log("js: got callback from core loaded");
   // TODO: remove this
-  login("api.productimon.com:4201", "test@productimon.com", "test", "chrome");
+  if (!loggedin) {
+    login("api.productimon.com:4201", "test@productimon.com", "test", "chrome");
+  }
 }
 
 function initCoreModule() {

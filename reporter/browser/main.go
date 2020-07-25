@@ -161,7 +161,7 @@ func registerCallbacks() {
 		}()
 		return nil
 	}))
-	js.Global().Call("onCoreLoaded")
+	js.Global().Call("onCoreLoaded", isRunning)
 }
 
 func main() {
