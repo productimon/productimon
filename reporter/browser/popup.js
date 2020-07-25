@@ -1,18 +1,18 @@
 document.addEventListener("DOMContentLoaded", function () {
   var coreModule = chrome.extension.getBackgroundPage();
-  coreModule.isTracking(toggleEnabledUI);
+  toggleEnabledUI(coreModule.userTracking);
 
   document.querySelector("#about").addEventListener("click", function () {
     window.open("https://github.com/productimon/productimon");
   });
 
   document.querySelector("#start").addEventListener("click", function () {
-    coreModule.startTracking();
+    coreModule.userStartTracking();
     toggleEnabledUI(true);
   });
 
   document.querySelector("#stop").addEventListener("click", function () {
-    coreModule.stopTracking();
+    coreModule.userStopTracking();
     toggleEnabledUI(false);
   });
 

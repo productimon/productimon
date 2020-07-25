@@ -1,3 +1,19 @@
+// when user switches to a non-browser window
+// isTracking() returns false but userTracking is still true
+var userTracking = false;
+
+function userStartTracking() {
+  startTracking((success) => {
+    userTracking = success;
+  });
+}
+
+function userStopTracking() {
+  stopTracking(() => {
+    userTracking = false;
+  });
+}
+
 function onCoreLoaded() {
   console.log("js: got callback from core loaded");
   // TODO: remove this
@@ -30,34 +46,43 @@ function initCoreModule() {
 function initHooks() {
   chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     console.log("updated " + tab.url);
-    switchUrl(tab.url);
+    if (userTracking) switchUrl(tab.url);
   });
 
   chrome.tabs.onActivated.addListener(function (activeInfo) {
     chrome.tabs.get(activeInfo.tabId, function (tab) {
       console.log("on highlight " + tab.url + " " + window.location.href);
-      switchUrl(tab.url);
+      if (userTracking) switchUrl(tab.url);
     });
   });
 
   chrome.windows.onFocusChanged.addListener(function (windowId) {
     if (windowId >= 0) {
-      // we're on a browser window
-      chrome.tabs.query(
-        {
-          active: true,
-          windowId: windowId,
-        },
-        function (tabarr) {
-          if (tabarr.length == 1) {
-            console.log("window focus change observed: " + tabarr[0].url);
-            switchUrl(tabarr[0].url);
+      if (userTracking) {
+        // it's safe to call startTracking when tracking already started - it doesn't do anything
+        // this is to ensure that if we switched back from non-browser to browser, we'll resume tracking
+        startTracking((success) => {
+          if (!success) {
+            console.log("Failed to start tracking");
+            return;
           }
-        }
-      );
+          chrome.tabs.query(
+            {
+              active: true,
+              windowId: windowId,
+            },
+            function (tabarr) {
+              if (tabarr.length == 1) {
+                console.log("window focus change observed: " + tabarr[0].url);
+                switchUrl(tabarr[0].url);
+              }
+            }
+          );
+        });
+      }
     } else {
       // we're no longer on a browser window
-      // TODO: pause tracking
+      stopTracking();
     }
   });
 }
