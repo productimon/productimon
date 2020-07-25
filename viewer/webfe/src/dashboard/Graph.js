@@ -21,7 +21,7 @@ const useStyles = makeStyles((theme) => ({
   box: {
     display: "flex",
     flexFlow: "column",
-    overflowX: "hidden",
+    overflow: "hidden",
     height: "100%",
   },
   titleAndButton: {
