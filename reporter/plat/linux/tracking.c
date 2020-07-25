@@ -85,7 +85,7 @@ static int get_current_window_name(Display *display, Window root, char *buf,
     prod_debug("fallback to res_name: %s\n", class_hint.res_name);
     snprintf(buf, size, "%s", class_hint.res_name);
   } else {
-    snprintf(buf, size, "Unknown");
+    buf[0] = '\0';  // core will set it to Unknown
   }
   XFree(class_hint.res_name);
   XFree(class_hint.res_class);
@@ -93,15 +93,9 @@ static int get_current_window_name(Display *display, Window root, char *buf,
 }
 
 static void handle_window_change(Display *display, Window window) {
-  static char prog_name[512] = {0};
-  char new_prog_name[512];
+  char prog_name[512];
 
-  get_current_window_name(display, window, new_prog_name, 512);
-
-  /* no need to report anything if still using the same program */
-  if (!strcmp(new_prog_name, prog_name)) return;
-
-  strcpy(prog_name, new_prog_name);
+  get_current_window_name(display, window, prog_name, 512);
 
   ProdCoreSwitchWindow(prog_name);
 }

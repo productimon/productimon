@@ -138,25 +138,12 @@ static VOID CALLBACK callback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent,
       "Callback: event %ld, hwnd %d, idObject %ld, idChild %ld, time %ld\n",
       dwEvent, hwnd, idObject, idChild, dwmsEventTime);
 
-  static char prog_name[512] = {0};
-  char new_prog_name[512];
-  if (get_name_from_handle(hwnd, new_prog_name, 512)) {
-    // TODO handle error here
-    // we either stop tracking or send an event to switch to an "unknwon"
-    // program
-    // otherwise viewer will think the user was using the old program all
-    // the time...
-    // same on linux
+  char prog_name[512];
+  if (get_name_from_handle(hwnd, prog_name, 512)) {
     prod_error("Failed to get a name for new window\n");
-    return;
+    prog_name[0] = '\0';  // core will set it to Unknown
   }
-  prod_debug("=======> %s <=======\n", new_prog_name);
-  if (strcmp(prog_name, new_prog_name) == 0) {
-    prod_debug("Switch event triggered but program name is the same\n");
-    return;
-  }
-  StringCbCopyA(prog_name, 512, new_prog_name);
-  printf("Got new program: %s\n", prog_name);
+  prod_debug("Got new program: %s\n", prog_name);
   ProdCoreSwitchWindow(prog_name);
 }
 static LRESULT CALLBACK keystroke_callback(_In_ int nCode, _In_ WPARAM wParam,

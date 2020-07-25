@@ -65,11 +65,23 @@ func (r *Reporter) eventLoop(conn *grpc.ClientConn, client spb.DataAggregatorCli
 // Call this in platform specific code when you detect that the user
 // switches window.
 func (r *Reporter) SwitchWindow(programName string) {
+	if programName == "" {
+		programName = "Unknown"
+	}
 	r.stateMutex.RLock()
 	defer r.stateMutex.RUnlock()
 	if !r.isTracking {
 		return
 	}
+	// for platforms like webassembly, we might have concurrent SwitchWindow calls
+	// it's also nice to keep the entire core module thread-safe for easiness of
+	// future platform integration
+	r.windowSwitchMutex.Lock()
+	defer r.windowSwitchMutex.Unlock()
+	if r.currentApp == programName {
+		return
+	}
+	r.currentApp = programName
 	done := make(chan bool)
 	r.reportInputStats <- done
 	<-done // wait until input event has been sent because we need entire stats interval to be for the same app

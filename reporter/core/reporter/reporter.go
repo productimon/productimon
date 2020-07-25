@@ -32,6 +32,9 @@ type Reporter struct {
 
 	isTracking bool
 	stateMutex sync.RWMutex
+
+	currentApp        string
+	windowSwitchMutex sync.Mutex
 }
 
 // Create a new Reporter with config
