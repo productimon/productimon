@@ -34,7 +34,7 @@ qt_cc_library(
 
 qt_resource(
     name = "images",
-    files = glob(["images/*.png"]),
+    files = ["//images:nucleusIcon.png"],
 )
 
 cc_binary(

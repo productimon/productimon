@@ -1,0 +1,19 @@
+{
+  "name": "Productimon for Chrome",
+  "description": "Keep track of the time you spend in Chrome and unify the data with other platforms on your designated server",
+  "version": "0.0.1",
+  "manifest_version": 2,
+  "icons": {
+    "128": "nucleusIcon.png"
+  },
+  "background": {
+    "page": "background.html"
+  },
+  "browser_action": {
+    "default_icon": "nucleusIcon.png",
+    "default_popup": "popup.html",
+    "default_title": "Productimon"
+  },
+  "permissions": ["activeTab", "storage", "webNavigation", "tabs", "http://*/"],
+  "content_security_policy": "script-src 'self' 'wasm-eval'; object-src 'self'"
+}

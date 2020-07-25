@@ -1,0 +1,49 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "git.yiad.am/productimon/reporter/browser",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//reporter/core/config:go_default_library",
+        "//reporter/core/reporter:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "productimon.wasm",
+    embed = [":go_default_library"],
+    goarch = "wasm",
+    goos = "js",
+    pure = "on",
+    visibility = ["//visibility:public"],
+)
+
+pkg_tar(
+    name = "chrome_extension_files",
+    srcs = [
+        "background.html",
+        "manifest.json",
+        "popup.css",
+        "popup.html",
+        "popup.js",
+        ":productimon.wasm",
+        "//images:nucleusIcon.png",
+        "//reporter/plat/chrome:background.js",
+        "//third_party:wasm_exec.js",
+    ],
+    package_dir = "/",
+)
+
+genrule(
+    name = "chrome_extension",
+    srcs = [
+        ":chrome_extension_files",
+    ],
+    outs = ["chrome_extension.zip"],
+    cmd = "mkdir -p @D/chrome_extension_files && \
+        tar -C @D/chrome_extension_files -xf $(location chrome_extension_files) && \
+        tar -tf $(location chrome_extension_files) | grep -v '/$$' | (cd @D/chrome_extension_files && zip - -@) > $@",
+)
