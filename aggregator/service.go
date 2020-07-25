@@ -65,7 +65,7 @@ func (s *service) returnToken(ctx context.Context, uid string) (*spb.DataAggrega
 	token, err := s.auther.SignToken(uid)
 	if err != nil {
 		s.log.Error("can't sign token", zap.Error(err), zap.String("uid", uid))
-		return nil, status.Errorf(codes.Internal, "something went wrong with signing token")
+		return nil, status.Error(codes.Internal, "something went wrong with signing token")
 	}
 	return &spb.DataAggregatorLoginResponse{
 		Token: token,
@@ -77,12 +77,12 @@ func (s *service) Login(ctx context.Context, req *spb.DataAggregatorLoginRequest
 	err := s.db.QueryRow("SELECT id, password FROM users WHERE email = ? LIMIT 1", req.Email).Scan(&uid, &storedPassword)
 	if err != nil {
 		s.log.Debug("error logging in", zap.Error(err), zap.String("email", req.Email))
-		return nil, status.Errorf(codes.Unauthenticated, "invalid email/password")
+		return nil, status.Error(codes.Unauthenticated, "invalid email/password")
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(req.Password))
 	if err != nil {
 		s.log.Debug("wrong password", zap.Error(err))
-		return nil, status.Errorf(codes.Unauthenticated, "invalid email/password")
+		return nil, status.Error(codes.Unauthenticated, "invalid email/password")
 	}
 	s.log.Info("logged in", zap.String("uid", uid))
 	return s.returnToken(ctx, uid)
@@ -91,7 +91,7 @@ func (s *service) Login(ctx context.Context, req *spb.DataAggregatorLoginRequest
 func (s *service) DeviceSignin(ctx context.Context, req *spb.DataAggregatorDeviceSigninRequest) (*spb.DataAggregatorDeviceSigninResponse, error) {
 	uid, did, err := s.auther.AuthenticateRequest(ctx)
 	if err != nil || did != -1 {
-		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
+		return nil, status.Error(codes.Unauthenticated, "Invalid token")
 	}
 	err = s.db.QueryRow("SELECT MAX(id) FROM devices WHERE uid=?", uid).Scan(&did)
 	if err != nil {
@@ -106,12 +106,12 @@ func (s *service) DeviceSignin(ctx context.Context, req *spb.DataAggregatorDevic
 	_, err = s.db.Exec("INSERT INTO devices(uid, id, name, kind) VALUES(?, ?, ?, ?)", uid, did, req.Device.Name, req.Device.DeviceType)
 	if err != nil {
 		s.log.Error("can't insert device", zap.Error(err), zap.String("uid", uid), zap.Int64("did", did), zap.String("device_name", req.Device.Name))
-		return nil, status.Errorf(codes.Internal, "something went wrong")
+		return nil, status.Error(codes.Internal, "something went wrong")
 	}
 	cert, key, err := s.auther.SignDeviceCert(uid, did)
 	if err != nil {
 		s.log.Error("can't sign device cert", zap.Error(err), zap.String("uid", uid), zap.Int64("did", did), zap.String("device_name", req.Device.Name))
-		return nil, status.Errorf(codes.Internal, "something went wrong")
+		return nil, status.Error(codes.Internal, "something went wrong")
 	}
 	return &spb.DataAggregatorDeviceSigninResponse{
 		Cert: cert,
@@ -125,14 +125,14 @@ func (s *service) Signup(ctx context.Context, req *spb.DataAggregatorSignupReque
 	switch {
 	case err != nil && err != sql.ErrNoRows:
 		s.log.Error("error checking user existence for signup", zap.Error(err), zap.String("email", req.User.Email))
-		return nil, status.Errorf(codes.Internal, "something went wrong")
+		return nil, status.Error(codes.Internal, "something went wrong")
 	case err == nil:
-		return nil, status.Errorf(codes.AlreadyExists, "user already exists")
+		return nil, status.Error(codes.AlreadyExists, "user already exists")
 	}
 	pwd, err := bcrypt.GenerateFromPassword([]byte(req.User.Password), bcryptStrength)
 	if err != nil {
 		s.log.Error("error encrypting password", zap.Error(err), zap.String("email", req.User.Email))
-		return nil, status.Errorf(codes.Internal, "something went wrong")
+		return nil, status.Error(codes.Internal, "something went wrong")
 	}
 	uid := uuid.New().String()
 	s.dbWLock.Lock()
@@ -140,7 +140,7 @@ func (s *service) Signup(ctx context.Context, req *spb.DataAggregatorSignupReque
 	_, err = s.db.Exec("INSERT INTO users (id, email, password) VALUES (?, ?, ?)", uid, req.User.Email, pwd)
 	if err != nil {
 		s.log.Error("error inserting user for signup", zap.Error(err), zap.String("uid", uid), zap.String("email", req.User.Email))
-		return nil, status.Errorf(codes.Internal, "something went wrong")
+		return nil, status.Error(codes.Internal, "something went wrong")
 	}
 	return s.returnToken(ctx, uid)
 }
@@ -148,7 +148,7 @@ func (s *service) Signup(ctx context.Context, req *spb.DataAggregatorSignupReque
 func (s *service) ExtendToken(ctx context.Context, req *cpb.Empty) (*spb.DataAggregatorLoginResponse, error) {
 	uid, did, err := s.auther.AuthenticateRequest(ctx)
 	if err != nil || did != -1 {
-		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
+		return nil, status.Error(codes.Unauthenticated, "Invalid token")
 	}
 	return s.returnToken(ctx, uid)
 }
@@ -156,12 +156,12 @@ func (s *service) ExtendToken(ctx context.Context, req *cpb.Empty) (*spb.DataAgg
 func (s *service) UserDetails(ctx context.Context, req *cpb.Empty) (*spb.DataAggregatorUserDetailsResponse, error) {
 	uid, did, err := s.auther.AuthenticateRequest(ctx)
 	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
+		return nil, status.Error(codes.Unauthenticated, "Invalid token")
 	}
 	var email string
 	err = s.db.QueryRow("SELECT email FROM users WHERE id = ? LIMIT 1", uid).Scan(&email)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "User missing from db")
+		return nil, status.Error(codes.Internal, "User missing from db")
 	}
 	var lastEid int64
 	if did != -1 {
@@ -284,7 +284,7 @@ func (s *service) PushEvent(server spb.DataAggregator_PushEventServer) error {
 	uid, did, err := s.auther.AuthenticateRequest(ctx)
 	if err != nil || did == -1 {
 		s.log.Error("Failed to authenticate pushEvent", zap.Error(err), zap.String("uid", uid), zap.Int64("did", did))
-		return status.Errorf(codes.Unauthenticated, "Invalid token")
+		return status.Error(codes.Unauthenticated, "Invalid token")
 	}
 
 	for {
@@ -314,7 +314,7 @@ func (s *service) PushEvent(server spb.DataAggregator_PushEventServer) error {
 }
 
 func (s *service) GetEvent(req *spb.DataAggregatorGetEventRequest, server spb.DataAggregator_GetEventServer) error {
-	return nil
+	return status.Error(codes.Unimplemented, "not implemented")
 }
 
 // TODO
@@ -372,7 +372,7 @@ func (s *service) findActiveTime(uid, dFilter string, stime, etime int64, tx *sq
 func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeRequest) (*spb.DataAggregatorGetTimeResponse, error) {
 	uid, did, err := s.auther.AuthenticateRequest(ctx)
 	if err != nil || did != -1 {
-		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
+		return nil, status.Error(codes.Unauthenticated, "Invalid token")
 	}
 	devices := req.GetDevices()
 	dFilter := ""
@@ -419,7 +419,7 @@ func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeReq
 			dp.Activetime += acttime
 		}
 	default:
-		return nil, status.Errorf(codes.InvalidArgument, "i don't recognize that GroupBy param, is earth flat now?")
+		return nil, status.Error(codes.InvalidArgument, "i don't recognize that GroupBy param, is earth flat now?")
 	}
 
 	rsp := &spb.DataAggregatorGetTimeResponse{}
