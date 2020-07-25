@@ -238,8 +238,8 @@ export default function Histogram(props) {
               (obj, key) => ({
                 ...obj,
                 // for each field we normalise, we preserve the raw value to be used in a formatter for the tooltip
-                [`${key}-raw`]: ent[key] || 0,
-                [key]: parseFloat((ent[key] / factor).toFixed(2)) || 0,
+                [`${key}-raw`]: ent[key] || null,
+                [key]: parseFloat((ent[key] / factor).toFixed(2)) || null,
               }),
               {}
             ),
