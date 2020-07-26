@@ -120,7 +120,7 @@ function transformRange(getSymbol) {
           Total: total,
           [getSymbol(point)]: time,
           Active: active,
-          "Non-active": total - active,
+          Inactive: total - active,
         };
       },
       {
@@ -198,7 +198,7 @@ export default function Histogram(props) {
             displayedKeys = getUniqSymbols(message, getSymbol);
             break;
           case "active":
-            displayedKeys = ["Active", "Non-active"];
+            displayedKeys = ["Active", "Inactive"];
             break;
           default:
             displayedKeys = ["Total"];
