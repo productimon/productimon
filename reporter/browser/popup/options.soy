@@ -1,0 +1,27 @@
+{namespace productimon.reporter.browser.popup.options.templates}
+
+{template .options}
+  {@param options: list<[id: int, name: string, title: string, explaination: string]>}
+  {for $option in $options}
+    {call .option}
+      {param id: $option.id /}
+      {param name: $option.name /}
+      {param title: $option.title /}
+      {param explaination: $option.explaination /}
+    {/call}
+  {/for}
+{/template}
+
+{template .option}
+  {@param id: int}
+  {@param name: string}
+  {@param title: string}
+  {@param explaination: string}
+  <div id="{$name}-box" class="{$name} option" option-id="{$id}">
+    <input type="radio" name="mode" id="{$name}" />
+    <label for="{$name}">{$title}</label>
+    <p class="explanation">
+      {$explaination}
+    </p>
+  </div>
+{/template}

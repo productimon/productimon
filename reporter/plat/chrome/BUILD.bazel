@@ -1,4 +1,30 @@
-exports_files(
-    glob(["*"]),
-    visibility = ["//visibility:public"],
+load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_binary", "closure_js_library")
+
+closure_js_library(
+    name = "chrome_lib",
+    srcs = [
+        "reporter.js",
+    ],
+    visibility = ["//reporter:__subpackages__"],
+    deps = [
+        "//reporter/browser:externs",
+        "//third_party:chrome_externs",
+        "//third_party:wasm_exec",
+        "@io_bazel_rules_closure//closure/library",
+    ],
+)
+
+closure_js_binary(
+    name = "chrome",
+    debug = select({
+        "//internal:debug_build": True,
+        "//conditions:default": False,
+    }),
+    entry_points = [
+        "goog:productimon.reporter.plat.chrome",
+    ],
+    visibility = ["//reporter/browser:__pkg__"],
+    deps = [
+        ":chrome_lib",
+    ],
 )

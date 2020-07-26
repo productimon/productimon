@@ -1,5 +1,14 @@
 load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar")
+load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_library")
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+closure_js_library(
+    name = "externs",
+    srcs = [
+        "extern.js",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 go_library(
     name = "go_default_library",
@@ -25,13 +34,14 @@ pkg_tar(
     name = "chrome_extension_files",
     srcs = [
         "background.html",
+        "background.js",
         "manifest.json",
         "popup.css",
         "popup.html",
-        "popup.js",
         ":productimon.wasm",
         "//images:nucleusIcon.png",
-        "//reporter/plat/chrome:background.js",
+        "//reporter/browser/popup:popup.js",
+        "//reporter/plat/chrome:chrome.js",
         "//third_party:wasm_exec.js",
     ],
     package_dir = "/",

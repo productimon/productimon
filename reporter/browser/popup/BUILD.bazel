@@ -1,0 +1,35 @@
+load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_binary", "closure_js_library", "closure_js_template_library")
+
+closure_js_template_library(
+    name = "popup_soy",
+    srcs = glob([
+        "*.soy",
+    ]),
+)
+
+closure_js_library(
+    name = "popup_lib",
+    srcs = glob([
+        "*.js",
+    ]),
+    deps = [
+        ":popup_soy",
+        "//third_party:chrome_externs",
+        "@io_bazel_rules_closure//closure/library",
+    ],
+)
+
+closure_js_binary(
+    name = "popup",
+    debug = select({
+        "//internal:debug_build": True,
+        "//conditions:default": False,
+    }),
+    entry_points = [
+        "goog:productimon.reporter.browser.popup",
+    ],
+    visibility = ["//reporter/browser:__pkg__"],
+    deps = [
+        ":popup_lib",
+    ],
+)

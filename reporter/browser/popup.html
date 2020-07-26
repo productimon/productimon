@@ -3,21 +3,24 @@
   <head>
     <title>Productimon</title>
     <link rel="stylesheet" href="popup.css" />
-    <script src="popup.js"></script>
+    <meta
+      content="initial-scale=1, minimum-scale=1, width=device-width"
+      name="viewport"
+    />
   </head>
-  <style type="text/css">
-    body {
-      margin: 5px;
-    }
-    h1 {
-      font-size: 15px;
-      text-align: center;
-    }
-  </style>
   <body>
-    <button id="stop" class="hide">Stop Recorder</button>
-    <button id="start">Start Recorder</button>
-    <hr />
-    <button id="about" class="secondary">About</button>
+    <div class="header" id="header">
+      <h3 id="title">Waiting for Productimon status...</h3>
+    </div>
+    <form>
+      <div class="main" id="main"></div>
+    </form>
+    <a
+      class="footer"
+      href="https://github.com/productimon/productimon"
+      target="_blank"
+      >About</a
+    >
+    <script src="popup.js"></script>
   </body>
 </html>

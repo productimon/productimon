@@ -137,7 +137,7 @@ func registerCallbacks() {
 				return
 			}
 			ret := login(args[0].String(), args[1].String(), args[2].String(), args[3].String())
-			if len(args) > 5 {
+			if len(args) > 4 {
 				args[4].Invoke(ret)
 			}
 		}()

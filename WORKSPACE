@@ -9,9 +9,9 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "com_google_protobuf",
-    sha256 = "e5265d552e12c1f39c72842fa91d84941726026fa056d914ea6a25cd58d7bbf8",
-    strip_prefix = "protobuf-3.12.3",
-    urls = ["https://github.com/google/protobuf/archive/v3.12.3.zip"],
+    sha256 = "915b24348980910032e7370b0d46290fd53e32be1d62acec448665467abd5206",
+    strip_prefix = "protobuf-ab6619777bffca8d592b25affedede003d84f5e7",
+    urls = ["https://github.com/adamyi/protobuf/archive/ab6619777bffca8d592b25affedede003d84f5e7.tar.gz"],
 )
 
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
@@ -104,6 +104,25 @@ rules_nodejs_dev_dependencies()
 #    name = "npm_bazel_typescript",
 #    path = "../rules_nodejs/packages/typescript/src",
 #)
+
+http_archive(
+    name = "io_bazel_rules_closure",
+    sha256 = "9161f3b719008b223846b0df63c7674c6e2d67c81e052a9864f90736505c35f3",
+    strip_prefix = "rules_closure-62746bdd1087c1198a81143e7d8ef3d144a43c0f",
+    urls = [
+        "https://github.com/bazelbuild/rules_closure/archive/62746bdd1087c1198a81143e7d8ef3d144a43c0f.tar.gz",
+    ],
+)
+
+load("@io_bazel_rules_closure//closure:repositories.bzl", "rules_closure_dependencies", "rules_closure_toolchains")
+
+rules_closure_dependencies()
+
+rules_closure_toolchains()
+
+load("//third_party:chrome_externs.bzl", "setup_chrome_externs")
+
+setup_chrome_externs()
 
 http_archive(
     name = "npm_bazel_typescript",
