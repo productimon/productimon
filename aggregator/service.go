@@ -6,9 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
+	"regexp"
 	"sync"
 
 	"git.yiad.am/productimon/aggregator/deviceState"
+	"git.yiad.am/productimon/aggregator/notifications"
 	cpb "git.yiad.am/productimon/proto/common"
 	spb "git.yiad.am/productimon/proto/svc"
 	"github.com/google/uuid"
@@ -21,13 +24,17 @@ import (
 const bcryptStrength = 12
 
 type service struct {
-	auther  *Authenticator
-	dbWLock *sync.Mutex
-	db      *sql.DB
-	log     *zap.Logger
+	auther    *Authenticator
+	dbWLock   *sync.Mutex
+	db        *sql.DB
+	log       *zap.Logger
+	notifiers map[string]notifications.Notifier
 
 	ds *deviceState.DsMap
 }
+
+// https://github.com/badoux/checkmail/blob/f9f80cb795fa32891c4f3556822e179796031549/checkmail.go#L37
+var rxEmail = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 // TODO: what if we recoreded out-of-order events in db and are waiting for an old event when we shutdown server
 func (s *service) lazyInitEidHandler(uid string, did int64) (int64, error) {
@@ -45,13 +52,26 @@ func (s *service) lazyInitEidHandler(uid string, did int64) (int64, error) {
 
 func NewService(auther *Authenticator, db *sql.DB, logger *zap.Logger) (s *service) {
 	s = &service{
-		auther:  auther,
-		db:      db,
-		dbWLock: &sync.Mutex{},
-		log:     logger,
+		auther:    auther,
+		db:        db,
+		dbWLock:   &sync.Mutex{},
+		log:       logger,
+		notifiers: make(map[string]notifications.Notifier),
 	}
 	s.ds = deviceState.NewDsMap(s.lazyInitEidHandler, logger)
 	return
+}
+
+func (s *service) RegisterNotifier(n notifications.Notifier) {
+	s.notifiers[n.Name()] = n
+}
+
+func (s *service) Notify(kind, recipient, message string) error {
+	n := s.notifiers[kind]
+	if n == nil {
+		return notifications.ErrNotRegistered
+	}
+	return n.Notify(recipient, message)
 }
 
 func (s *service) Ping(ctx context.Context, req *spb.DataAggregatorPingRequest) (*spb.DataAggregatorPingResponse, error) {
@@ -74,7 +94,8 @@ func (s *service) returnToken(ctx context.Context, uid string) (*spb.DataAggrega
 
 func (s *service) Login(ctx context.Context, req *spb.DataAggregatorLoginRequest) (*spb.DataAggregatorLoginResponse, error) {
 	var uid, storedPassword string
-	err := s.db.QueryRow("SELECT id, password FROM users WHERE email = ? LIMIT 1", req.Email).Scan(&uid, &storedPassword)
+	var verified bool
+	err := s.db.QueryRow("SELECT id, password, verified FROM users WHERE email = ? LIMIT 1", req.Email).Scan(&uid, &storedPassword, &verified)
 	if err != nil {
 		s.log.Debug("error logging in", zap.Error(err), zap.String("email", req.Email))
 		return nil, status.Error(codes.Unauthenticated, "invalid email/password")
@@ -83,6 +104,9 @@ func (s *service) Login(ctx context.Context, req *spb.DataAggregatorLoginRequest
 	if err != nil {
 		s.log.Debug("wrong password", zap.Error(err))
 		return nil, status.Error(codes.Unauthenticated, "invalid email/password")
+	}
+	if !verified {
+		return nil, status.Error(codes.Unauthenticated, "account not verified, please check your email")
 	}
 	s.log.Info("logged in", zap.String("uid", uid))
 	return s.returnToken(ctx, uid)
@@ -120,6 +144,9 @@ func (s *service) DeviceSignin(ctx context.Context, req *spb.DataAggregatorDevic
 }
 
 func (s *service) Signup(ctx context.Context, req *spb.DataAggregatorSignupRequest) (*spb.DataAggregatorLoginResponse, error) {
+	if len(req.User.Email) > 254 || !rxEmail.MatchString(req.User.Email) {
+		return nil, status.Error(codes.InvalidArgument, "invalid email address")
+	}
 	var tmp int64
 	err := s.db.QueryRow("SELECT 1 FROM users WHERE email = ? LIMIT 1", req.User.Email).Scan(&tmp)
 	switch {
@@ -137,10 +164,30 @@ func (s *service) Signup(ctx context.Context, req *spb.DataAggregatorSignupReque
 	uid := uuid.New().String()
 	s.dbWLock.Lock()
 	defer s.dbWLock.Unlock()
-	_, err = s.db.Exec("INSERT INTO users (id, email, password) VALUES (?, ?, ?)", uid, req.User.Email, pwd)
+	verified := false
+	vtoken, err := s.auther.SignVerificationToken(req.User.Email)
+	if err != nil {
+		s.log.Error("can't sign verification token", zap.Error(err), zap.String("email", req.User.Email))
+		return nil, status.Error(codes.Internal, "something went wrong with signing token")
+	}
+	if err = s.Notify("email", req.User.Email, fmt.Sprintf(
+		"Hi there! Verify your productimon email here: http://%s/verify?token=%s", flagDomain, url.QueryEscape(vtoken))); err != nil {
+		switch err {
+		case notifications.ErrNotRegistered:
+			verified = true
+		default:
+			s.log.Error("error sending verification email", zap.Error(err), zap.String("email", req.User.Email))
+			return nil, status.Error(codes.Internal, "something went wrong")
+		}
+	}
+	_, err = s.db.Exec("INSERT INTO users (id, email, password, verified) VALUES (?, ?, ?, ?)", uid, req.User.Email, pwd, verified)
 	if err != nil {
 		s.log.Error("error inserting user for signup", zap.Error(err), zap.String("uid", uid), zap.String("email", req.User.Email))
 		return nil, status.Error(codes.Internal, "something went wrong")
+	}
+	if !verified {
+		// TODO: instead of using an error, have proper proto types for this
+		return nil, status.Error(codes.Internal, "Please check your email and click the verification link!")
 	}
 	return s.returnToken(ctx, uid)
 }
@@ -461,6 +508,20 @@ func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeReq
 	}
 
 	return rsp, nil
+}
+
+func (s *service) VerifyAccount(token string) error {
+	email, err := s.auther.VerifyVerificationToken(token)
+	if err != nil {
+		return errors.New("invalid token")
+	}
+	// NOTE: if account is already verified, we just have a silent failure. Might want to tell user
+	// in the future
+	if _, err = s.db.Exec("UPDATE users SET verified = TRUE WHERE email = ?", email); err != nil {
+		s.log.Error("failed to verify account", zap.Error(err))
+		return errors.New("something went wrong verifying your account")
+	}
+	return nil
 }
 
 func (s *service) AddGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, error) {

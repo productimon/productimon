@@ -35,13 +35,19 @@ type Authenticator struct {
 
 // content of JWT claim
 type Claims struct {
-	Uid string
-	Did int64
+	Type string
+	Uid  string
+	Did  int64
 	jwt.StandardClaims
 }
 
 // validity duration of a token
 const TokenDuration = 1 * time.Hour
+
+const (
+	TokenVerifyType = "verify"
+	TokenAuthType   = "auth"
+)
 
 // read or create root CA. This populates a.keyPEM and a.certPEM
 func (a *Authenticator) initCert(certPath, keyPath string) error {
@@ -152,11 +158,22 @@ func (a *Authenticator) SignDeviceCert(uid string, did int64) (cert, key []byte,
 func (a *Authenticator) SignToken(uid string) (string, error) {
 	expirationTime := time.Now().Add(TokenDuration)
 	claims := Claims{
-		Uid: uid,
-		Did: -1,
+		Type: TokenAuthType,
+		Uid:  uid,
+		Did:  -1,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	return token.SignedString(a.privKey)
+}
+
+// Create a new verification token for given email
+func (a *Authenticator) SignVerificationToken(email string) (string, error) {
+	claims := Claims{
+		Type: TokenVerifyType,
+		Uid:  email,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	return token.SignedString(a.privKey)
@@ -179,7 +196,35 @@ func (a *Authenticator) VerifyToken(token string) (uid string, did int64, err er
 		return "", -1, errors.New("token is invalid")
 	}
 
+	if claims.Type != TokenAuthType {
+		return "", -1, errors.New("invalid type")
+	}
+
 	return claims.Uid, claims.Did, nil
+}
+
+// Return email for a given JWT verification token
+func (a *Authenticator) VerifyVerificationToken(token string) (email string, err error) {
+	claims := &Claims{}
+
+	p := jwt.Parser{ValidMethods: []string{jwt.SigningMethodRS256.Name}}
+	tkn, err := p.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+		return a.pubKey, nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if !tkn.Valid {
+		return "", errors.New("token is invalid")
+	}
+
+	if claims.Type != TokenVerifyType {
+		return "", errors.New("invalid type")
+	}
+
+	return claims.Uid, nil
 }
 
 func (a *Authenticator) verifyCert(cert *x509.Certificate) (uid string, did int64, err error) {

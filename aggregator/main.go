@@ -5,14 +5,17 @@ import (
 	"database/sql"
 	"encoding/json"
 	"flag"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/pprof"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"git.yiad.am/productimon/aggregator/notifications"
 	"git.yiad.am/productimon/internal"
 	spb "git.yiad.am/productimon/proto/svc"
 	"git.yiad.am/productimon/viewer/webfe"
@@ -32,8 +35,13 @@ var (
 	flagPublicKeyPath     string
 	flagPrivateKeyPath    string
 	flagDBFilePath        string
+	flagDomain            string
 	flagGRPCPublicPort    int
 	flagDebug             bool
+	flagSMTPServer        string
+	flagSMTPUsername      string
+	flagSMTPPasswordFile  string
+	flagSMTPSender        string
 	jsFilename            string
 	mapFilename           string
 	logger                *zap.Logger
@@ -42,10 +50,15 @@ var (
 func init() {
 	flag.StringVar(&flagGRPCListenAddress, "grpc_listen_address", "0.0.0.0:4200", "gRPC listen address")
 	flag.StringVar(&flagHTTPListenAddress, "http_listen_address", "0.0.0.0:4201", "HTTP listen address (TODO: HTTPS only)")
+	flag.StringVar(&flagDomain, "domain", "api.productimon.com:4201", "server domain")
 	flag.IntVar(&flagGRPCPublicPort, "grpc_public_port", 4200, "gRPC public-facing port (this usually needs to be the same port as grpc_listen_address, unless you have some fancy NAT infra)")
 	flag.StringVar(&flagPublicKeyPath, "ca_cert", "ca.pem", "Path to CA cert")
 	flag.StringVar(&flagPrivateKeyPath, "ca_key", "ca.key", "Path to CA key")
 	flag.StringVar(&flagDBFilePath, "db_path", "db.sqlite3", "Path to SQLite3 database file")
+	flag.StringVar(&flagSMTPServer, "smtp_server", "", "SMTP server for sending email (leave empty to disable SMTP")
+	flag.StringVar(&flagSMTPUsername, "smtp_username", "", "SMTP username for authentication (this is usually the same as sender address, leave empty to disable authentication)")
+	flag.StringVar(&flagSMTPPasswordFile, "smtp_password_file", "", "Path to SMTP password file")
+	flag.StringVar(&flagSMTPSender, "smtp_sender", "", "SMTP sender address for sending emails")
 	flag.BoolVar(&flagDebug, "debug", false, "enable debug logging")
 }
 
@@ -90,6 +103,19 @@ func main() {
 	spb.RegisterDataAggregatorServer(grpcServer, s)
 	wrappedGrpc := grpcweb.WrapServer(grpcServer)
 
+	if len(flagSMTPServer) > 0 {
+		if len(flagSMTPUsername) > 0 {
+			smtpPwdBytes, err := ioutil.ReadFile(flagSMTPPasswordFile)
+			if err != nil {
+				logger.Fatal("failed to read SMTP password", zap.Error(err))
+			}
+			smtpPwd := strings.TrimSpace(string(smtpPwdBytes))
+			s.RegisterNotifier(notifications.NewEmailNotifier(flagSMTPServer, flagSMTPUsername, smtpPwd, flagSMTPSender))
+		} else {
+			s.RegisterNotifier(notifications.NewEmailNoAuthNotifier(flagSMTPServer, flagSMTPSender))
+		}
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle("/rpc/", http.StripPrefix("/rpc", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -109,6 +135,26 @@ func main() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write(webfe.Data["index.html"])
+	})
+
+	mux.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		tokens := r.Form["token"]
+		if len(tokens) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("token missing"))
+			return
+		}
+		if err := s.VerifyAccount(tokens[0]); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		w.Write([]byte("Account verified! You may login now"))
 	})
 
 	mux.HandleFunc("/rpc.json", func(w http.ResponseWriter, r *http.Request) {

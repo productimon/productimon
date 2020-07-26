@@ -22,6 +22,7 @@ go_library(
     deps = [
         "//aggregator/deviceState:go_default_library",
         "//aggregator/nlp:go_default_library",
+        "//aggregator/notifications:go_default_library",
         "//internal:go_default_library",
         "//proto/common:go_default_library",
         "//proto/svc:go_default_library",

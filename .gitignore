@@ -7,3 +7,4 @@ ca.pem
 node_modules
 yarn-error.log
 Productimon Reporter.app
+.smtp_password
