@@ -539,3 +539,21 @@ func (s *service) EditGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, err
 func (s *service) GetGoals(ctx context.Context, req *cpb.Empty) (*spb.DataAggregatorGetGoalsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
+
+func (s *service) DeleteAccount(ctx context.Context, req *cpb.Empty) (*cpb.Empty, error) {
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
+		return nil, status.Error(codes.Unauthenticated, "Invalid token")
+	}
+
+	s.dbWLock.Lock()
+	defer s.dbWLock.Unlock()
+
+	if _, err = s.db.Exec("DELETE FROM users WHERE id = ?", uid); err != nil {
+		s.log.Error("failed to delete user", zap.Error(err), zap.String("uid", uid))
+		return nil, status.Error(codes.Internal, "error deleting user")
+	}
+
+	s.log.Info("deleted user", zap.String("uid", uid))
+	return &cpb.Empty{}, nil
+}

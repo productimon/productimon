@@ -166,7 +166,13 @@ export default function Fixture(props) {
             open={Boolean(anchorEl)}
             onClose={handleClose}
           >
-            <ListItem onClick={handleClose}>Settings</ListItem>
+            <ListItem
+              onClick={() => {
+                gotoLink("/settings");
+              }}
+            >
+              Settings
+            </ListItem>
             <ListItem onClick={handleLogout}>Logout</ListItem>
           </Menu>
 

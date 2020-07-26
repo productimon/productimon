@@ -84,7 +84,7 @@ func main() {
 	if err != nil {
 		logger.Fatal("can't create authenticator", zap.Error(err))
 	}
-	db, err := sql.Open("sqlite3", flagDBFilePath+"?_journal_mode=wal&_txlock=immediate&_busy_timeout=5000")
+	db, err := sql.Open("sqlite3", flagDBFilePath+"?_journal_mode=wal&_txlock=immediate&_busy_timeout=5000&_foreign_keys=1")
 	if err != nil {
 		logger.Fatal("can't open database", zap.Error(err))
 	}

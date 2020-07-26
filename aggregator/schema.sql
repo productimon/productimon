@@ -10,7 +10,8 @@ CREATE TABLE devices (
   id INTEGER NOT NULL,
   name VARCHAR(255) NOT NULL,
   kind INTEGER NOT NULL,
-  PRIMARY KEY(uid, id)
+  PRIMARY KEY(uid, id),
+  FOREIGN KEY(uid) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE events (
@@ -20,7 +21,8 @@ CREATE TABLE events (
   kind INTEGER NOT NULL,
   starttime INTEGER NOT NULL,
   endtime INTEGER NOT NULL,
-  PRIMARY KEY(uid, did, id)
+  PRIMARY KEY(uid, did, id),
+  FOREIGN KEY (uid, did) REFERENCES devices(uid, id) ON DELETE CASCADE
 );
 
 CREATE TABLE intervals (
@@ -30,7 +32,8 @@ CREATE TABLE intervals (
   endtime INTEGER NOT NULL,
   activetime INTEGER NOT NULL,
   app VARCHAR(255) NOT NULL,
-  PRIMARY KEY(uid, did, starttime)
+  PRIMARY KEY(uid, did, starttime),
+  FOREIGN KEY (uid, did) REFERENCES devices(uid, id) ON DELETE CASCADE
 );
 
 CREATE TABLE default_apps (
@@ -41,7 +44,8 @@ CREATE TABLE default_apps (
 CREATE TABLE user_apps (
   name VARCHAR(255) PRIMARY KEY,
   uid CHAR(36) NOT NULL,
-  label VARCHAR(255)
+  label VARCHAR(255),
+  FOREIGN KEY (uid) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE app_switch_events (
@@ -49,7 +53,8 @@ CREATE TABLE app_switch_events (
   did INTEGER NOT NULL,
   id INTEGER NOT NULL,
   app VARCHAR(255) NOT NULL,
-  PRIMARY KEY(uid, did, id)
+  PRIMARY KEY(uid, did, id),
+  FOREIGN KEY (uid, did, id) REFERENCES events(uid, did, id) ON DELETE CASCADE
 );
 
 CREATE TABLE activity_events (
@@ -58,7 +63,8 @@ CREATE TABLE activity_events (
   id INTEGER NOT NULL,
   keystrokes INTEGER NOT NULL,
   mouseclicks INTEGER NOT NULL,
-  PRIMARY KEY(uid, did, id)
+  PRIMARY KEY(uid, did, id),
+  FOREIGN KEY (uid, did, id) REFERENCES events(uid, did, id) ON DELETE CASCADE
 );
 
 INSERT INTO users VALUES('9e9b23c8-8cf1-4891-b201-5bc0467ba535','test@productimon.com','$2a$10$18SpmyR9yo4pegsfy/a1W.SuYTmgYSMNoNmuS0T9EQE6OQPh40rLK', TRUE); -- password: test

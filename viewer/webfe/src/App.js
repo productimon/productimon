@@ -9,6 +9,7 @@ import {
 
 import SignIn from "./account/SignIn";
 import SignUp from "./account/SignUp";
+import Settings from "./account/Settings";
 import Dashboard from "./dashboard/Dashboard";
 import Fixture from "./core/Fixture";
 
@@ -52,6 +53,9 @@ export default function App() {
               </Route>
               <Route path="/dashboard">
                 <Dashboard graphs={graphs} setGraphs={setGraphs} />
+              </Route>
+              <Route path="/settings">
+                <Settings />
               </Route>
             </Switch>
           </main>

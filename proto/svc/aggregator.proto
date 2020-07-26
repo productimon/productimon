@@ -22,6 +22,7 @@ service DataAggregator {
   rpc EditGoal(common.Goal) returns (common.Empty);
   // TODO: add filters
   rpc GetGoals(common.Empty) returns (DataAggregatorGetGoalsResponse);
+  rpc DeleteAccount(common.Empty) returns (common.Empty);
 }
 
 message DataAggregatorPingRequest {
