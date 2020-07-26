@@ -24,7 +24,10 @@ qt_cc_library(
 qt_cc_library(
     name = "mainwindow",
     srcs = ["mainwindow.cc"],
-    hdrs = ["mainwindow.h"],
+    hdrs = [
+        "OptionCheckBox.h",
+        "mainwindow.h",
+    ],
     deps = [
         ":auto-qt",
         ":images",

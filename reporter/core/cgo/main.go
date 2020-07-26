@@ -7,6 +7,7 @@ import (
 	"git.yiad.am/productimon/internal"
 	"git.yiad.am/productimon/reporter/core/config"
 	"git.yiad.am/productimon/reporter/core/reporter"
+	"unsafe"
 )
 
 var r *reporter.Reporter
@@ -67,6 +68,34 @@ func ProdCoreHandleKeystroke() {
 //export ProdCoreIsTracking
 func ProdCoreIsTracking() bool {
 	return r.IsTracking()
+}
+
+// expect copts to be a nullptr-terminated c-string array
+//export ProdCoreSetOptions
+func ProdCoreSetOptions(copts **C.char) {
+	var opts []string
+	curr := copts
+	for *curr != nil {
+		opt := C.GoString(*curr)
+		opts = append(opts, opt)
+		curr = (**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(curr)) + unsafe.Sizeof(*curr)))
+	}
+	r.SetOptions(opts...)
+}
+
+//export ProdCoreGetServer
+func ProdCoreGetServer() *C.char {
+	return C.CString(r.Config.Server)
+}
+
+//export ProdCoreIsOptionEnabled
+func ProdCoreIsOptionEnabled(opt *C.char) bool {
+	return r.IsOptionEnabled(C.GoString(opt))
+}
+
+//export ProdCoreSaveConfig
+func ProdCoreSaveConfig() bool {
+	return r.SaveConfig() == nil
 }
 
 //export ProdCoreQuitReporter

@@ -7,11 +7,10 @@
 
 #include "reporter/core/cgo/cgo.h"
 
-static tracking_opt_t *tracking_opts = NULL;
 static pthread_mutex_t tracking_mutex;
 
 @interface Tracking : NSObject
-- (void)init_observers:(tracking_opt_t *)opts;
+- (void)init_observers;
 - (void)remove_observers;
 @end
 
@@ -34,10 +33,10 @@ NSDistributedNotificationCenter *distributed_center;
   pthread_mutex_unlock(&tracking_mutex);
 }
 
-- (void)init_observers:(tracking_opt_t *)opts {
+- (void)init_observers {
   shared_center = [[NSWorkspace sharedWorkspace] notificationCenter];
   distributed_center = [NSDistributedNotificationCenter defaultCenter];
-  if (opts->foreground_program) {
+  if (get_option("foreground_program")) {
     [shared_center addObserver:self
                       selector:@selector(app_switch_handler:)
                           name:@"NSWorkspaceDidActivateApplicationNotification"
@@ -45,8 +44,8 @@ NSDistributedNotificationCenter *distributed_center;
   }
 
   NSEventMask mask = 0;
-  if (opts->keystroke) mask |= NSEventMaskKeyDown;
-  if (opts->keystroke)
+  if (get_option("keystroke")) mask |= NSEventMaskKeyDown;
+  if (get_option("mouse_click"))
     mask |= NSEventMaskLeftMouseDown | NSEventMaskRightMouseDown | NSEventMaskScrollWheel;
   event_handler =
       [NSEvent addGlobalMonitorForEventsMatchingMask:mask
@@ -108,17 +107,16 @@ int init_tracking() {
   return 0;
 }
 
-int start_tracking(tracking_opt_t *opts) {
+int start_tracking() {
   pthread_mutex_lock(&tracking_mutex);
   if (ProdCoreIsTracking()) {
     prod_error("Tracking started already!\n");
     pthread_mutex_unlock(&tracking_mutex);
     return 0;
   }
-  tracking_opts = opts;
 
   ProdCoreStartTracking();
-  [tracking init_observers:tracking_opts];
+  [tracking init_observers];
   prod_debug("Tracking started\n");
 
   pthread_mutex_unlock(&tracking_mutex);

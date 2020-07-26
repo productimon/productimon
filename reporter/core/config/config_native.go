@@ -41,6 +41,7 @@ func NewConfig() *Config {
 	}
 	file, err := os.Open(filepath.Join(config.workDir, "config.json"))
 	if err == nil {
+		config.TrackingOptions = make(map[string]bool)
 		defer file.Close()
 		decoder := json.NewDecoder(file)
 		if err = decoder.Decode(&config); err != nil {

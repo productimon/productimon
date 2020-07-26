@@ -25,7 +25,6 @@ static Display *display;
 static Window root_window;
 
 static pthread_t tracking_thread;
-static tracking_opt_t *tracking_opts;
 static pthread_mutex_t tracking_mutex;
 static sem_t event_loop_finished;
 
@@ -124,24 +123,25 @@ static int check_x_input_lib(Display *display) {
 
 static void *event_loop(UNUSED void *arg) {
   prod_debug("Starting tracking with opts: %d|%d|%d (prog|mouse|key)\n",
-             tracking_opts->foreground_program, tracking_opts->mouse_click,
-             tracking_opts->keystroke);
+             get_option("foreground_program"), get_option("mouse_click"),
+             get_option("keystroke"));
 
+  // TODO: this thread doesn't exit if foreground tracking is not on
   long event_mask = 0;
-  if (tracking_opts->foreground_program) {
+  if (get_option("foreground_program")) {
     // receive property change events
     event_mask |= PropertyChangeMask;
     XSelectInput(display, root_window, event_mask);
   }
 
   XIEventMask xi_event_mask;
-  if (tracking_opts->keystroke || tracking_opts->mouse_click) {
+  if (get_option("keystroke") || get_option("mouse_click")) {
     unsigned char xi_mask_val[(XI_LASTEVENT + 7 / 8)] = {0};
     xi_event_mask.deviceid = XIAllMasterDevices;
     xi_event_mask.mask_len = sizeof(xi_mask_val);
     xi_event_mask.mask = xi_mask_val;
-    XISetMask(xi_mask_val, XI_RawKeyPress);
-    XISetMask(xi_mask_val, XI_RawButtonPress);
+    if (get_option("keystroke")) XISetMask(xi_mask_val, XI_RawKeyPress);
+    if (get_option("mouse_click")) XISetMask(xi_mask_val, XI_RawButtonPress);
     XISelectEvents(display, root_window, &xi_event_mask, 1);
   }
 
@@ -179,7 +179,7 @@ int init_tracking() {
   return 0;
 }
 
-static int start_tracking_impl(tracking_opt_t *opts, bool inhibit) {
+static int start_tracking_impl(bool inhibit) {
   pthread_mutex_lock(&tracking_mutex);
   if (ProdCoreIsTracking()) {
     prod_error("Tracking tracking_started already!\n");
@@ -206,17 +206,16 @@ static int start_tracking_impl(tracking_opt_t *opts, bool inhibit) {
   // get root window
   root_window = XDefaultRootWindow(display);
 
-  tracking_opts = opts;
-
-  if (!(opts->foreground_program || opts->mouse_click || opts->keystroke)) {
+  if (!(get_option("foreground_program") || get_option("mouse_click") ||
+        get_option("keystroke"))) {
     prod_debug("Nothing to be tracked, not doing anything\n");
     goto exit_success;
   }
 
-  if ((opts->mouse_click || opts->keystroke) && !xi_major_opcode) {
+  if ((get_option("mouse_click") || get_option("keystroke")) &&
+      !xi_major_opcode) {
     prod_error("Requested mouse/key stats but X input lib not available!\n");
-    opts->mouse_click = false;
-    opts->keystroke = false;
+    goto exit_error;
   }
 
   if (inhibit && init_inhibit(suspend_tracking, resume_tracking)) {
@@ -283,9 +282,7 @@ exit:
   pthread_mutex_unlock(&tracking_mutex);
 }
 
-int start_tracking(tracking_opt_t *opts) {
-  return start_tracking_impl(opts, true);
-}
+int start_tracking() { return start_tracking_impl(true); }
 
 void stop_tracking() { stop_tracking_impl(false); }
 
@@ -294,7 +291,7 @@ static void suspend_tracking() { stop_tracking_impl(true); }
 static void resume_tracking() {
   /* this is called from the inhibit module,
    * no need to init it again */
-  start_tracking_impl(tracking_opts, false);
+  start_tracking_impl(false);
 }
 
 void run_event_loop() {

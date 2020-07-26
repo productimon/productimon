@@ -1,9 +1,10 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "objc_library")
 
 cc_library(
-    name = "tracking-header",
+    name = "trackinglib-generic",
+    srcs = ["tracking.c"],
     hdrs = ["tracking.h"],
-    visibility = ["//reporter:__subpackages__"],
+    deps = ["//reporter/core/cgo:cgo.cc"],
 )
 
 cc_library(
@@ -12,14 +13,12 @@ cc_library(
         "linux/*.c",
         "linux/*.h",
     ]),
-    hdrs = ["tracking.h"],
     defines = select({
         "//internal:debug_build": ["DEBUG"],
         "//conditions:default": [],
     }),
-    visibility = ["//reporter:__pkg__"],
     deps = [
-        "//reporter/core/cgo:cgo.cc",
+        ":trackinglib-generic",
         "@dbus",
         "@system_libs//:pthread",
         "@system_libs//:x11",
@@ -33,7 +32,6 @@ cc_library(
         "windows/*.c",
         "windows/*.h",
     ]),
-    hdrs = ["tracking.h"],
     defines = select({
         "//internal:debug_build": ["DEBUG"],
         "//conditions:default": [],
@@ -44,16 +42,14 @@ cc_library(
         "-lshlwapi",
         "-lwtsapi32",
     ],
-    visibility = ["//reporter:__pkg__"],
     deps = [
-        "//reporter/core/cgo:cgo.cc",
+        ":trackinglib-generic",
     ],
 )
 
 objc_library(
     name = "trackinglib-macos",
     srcs = ["macos/tracking.m"],
-    hdrs = ["tracking.h"],
     defines = select({
         "//internal:debug_build": ["DEBUG"],
         "//conditions:default": [],
@@ -62,9 +58,8 @@ objc_library(
         "AppKit",
         "Security",
     ],
-    visibility = ["//reporter:__pkg__"],
     deps = [
-        "//reporter/core/cgo:cgo.cc",
+        ":trackinglib-generic",
     ],
 )
 
@@ -72,8 +67,8 @@ cc_library(
     name = "trackinglib",
     visibility = ["//reporter:__subpackages__"],
     deps = select({
-        "@bazel_tools//src/conditions:darwin": ["//reporter/plat:trackinglib-macos"],
-        "@bazel_tools//src/conditions:linux_x86_64": ["//reporter/plat:trackinglib-linux"],
-        "@bazel_tools//src/conditions:windows": ["//reporter/plat:trackinglib-windows"],
+        "@bazel_tools//src/conditions:darwin": [":trackinglib-macos"],
+        "@bazel_tools//src/conditions:linux_x86_64": [":trackinglib-linux"],
+        "@bazel_tools//src/conditions:windows": [":trackinglib-windows"],
     }),
 )

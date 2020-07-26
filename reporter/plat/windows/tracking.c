@@ -27,7 +27,6 @@
 static HANDLE tracking_mutex = NULL;
 static HANDLE tracking_thread = NULL;
 static DWORD tracking_thread_id;
-static tracking_opt_t *tracking_opts;
 
 static HWND window_handle;
 static HHOOK mouse_hook;
@@ -172,7 +171,7 @@ static LRESULT CALLBACK mouseclick_callback(_In_ int nCode, _In_ WPARAM wParam,
 }
 
 static int install_hooks(bool register_session_ntfn) {
-  if (tracking_opts->foreground_program) {
+  if (get_option("foreground_program")) {
     // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwineventhook?redirectedfrom=MSDN
     window_change_hook = SetWinEventHook(
         EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, callback, 0, 0,
@@ -184,7 +183,7 @@ static int install_hooks(bool register_session_ntfn) {
     }
   }
 
-  if (tracking_opts->keystroke) {
+  if (get_option("keystroke")) {
     key_hook = SetWindowsHookExA(WH_KEYBOARD_LL, keystroke_callback, NULL, 0);
     prod_debug("SetWindowsHookExA for keyboard got %d\n", key_hook);
     if (key_hook == NULL) {
@@ -193,7 +192,7 @@ static int install_hooks(bool register_session_ntfn) {
     }
   }
 
-  if (tracking_opts->mouse_click) {
+  if (get_option("mouse_click")) {
     mouse_hook = SetWindowsHookExA(WH_MOUSE_LL, mouseclick_callback, NULL, 0);
     prod_debug("SetWindowsHookExA for mouseclick got %d\n", mouse_hook);
     if (mouse_hook == NULL) {
@@ -217,13 +216,13 @@ static int install_hooks(bool register_session_ntfn) {
 
 static void suspend_tracking() {
   WaitForSingleObject(tracking_mutex, INFINITE);
-  if (tracking_opts->foreground_program && !UnhookWinEvent(window_change_hook))
+  if (get_option("foreground_program") && !UnhookWinEvent(window_change_hook))
     prod_error("Failed to remove window change hook: %d\n", GetLastError());
 
-  if (tracking_opts->keystroke && !UnhookWindowsHookEx(key_hook))
+  if (get_option("keystroke") && !UnhookWindowsHookEx(key_hook))
     prod_error("Failed to remove key hook: %d\n", GetLastError());
 
-  if (tracking_opts->mouse_click && !UnhookWindowsHookEx(mouse_hook))
+  if (get_option("mouse_click") && !UnhookWindowsHookEx(mouse_hook))
     prod_error("Failed to remove mosue hook: %d\n", GetLastError());
 
   ProdCoreStopTracking();
@@ -296,7 +295,7 @@ int init_tracking() {
   return 0;
 }
 
-int start_tracking(tracking_opt_t *opts) {
+int start_tracking() {
   WaitForSingleObject(tracking_mutex, INFINITE);
   if (ProdCoreIsTracking()) {
     prod_error("tracking started already!\n");
@@ -304,8 +303,8 @@ int start_tracking(tracking_opt_t *opts) {
     return 0;
   }
 
-  tracking_opts = opts;
-  if (!(opts->foreground_program || opts->mouse_click || opts->keystroke)) {
+  if (!(get_option("foreground_program") || get_option("mouse_click") ||
+        get_option("keystroke"))) {
     prod_debug("Nothing to be tracked, not doing anything\n");
     ReleaseMutex(tracking_mutex);
     return 1;
@@ -338,7 +337,6 @@ void stop_tracking() {
 
   tracking_thread = NULL;
   tracking_thread_id = 0;
-  tracking_opts = NULL;
   window_handle = NULL;
   mouse_hook = NULL;
   key_hook = NULL;

@@ -11,17 +11,18 @@
 #include <QtWidgets/QMenu>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QVBoxLayout>
+#include <vector>
 
 #include "reporter/core/cgo/cgo.h"
+#include "reporter/gui/OptionCheckBox.h"
 #include "reporter/plat/tracking.h"
 
+// TODO rename file names to corespond to class name
+// TODO disable resizing for this setting window
 MainWindow::MainWindow() {
-  autoRun = true;
-  forgroundProg = true;
-  mouseClicks = true;
-  keystrokes = true;
-
   setupMainLayout();
+
+  fetchStates();
 
   setWindowTitle(tr("Settings"));
 
@@ -33,6 +34,7 @@ MainWindow::MainWindow() {
   setCentralWidget(widget);
 
   trayIcon->show();
+  // TODO set the icon to be our logo
   trayIcon->showMessage("Productimon Data Reporter", "Authenticated");
 
   resize(400, 300);
@@ -58,10 +60,20 @@ void MainWindow::quit() {
 void MainWindow::startStopRecorder() {
   if (ProdCoreIsTracking()) {
     stop_tracking();
+    // TODO set the icon to be our logo
     trayIcon->showMessage("Productimon Data Reporter", "Tracking stopped");
     startStopAction->setText(tr("Start Recorder"));
   } else {
-    start_tracking(&tracking_opts);
+    if (start_tracking()) {
+      // TODO set the icon to be our logo
+      // TODO use a message box instead?
+      // figure out a way to pass error message from core to here
+      // something like ProdCoreGetLastError would work fine
+      trayIcon->showMessage("Productimon Data Reporter",
+                            "Failed to start tracking");
+      return;
+    }
+    // TODO set the icon to be our logo
     trayIcon->showMessage("Productimon Data Reporter", "Tracking started");
     startStopAction->setText(tr("Stop Recorder"));
   }
@@ -73,7 +85,7 @@ void MainWindow::createActions() {
           &MainWindow::startStopRecorder);
 
   settings = new QAction(tr("&Settings"), this);
-  connect(settings, &QAction::triggered, this, &MainWindow::loadSettings);
+  connect(settings, &QAction::triggered, this, &MainWindow::showSettingWindow);
 
   quitAction = new QAction(tr("&Quit"), this);
   connect(quitAction, &QAction::triggered, this, &MainWindow::quit);
@@ -93,14 +105,15 @@ void MainWindow::createTrayIcon() {
   trayIcon = new QSystemTrayIcon(this);
   trayIcon->setContextMenu(trayIconMenu);
 
-  trayIcon->setIcon(QIcon(":/reporter/gui/images/nucleusIcon.png"));
+  trayIcon->setIcon(QIcon(":/images/nucleusIcon.png"));
 }
 
 void MainWindow::createCB() {
-  autoRunOnStartUpCB = new QCheckBox(this);
-  foregroungProgCB = new QCheckBox(this);
-  mouseClicksCB = new QCheckBox(this);
-  keystrokesCB = new QCheckBox(this);
+  for (size_t i = 0; i < NUM_OPTIONS; i++) {
+    auto optName = tracking_options[i].opt_name;
+    auto displayName = tracking_options[i].display_name;
+    checkBoxes.push_back(new OptionCheckBox(this, optName, displayName));
+  }
 }
 
 void MainWindow::createButtons() {
@@ -126,15 +139,11 @@ void MainWindow::createGridBox() {
   gridGB = new QGroupBox(tr("Tracking Options"));
   QGridLayout *gridLayout = new QGridLayout();
 
-  gridLayout->addWidget(new QLabel(tr("Foreground Programs:")), 0, 0);
-  gridLayout->addWidget(new QLabel(tr("Mouse Clicks:")), 1, 0);
-  gridLayout->addWidget(new QLabel(tr("Keystrokes:")), 2, 0);
-  gridLayout->addWidget(new QLabel(tr("Auto Run at Startup:")), 3, 0);
-
-  gridLayout->addWidget(foregroungProgCB, 0, 2);
-  gridLayout->addWidget(mouseClicksCB, 1, 2);
-  gridLayout->addWidget(keystrokesCB, 2, 2);
-  gridLayout->addWidget(autoRunOnStartUpCB, 3, 2);
+  for (size_t i = 0; i < checkBoxes.size(); i++) {
+    auto checkbox = checkBoxes[i];
+    gridLayout->addWidget(new QLabel(tr(checkbox->displayName)), i, 0);
+    gridLayout->addWidget(checkbox, i, 2);
+  }
 
   gridLayout->setColumnMinimumWidth(0, 300);
 
@@ -143,7 +152,7 @@ void MainWindow::createGridBox() {
   gridGB->setLayout(gridLayout);
 }
 
-void MainWindow::loadSettings() {
+void MainWindow::showSettingWindow() {
   fetchStates();
   this->show();
   QWidget::activateWindow();
@@ -151,25 +160,35 @@ void MainWindow::loadSettings() {
 }
 
 void MainWindow::fetchStates() {
-  // find current recorder settings
-
-  autoRunOnStartUpCB->setChecked(autoRun);
-  foregroungProgCB->setChecked(forgroundProg);
-  mouseClicksCB->setChecked(mouseClicks);
-  keystrokesCB->setChecked(keystrokes);
+  for (auto checkbox : checkBoxes) {
+    checkbox->setChecked(get_option(checkbox->optName));
+  }
 }
 
 void MainWindow::cancelBtnClicked() { this->hide(); }
 
 void MainWindow::applyBtnClicked() {
-  // submit changes
+  std::vector<const char *> options;
+  bool tracking = ProdCoreIsTracking();
 
-  autoRun = autoRunOnStartUpCB->checkState();
-  forgroundProg = foregroungProgCB->checkState();
-  mouseClicks = mouseClicksCB->checkState();
-  keystrokes = keystrokesCB->checkState();
+  if (tracking) {
+    stop_tracking();
+  }
 
+  for (auto checkbox : checkBoxes) {
+    if (checkbox->checkState()) options.push_back(checkbox->optName);
+  }
+  options.push_back(NULL);
+
+  ProdCoreSetOptions((char **)options.data());
+  ProdCoreSaveConfig();
+
+  if (tracking) {
+    start_tracking();
+  }
   this->hide();
+  // TODO set the icon to be our logo
+  trayIcon->showMessage("Productimon Data Reporter", "Settings updated");
 }
 
 #endif

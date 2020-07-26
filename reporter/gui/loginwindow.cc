@@ -2,6 +2,7 @@
 
 #include <QtWidgets/QtWidgets>
 #include <string>
+#include <cstdlib>
 
 #include "reporter/core/cgo/cgo.h"
 #include "reporter/gui/mainwindow.h"
@@ -29,7 +30,8 @@ void LoginWindow::tryLogin() {
              TO_C_STR(password), TO_C_STR(deviceName));
   if (ProdCoreInitReporterByCreds(TO_C_STR(server), TO_C_STR(username),
                                   TO_C_STR(password), TO_C_STR(deviceName))) {
-    new MainWindow();
+    auto settingsWindow = new MainWindow();
+    settingsWindow->show();
     this->hide();
   } else {
     // TODO figure out a way to pass error message from core to here
@@ -67,8 +69,9 @@ void LoginWindow::quit() { QApplication::quit(); }
 void LoginWindow::createGridGroupBox() {
   gridGroupBox = new QGroupBox();
   QGridLayout *layout = new QGridLayout;
-
-  serverField = new QLineEdit("api.productimon.com:4201");
+  char *server = ProdCoreGetServer();
+  serverField = new QLineEdit(server);
+  free(server);
   usernameField = new QLineEdit;
   passwordField = new QLineEdit;
   passwordField->setEchoMode(QLineEdit::Password);

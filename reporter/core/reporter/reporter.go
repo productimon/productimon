@@ -134,6 +134,18 @@ func (r *Reporter) Login(server, username, password, deviceName string) bool {
 	return true
 }
 
+func (r *Reporter) SetOptions(options ...string) {
+	r.Config.SetOptions(options...)
+}
+
+func (r *Reporter) IsOptionEnabled(opt string) bool {
+	return r.Config.IsOptionEnabled(opt)
+}
+
+func (r *Reporter) SaveConfig() error {
+	return r.Config.Save()
+}
+
 // Initiate reporter and go into the main event loop
 //
 // If it successfully authenticates, a goroutine is created to run event loop,

@@ -11,17 +11,13 @@
 static char command[MAX_CMD_LEN];
 
 void *command_loop(UNUSED void *arg) {
-  // TODO: use core module config for this
-  tracking_opt_t opts = {
-      .foreground_program = 1, .mouse_click = 1, .keystroke = 1};
-
   printf("Productimon data reporter CLI\n");
   printf("Valid commands are: start, stop and exit\n");
 
   printf("> ");
   while (fgets(command, MAX_CMD_LEN, stdin) != NULL) {
     if (strcmp(command, "start\n") == 0) {
-      start_tracking(&opts);
+      start_tracking();
     } else if (strcmp(command, "stop\n") == 0) {
       stop_tracking();
     } else if (strcmp(command, "exit\n") == 0 ||

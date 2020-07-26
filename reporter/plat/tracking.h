@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define UNUSED __attribute__((unused))
 
@@ -18,17 +20,20 @@
 extern "C" {
 #endif
 
-typedef struct tracking_opt {
-  uint8_t foreground_program : 1;
-  uint8_t mouse_click : 1;
-  uint8_t keystroke : 1;
-} tracking_opt_t;
+struct tracking_option {
+  const char *opt_name;
+  const char *display_name;
+};
+
+extern const struct tracking_option tracking_options[];
+extern const size_t NUM_OPTIONS;
 
 int init_tracking();
-int start_tracking(tracking_opt_t *opts);
+int start_tracking();
 void stop_tracking();
 void run_event_loop();
 void stop_event_loop();
+bool get_option(const char *opt);
 
 #ifdef __cplusplus
 }

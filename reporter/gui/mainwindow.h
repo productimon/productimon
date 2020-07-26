@@ -6,7 +6,9 @@
 #ifndef QT_NO_SYSTEMTRAYICON
 
 #include <QtWidgets/QMainWindow>
+#include <vector>
 
+#include "reporter/gui/OptionCheckBox.h"
 #include "reporter/plat/tracking.h"
 
 QT_BEGIN_NAMESPACE
@@ -29,7 +31,7 @@ class MainWindow : public QMainWindow {
   void quit();
   void startStopRecorder();
 
-  void loadSettings();
+  void showSettingWindow();
 
   void cancelBtnClicked();
   void applyBtnClicked();
@@ -47,25 +49,14 @@ class MainWindow : public QMainWindow {
   QPushButton *cancelBtn;
   QPushButton *applyBtn;
 
-  QCheckBox *autoRunOnStartUpCB;
-  QCheckBox *foregroungProgCB;
-  QCheckBox *mouseClicksCB;
-  QCheckBox *keystrokesCB;
+  std::vector<OptionCheckBox *> checkBoxes;
 
   QGroupBox *gridGB;
   QGroupBox *buttonGB;
   QVBoxLayout *mainLayout;
 
-  bool autoRun;
-  bool forgroundProg;
-  bool mouseClicks;
-  bool keystrokes;
-
   QSystemTrayIcon *trayIcon;
   QMenu *trayIconMenu;
-
-  tracking_opt_t tracking_opts = {
-      .foreground_program = 1, .mouse_click = 1, .keystroke = 1};
 };
 
 #endif  // QT_NO_SYSTEMTRAYICON

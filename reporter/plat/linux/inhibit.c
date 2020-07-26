@@ -15,8 +15,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "reporter/plat/tracking.h"
 #include "reporter/core/cgo/cgo.h"
+#include "reporter/plat/tracking.h"
 
 #define SLEEP_SIGNAL_MATCH                                    \
   "type='signal',interface='org.freedesktop.login1.Manager'," \
@@ -254,7 +254,8 @@ exit:
 int init_inhibit(inhibit_hook_f _sleep_callback,
                  inhibit_hook_f _wakeup_callback) {
   /* tell D-Bus to do locking */
-  /* since D-Bus 1.7 it is safe to call this function from any thread, any number of times */
+  /* since D-Bus 1.7 it is safe to call this function from any thread, any
+   * number of times */
   /* this is the first entry-point in inhibit.c */
   dbus_threads_init_default();
   sleep_callback = _sleep_callback;
