@@ -183,10 +183,10 @@ export default function Dashboard(props) {
     if (oldIndex === newIndex) return;
     const delta = oldIndex > newIndex ? 1 : -1;
     const [lo, hi] =
-      oldIndex > newIndex ? [newIndex, oldIndex] : [oldIndex + 1, newIndex];
+      oldIndex > newIndex ? [newIndex, oldIndex - 1] : [oldIndex + 1, newIndex];
 
     const shiftedGraphs = Object.entries(graphs)
-      .filter(([_, g]) => g.graphOrder >= lo && g.graphOrder < hi)
+      .filter(([_, g]) => g.graphOrder >= lo && g.graphOrder <= hi)
       .reduce(
         (ret, [id, g]) => ({
           ...ret,
