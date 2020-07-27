@@ -18,7 +18,6 @@
 #include "reporter/plat/tracking.h"
 
 // TODO rename file names to corespond to class name
-// TODO disable resizing for this setting window
 MainWindow::MainWindow() {
   setupMainLayout();
 
@@ -37,7 +36,7 @@ MainWindow::MainWindow() {
   // TODO set the icon to be our logo
   trayIcon->showMessage("Productimon Data Reporter", "Authenticated");
 
-  resize(400, 300);
+  this->setFixedSize(QSize(400, 300));
 }
 
 void MainWindow::setupMainLayout() {
