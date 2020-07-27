@@ -638,9 +638,21 @@ new_local_repository(
 )
 
 new_local_repository(
-    name = "qt_mac",
-    build_file = "//third_party:qt-mac.BUILD",
-    path = "/usr/local/opt/qt/include/",
+    name = "qt_mac_headers",
+    build_file = "//third_party:qt-mac-headers.BUILD",
+    path = "/usr/local/opt/qt/include",
+)
+
+new_local_repository(
+    name = "qt_mac_frameworks",
+    build_file = "//third_party:qt-mac-frameworks.BUILD",
+    path = "/usr/local/opt/qt/lib",
+)
+
+new_local_repository(
+    name = "qt_mac_plugins",
+    build_file = "//third_party:qt-mac-plugins.BUILD",
+    path = "/usr/local/opt/qt/plugins",
 )
 
 new_local_repository(

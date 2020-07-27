@@ -74,9 +74,7 @@ This dependency is also needed for running our GUI since we're using a dynamic l
 
 ### macOS
 
-#### Qt
-
-`brew install qt`
+It should work on lastest macOS without any runtime dependencies
 
 ## Running Instructions
 

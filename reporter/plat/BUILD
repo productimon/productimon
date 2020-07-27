@@ -75,5 +75,8 @@ cc_library(
 )
 
 exports_files(
-    ["macos/Info.plist"],
+    [
+        "macos/Info.plist",
+        "macos/install_names.sh",
+    ],
 )

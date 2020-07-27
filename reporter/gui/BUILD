@@ -5,8 +5,8 @@ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 cc_library(
     name = "qt",
     deps = select({
-        "@bazel_tools//src/conditions:darwin": ["@qt_mac//:qt_widgets"],
-        "@bazel_tools//src/conditions:darwin_x86_64": ["@qt_mac//:qt_widgets"],
+        "@bazel_tools//src/conditions:darwin": ["@qt_mac_headers//:qt_widgets"],
+        "@bazel_tools//src/conditions:darwin_x86_64": ["@qt_mac_headers//:qt_widgets"],
         "@bazel_tools//src/conditions:linux_x86_64": ["@qt_linux//:qt_widgets"],
         "@bazel_tools//src/conditions:windows": ["@qt_msys//:qt_widgets"],
     }),
@@ -62,9 +62,14 @@ cc_binary(
 
 macos_application(
     name = "gui-macos",
+    additional_contents = {
+        "@qt_mac_frameworks//:qt-frameworks": "Frameworks",
+        "@qt_mac_plugins//:qt-plugins": "plugins",
+    },
     bundle_id = "com.productimon.reporter",
     bundle_name = "Productimon Reporter",
     infoplists = ["//reporter/plat:macos/Info.plist"],
+    ipa_post_processor = "//reporter/plat:macos/install_names.sh",
     minimum_os_version = "10.15",  # TODO better than this
     resources = ["//images:apple_icns"],
     deps = [":gui-all"],
