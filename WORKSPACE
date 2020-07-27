@@ -570,11 +570,56 @@ go_repository(
 
 http_archive(
     name = "com_justbuchanan_rules_qt",
+    sha256 = "a25924da08346be8f4a0b019bc3cb7a6fdc18d82c35b38b70a0fdc9a118b0846",
     strip_prefix = "bazel_rules_qt-b293b5afd8772ef7de0069ad01a96e373535ee6e",
     urls = [
         "https://github.com/justbuchanan/bazel_rules_qt/archive/b293b5afd8772ef7de0069ad01a96e373535ee6e.tar.gz",
     ],
 )
+
+http_archive(
+    name = "build_bazel_rules_apple",
+    sha256 = "af814a595939cea6c8d3be09fc0fdfb0ff96703f5c21c789b300fd4226298586",
+    strip_prefix = "rules_apple-09dbddf9c5d203d1dbb2b8a38f1ad77b3813bf72",
+    urls = [
+        "https://github.com/bazelbuild/rules_apple/archive/09dbddf9c5d203d1dbb2b8a38f1ad77b3813bf72.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "build_bazel_rules_swift",
+    sha256 = "e7dfaf708c47d0fb8919c2b81cb3504bfbc31851fdcde666474e0e22e9f6efd8",
+    strip_prefix = "rules_swift-b1610a1b21480851ca37d245795dbfb3b3c7c2fd",
+    urls = ["https://github.com/bazelbuild/rules_swift/archive/b1610a1b21480851ca37d245795dbfb3b3c7c2fd.tar.gz"],
+)
+
+http_archive(
+    name = "build_bazel_apple_support",
+    sha256 = "1306d854604344933114b55fc9690239d19f1fe4575d3e09bc93268a5f74751c",
+    strip_prefix = "apple_support-647480b45440131b34d9cc8ffbbba39b72acccb2",
+    urls = ["https://github.com/bazelbuild/apple_support/archive/647480b45440131b34d9cc8ffbbba39b72acccb2.tar.gz"],
+)
+
+load(
+    "@build_bazel_rules_apple//apple:repositories.bzl",
+    "apple_rules_dependencies",
+)
+
+apple_rules_dependencies()
+
+load(
+    "@build_bazel_rules_swift//swift:repositories.bzl",
+    "swift_rules_dependencies",
+)
+
+swift_rules_dependencies()
+
+load(
+    "@build_bazel_apple_support//lib:repositories.bzl",
+    "apple_support_dependencies",
+)
+
+apple_support_dependencies()
 
 # TODO build required qt libs from source
 # http_archive(

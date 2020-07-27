@@ -33,7 +33,6 @@ MainWindow::MainWindow() {
   setCentralWidget(widget);
 
   trayIcon->show();
-  // TODO set the icon to be our logo
   trayIcon->showMessage("Productimon Data Reporter", "Authenticated");
 
   this->setFixedSize(QSize(400, 300));
@@ -59,12 +58,10 @@ void MainWindow::quit() {
 void MainWindow::startStopRecorder() {
   if (ProdCoreIsTracking()) {
     stop_tracking();
-    // TODO set the icon to be our logo
     trayIcon->showMessage("Productimon Data Reporter", "Tracking stopped");
     startStopAction->setText(tr("Start Recorder"));
   } else {
     if (start_tracking()) {
-      // TODO set the icon to be our logo
       // TODO use a message box instead?
       // figure out a way to pass error message from core to here
       // something like ProdCoreGetLastError would work fine
@@ -72,7 +69,6 @@ void MainWindow::startStopRecorder() {
                             "Failed to start tracking");
       return;
     }
-    // TODO set the icon to be our logo
     trayIcon->showMessage("Productimon Data Reporter", "Tracking started");
     startStopAction->setText(tr("Stop Recorder"));
   }
@@ -186,7 +182,6 @@ void MainWindow::applyBtnClicked() {
     start_tracking();
   }
   this->hide();
-  // TODO set the icon to be our logo
   trayIcon->showMessage("Productimon Data Reporter", "Settings updated");
 }
 

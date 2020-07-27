@@ -68,7 +68,12 @@ cc_library(
     visibility = ["//reporter:__subpackages__"],
     deps = select({
         "@bazel_tools//src/conditions:darwin": [":trackinglib-macos"],
+        "@bazel_tools//src/conditions:darwin_x86_64": [":trackinglib-macos"],
         "@bazel_tools//src/conditions:linux_x86_64": [":trackinglib-linux"],
         "@bazel_tools//src/conditions:windows": [":trackinglib-windows"],
     }),
+)
+
+exports_files(
+    ["macos/Info.plist"],
 )

@@ -36,8 +36,6 @@ xcode-select --install
 
 After installing qt, make sure to update your PATH to include qt's bin. For me it was `echo 'export PATH="/usr/local/opt/qt/bin:$PATH"' >> ~/.bashrc`
 
-This dependency is also needed for running our GUI since we're using a dynamic linked version of Qt now.
-
 ### Windows
 
 #### Qt in MSYS
@@ -73,6 +71,12 @@ This dependency is also needed for running our GUI since we're using a dynamic l
 #### x input extension
 
 `sudo apt install libxi6`
+
+### macOS
+
+#### Qt
+
+`brew install qt`
 
 ## Running Instructions
 
