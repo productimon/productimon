@@ -56,7 +56,7 @@ const google_colors = [
 
 const fixedColorMap = {
   Active: "#dc3912",
-  "Non-active": "#3366cc",
+  Inactive: "#3366cc",
   Total: "#3366cc",
 };
 
