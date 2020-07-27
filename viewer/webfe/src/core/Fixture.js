@@ -243,8 +243,21 @@ export default function Fixture(props) {
               <ListItemText primary={graphTitle(graph)} />
             </ListItem>
           ))}
-        </List>
+
+          <Divider />
+          <ListItem
+            button
+            onClick={() => gotoLink("/dashboard/admin")}
+            selected={location.pathname == "/dashboard/admin"}
+          >
+            <ListItemIcon>
+              <DashboardIcon />
+            </ListItemIcon>
+            <ListItemText primary="Admin Labels" />
+          </ListItem>
+
         <Divider />
+        </List>
       </Drawer>
     </React.Fragment>
   );

@@ -22,6 +22,8 @@ import { rpc } from "../Utils";
 import Graph from "./Graph";
 import FullScreenGraph from "./FullScreenGraph";
 
+import AdminLabelManagement from "./AdminLabelManagement";
+
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Empty } from "productimon/proto/common/common_pb";
 
@@ -222,6 +224,17 @@ export default function Dashboard(props) {
                 <DashboardCustomizer
                   onAdd={(graphSpec) => addGraph(graphSpec)}
                 />
+              </Grid>
+            </Grid>
+          </Container>
+        </div>
+      </Route>
+      <Route path="/dashboard/admin">
+        <div>
+          <Container maxWidth="lg" className={classes.container}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={12} lg={12}>
+                <AdminLabelManagement/>
               </Grid>
             </Grid>
           </Container>
