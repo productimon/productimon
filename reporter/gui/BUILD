@@ -58,6 +58,19 @@ cc_binary(
     deps = [
         ":gui-all",
     ],
+    linkopts = select({
+        "@bazel_tools//src/conditions:windows": ["-mwindows"],
+        "//conditions:default": [],
+    }),
+)
+
+genrule(
+    name = "gui-windows",
+    srcs = [":gui-binary"],
+    outs = ["gui-windows.zip"],
+    cmd = "$(location //tools:bundle-win-app.sh) $(location :gui-binary) $(OUTS)",
+    message = "Generating Windows bundle",
+    tools = ["//tools:bundle-win-app.sh"],
 )
 
 macos_application(

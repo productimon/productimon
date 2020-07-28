@@ -25,4 +25,6 @@ This dependency is also needed for running our GUI since we're using a dynamic l
 
 See details in [https://wiki.qt.io/MSYS2](https://wiki.qt.io/MSYS2)
 
-This dependency is also needed for running our GUI since we're using a dynamic linked version of Qt now.
+`bazel build //reporter/gui` will create a standalone binary that requires dlls from the msys environment and Qt
+
+`bazel build //reporter/gui:gui-windows` will create a zip file containing the binary and all the necessary supporting files required to run on a Windows machine at the location `bazel-bin/reporter/gui/gui-windows.zip`
