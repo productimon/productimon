@@ -22,7 +22,7 @@
 
 #### Qt
 
-TODO
+`sudo apt install qt5-default`
 
 ### macOS
 
@@ -69,6 +69,8 @@ To generate ico icon files
 
 ### Linux
 
+It is assumed some of the common packages come with your distribution like libc and libstdc++
+
 #### xlib client
 
 `sudo apt install libx11-6`
@@ -76,6 +78,14 @@ To generate ico icon files
 #### x input extension
 
 `sudo apt install libxi6`
+
+#### dbus
+
+`sudo apt install libdbus-1-3`
+
+#### Qt libs
+
+`sudo apt install libqt5widgets5 libqt5gui5 libqt5core5a`
 
 ### macOS
 

@@ -1,17 +1,18 @@
 load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application")
 load("@com_justbuchanan_rules_qt//:qt.bzl", "qt_cc_library", "qt_resource")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_pkg//:pkg.bzl", "pkg_deb", "pkg_tar")
 
 cc_library(
     name = "qt",
+    # TODO auto generate a header file containing this
+    defines = ["LOGO_IMG_PATH=\\\"/images/nucleusIcon.png\\\""],
     deps = select({
         "@bazel_tools//src/conditions:darwin": ["@qt_mac_headers//:qt_widgets"],
         "@bazel_tools//src/conditions:darwin_x86_64": ["@qt_mac_headers//:qt_widgets"],
         "@bazel_tools//src/conditions:linux_x86_64": ["@qt_linux//:qt_widgets"],
         "@bazel_tools//src/conditions:windows": ["@qt_msys//:qt_widgets"],
     }),
-    # TODO auto generate a header file containing this
-    defines = ["LOGO_IMG_PATH=\\\"/images/nucleusIcon.png\\\""],
 )
 
 qt_cc_library(
@@ -56,7 +57,7 @@ cc_library(
 )
 
 cc_binary(
-    name = "gui-binary",
+    name = "productimon-reporter",
     deps = [
         ":gui-all",
     ],
@@ -99,12 +100,40 @@ macos_application(
     deps = [":gui-all"],
 )
 
+pkg_tar(
+    name = "gui-linux-tar",
+    srcs = [":productimon-reporter"],
+    mode = "0755",
+    package_dir = "/usr/bin/",
+)
+
+pkg_deb(
+    name = "gui-linux-deb",
+    architecture = "amd64",
+    data = ":gui-linux-tar",
+    depends = [
+        "libstdc++6",
+        "libdbus-1-3",
+        "libx11-6",
+        "libxi6",
+        "libqt5widgets5",
+        "libqt5gui5",
+        "libqt5core5a",
+        "libc6",
+    ],
+    description = "Tracks your usage of apps across devices",
+    homepage = "https://productimon.com",
+    maintainer = "Productimon Team",
+    package = "productimon-reporter",
+    version = "0.1.0",
+)
+
 alias(
     name = "gui",
     actual = select({
         "@bazel_tools//src/conditions:darwin": ":gui-macos",
         "@bazel_tools//src/conditions:windows": ":gui-windows-binary",
-        "//conditions:default": ":gui-binary",
+        "//conditions:default": ":productimon-reporter",
     }),
     visibility = ["//reporter:__subpackages__"],
 )
