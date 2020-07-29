@@ -35,7 +35,7 @@ MainWindow::MainWindow() {
   trayIcon->show();
   trayIcon->showMessage("Productimon Data Reporter", "Authenticated");
 
-  this->setFixedSize(QSize(400, 300));
+  layout()->setSizeConstraint(QLayout::SetFixedSize);
 }
 
 void MainWindow::setupMainLayout() {

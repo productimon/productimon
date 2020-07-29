@@ -17,7 +17,7 @@ LoginWindow::LoginWindow() {
 
   setWindowTitle(tr("Data Reporter Login"));
 
-  resize(400, 300);
+  layout()->setSizeConstraint(QLayout::SetFixedSize);
 }
 
 void LoginWindow::tryLogin() {
@@ -69,6 +69,7 @@ void LoginWindow::quit() { QApplication::quit(); }
 void LoginWindow::createGridGroupBox() {
   gridGroupBox = new QGroupBox();
   QGridLayout *layout = new QGridLayout;
+  layout->setColumnMinimumWidth(1, 200);
   char *server = ProdCoreGetServer();
   serverField = new QLineEdit(server);
   free(server);
