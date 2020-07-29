@@ -26,6 +26,7 @@ import AdminLabelManagement from "./AdminLabelManagement";
 
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Empty } from "productimon/proto/common/common_pb";
+import AdminManagement from "./AdminManagement";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -229,12 +230,23 @@ export default function Dashboard(props) {
           </Container>
         </div>
       </Route>
-      <Route path="/dashboard/admin">
+      <Route path="/dashboard/adminLabels">
         <div>
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={12} lg={12}>
                 <AdminLabelManagement/>
+              </Grid>
+            </Grid>
+          </Container>
+        </div>
+      </Route>
+      <Route path="/dashboard/adminManagement">
+        <div>
+          <Container maxWidth="lg" className={classes.container}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={12} lg={12}>
+                <AdminManagement/>
               </Grid>
             </Grid>
           </Container>

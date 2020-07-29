@@ -243,12 +243,11 @@ export default function Fixture(props) {
               <ListItemText primary={graphTitle(graph)} />
             </ListItem>
           ))}
-
           <Divider />
           <ListItem
             button
-            onClick={() => gotoLink("/dashboard/admin")}
-            selected={location.pathname == "/dashboard/admin"}
+            onClick={() => gotoLink("/dashboard/adminLabels")}
+            selected={location.pathname == "/dashboard/adminLabels"}
           >
             <ListItemIcon>
               <DashboardIcon />
@@ -256,7 +255,17 @@ export default function Fixture(props) {
             <ListItemText primary="Admin Labels" />
           </ListItem>
 
-        <Divider />
+          <ListItem
+            button
+            onClick={() => gotoLink("/dashboard/adminManagement")}
+            selected={location.pathname == "/dashboard/adminManagement"}
+          >
+            <ListItemIcon>
+              <DashboardIcon />
+            </ListItemIcon>
+            <ListItemText primary="Admin Management" />
+          </ListItem>
+          <Divider />
         </List>
       </Drawer>
     </React.Fragment>
