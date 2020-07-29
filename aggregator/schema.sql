@@ -42,9 +42,10 @@ CREATE TABLE default_apps (
 );
 
 CREATE TABLE user_apps (
-  name VARCHAR(255) PRIMARY KEY,
+  name VARCHAR(255),
   uid CHAR(36) NOT NULL,
   label VARCHAR(255),
+  PRIMARY KEY(name, uid),
   FOREIGN KEY (uid) REFERENCES users(id) ON DELETE CASCADE
 );
 
