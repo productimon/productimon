@@ -40,6 +40,7 @@ func (ds *DeviceState) switchApp(db *sql.DB, dblock *sync.Mutex, log *zap.Logger
 }
 
 func (ds *DeviceState) clearState(db *sql.DB, dblock *sync.Mutex, log *zap.Logger, timestamp int64) {
+	// TODO: check if we need to update any goals
 	if ds.running {
 		ds.running = false
 		dblock.Lock()

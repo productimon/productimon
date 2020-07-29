@@ -443,23 +443,27 @@ func (s *service) findActiveTime(uid, dFilter string, stime, etime int64, tx *sq
 	return ret
 }
 
-func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeRequest) (*spb.DataAggregatorGetTimeResponse, error) {
-	uid, did, err := s.auther.AuthenticateRequest(ctx)
-	if err != nil || did != -1 {
-		return nil, status.Error(codes.Unauthenticated, "Invalid token")
-	}
-	devices := req.GetDevices()
+func deviceFilters(fieldname string, devices []*cpb.Device) string {
 	dFilter := ""
 	if len(devices) > 0 {
-		dFilter = " AND events.did IN ("
+		dFilter = " AND " + fieldname + " IN ("
 		pfx := ""
 		for _, dev := range devices {
+			// this works because device ID is integer
+			// so this is not prone to injection
 			dFilter += fmt.Sprintf("%s%d", pfx, dev.Id)
 			pfx = ", "
 		}
 		dFilter += ")"
 	}
-	s.log.Debug("using device filter", zap.String("dFilter", dFilter))
+	return dFilter
+}
+
+func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeRequest) (*spb.DataAggregatorGetTimeResponse, error) {
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
+		return nil, status.Error(codes.Unauthenticated, "Invalid token")
+	}
 
 	intervals := req.GetIntervals()
 
@@ -498,6 +502,11 @@ func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeReq
 
 	rsp := &spb.DataAggregatorGetTimeResponse{}
 
+	devices := req.GetDevices()
+	dFilter := deviceFilters("did", devices)
+	idFilter := deviceFilters("intervals.did", devices)
+	s.log.Debug("using device filter", zap.String("dFilter", dFilter))
+
 	for _, in := range intervals {
 		rd := &spb.DataAggregatorGetTimeResponse_RangeData{Interval: in}
 		s.dbWLock.Lock()
@@ -520,7 +529,7 @@ func (s *service) GetTime(ctx context.Context, req *spb.DataAggregatorGetTimeReq
 				var appname string
 				rows.Scan(&stime, &etime, &atime, &appname)
 				if stime == in.Start.Nanos || etime == in.End.Nanos {
-					atime = s.findActiveTime(uid, dFilter, in.Start.Nanos, in.End.Nanos, tx)
+					atime = s.findActiveTime(uid, idFilter, in.Start.Nanos, in.End.Nanos, tx)
 				}
 				merge(appname, etime-stime, atime, result, tx)
 			}
@@ -551,8 +560,125 @@ func (s *service) VerifyAccount(token string) error {
 	return nil
 }
 
+// get total time for user in interval for a given label/app
+func (s *service) getGoalDuration(uid string, isLabel bool, item, dFilter string, startTime, endTime int64) (duration int64, err error) {
+	st := "SELECT COALESCE(SUM(MIN(endtime, ?)-MAX(starttime, ?)), 0) FROM intervals "
+	defer func() {
+		s.log.Debug("getGoalDuration", zap.String("sql", st), zap.Int64("duration", duration), zap.Error(err))
+	}()
+	if isLabel {
+		st += "LEFT JOIN user_apps ON (user_apps.name = intervals.app AND user_apps.uid = intervals.uid) "
+		st += "LEFT JOIN default_apps ON (user_apps.name IS NULL AND default_apps.name = intervals.app) "
+	}
+	st += "WHERE intervals.uid = ? AND endtime >= ? AND starttime <= ? "
+	if isLabel {
+		st += "AND COALESCE(user_apps.label, default_apps.label, 'Unknown') = ? "
+	} else {
+		st += "AND app = ? "
+	}
+	st += dFilter
+	if err = s.db.QueryRow(st, endTime, startTime, uid, startTime, endTime, item).Scan(&duration); err != nil {
+		return 0, err
+	}
+	return
+}
+
+// precompute goal
+func (s *service) initGoal(g *cpb.Goal) (isLabel bool, item string, isPercent bool, goalDuration, targetDuration, baseDuration int64, err error) {
+	switch i := g.Item.(type) {
+	case *cpb.Goal_Label:
+		isLabel = true
+		item = i.Label
+	case *cpb.Goal_Application:
+		isLabel = false
+		item = i.Application
+	}
+	switch a := g.Amount.(type) {
+	case *cpb.Goal_PercentAmount:
+		isPercent = true
+		if a.PercentAmount < -1 {
+			goalDuration = -1000
+		} else {
+			goalDuration = int64(a.PercentAmount * 1000)
+		}
+	case *cpb.Goal_FixedAmount:
+		isPercent = false
+		goalDuration = a.FixedAmount
+	}
+	if g.CompareInterval == nil {
+		if isPercent {
+			err = errors.New("cannot set percent goal when compare interval is not set")
+			return
+		}
+		baseDuration = 0
+		targetDuration = goalDuration
+		return
+	}
+	if g.CompareInterval.End.Nanos <= g.CompareInterval.Start.Nanos {
+		err = errors.New("invalid compare interval")
+		return
+	}
+	if baseDuration, err = s.getGoalDuration(g.Uid, isLabel, item, deviceFilters("intervals.did", g.GetDevices()), g.CompareInterval.Start.Nanos, g.CompareInterval.End.Nanos); err != nil {
+		return
+	}
+	if g.CompareEqualized {
+		ratio := float64(g.GoalInterval.End.Nanos-g.GoalInterval.Start.Nanos) / float64(g.CompareInterval.End.Nanos-g.CompareInterval.Start.Nanos)
+		baseDuration = int64(float64(baseDuration) * ratio)
+	}
+	if isPercent {
+		targetDuration = int64((1 + float32(goalDuration)/1000) * float32(baseDuration))
+	} else {
+		// NOTE(adamyi@): if equalized, i'm assuming goalDuration doesn't get scaled. only baseDuration gets scaled
+		// please change this if this is not desired
+		targetDuration = baseDuration + goalDuration
+	}
+	return
+}
+
+func (s *service) getGoalProgress(uid, dFilter string, isLabel bool, item string, baseDuration, targetDuration, startTime, endTime int64) (int64, error) {
+	actualDuration, err := s.getGoalDuration(uid, isLabel, item, dFilter, startTime, endTime)
+	if err != nil {
+		return 0, err
+	}
+	result := float64(actualDuration-baseDuration) / float64(targetDuration-baseDuration)
+	if result < 0 {
+		result = 0
+	}
+	if result > 1 {
+		result = 1
+	}
+	return int64(result * 1000), nil
+}
+
 func (s *service) AddGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
+		return nil, status.Error(codes.Unauthenticated, "Invalid token")
+	}
+	goal.Uid = uid
+	s.dbWLock.Lock()
+	defer s.dbWLock.Unlock()
+	if err = s.db.QueryRow("SELECT COALESCE(MAX(id), -1) FROM goals WHERE uid=?", uid).Scan(&goal.Id); err != nil {
+		s.log.Error("error getting goal id", zap.String("uid", uid), zap.Error(err))
+		return nil, status.Error(codes.Internal, "error adding goal")
+	}
+	goal.Id = goal.Id + 1
+	isLabel, item, isPercent, goalDuration, targetDuration, baseDuration, err := s.initGoal(goal)
+	if err != nil {
+		s.log.Error("init goal error", zap.Error(err))
+		return nil, status.Error(codes.Internal, "error adding goal")
+	}
+	progress, err := s.getGoalProgress(uid, deviceFilters("did", goal.GetDevices()), isLabel, item, baseDuration, targetDuration, goal.GoalInterval.Start.Nanos, goal.GoalInterval.End.Nanos)
+	if err != nil {
+		s.log.Error("error getting goal progress", zap.Error(err))
+		return nil, status.Error(codes.Internal, "error adding goal")
+	}
+	if _, err = s.db.Exec("INSERT INTO goals VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ",
+		goal.Uid, goal.Id, isLabel, item, isPercent, goalDuration, targetDuration, baseDuration, goal.GoalInterval.Start.Nanos, goal.GoalInterval.End.Nanos, goal.GetCompareInterval().GetStart().GetNanos(), goal.GetCompareInterval().GetEnd().GetNanos(), goal.DaysOfWeek, goal.CompareEqualized, progress); err != nil {
+		s.log.Error("insert goal failed", zap.Error(err))
+		return nil, status.Error(codes.Internal, "error adding goal")
+	}
+	return &cpb.Empty{}, nil
 }
 
 func (s *service) DeleteGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, error) {
