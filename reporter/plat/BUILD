@@ -28,10 +28,7 @@ cc_library(
 
 cc_library(
     name = "trackinglib-windows",
-    srcs = glob([
-        "windows/*.c",
-        "windows/*.h",
-    ]),
+    srcs = ["//reporter/plat/windows:source_files"],
     defines = select({
         "//internal:debug_build": ["DEBUG"],
         "//conditions:default": [],

@@ -18,6 +18,7 @@ LoginWindow::LoginWindow() {
   setWindowTitle(tr("Data Reporter Login"));
 
   layout()->setSizeConstraint(QLayout::SetFixedSize);
+  setWindowIcon(QIcon(":" LOGO_IMG_PATH));
 }
 
 void LoginWindow::tryLogin() {
@@ -78,7 +79,7 @@ void LoginWindow::createGridGroupBox() {
   passwordField->setEchoMode(QLineEdit::Password);
   deviceNameField = new QLineEdit;
   labels[0] = new QLabel(tr("Server: "));
-  labels[1] = new QLabel(tr("Username: "));
+  labels[1] = new QLabel(tr("Email: "));
   labels[2] = new QLabel(tr("Password: "));
   labels[3] = new QLabel(tr("Device Name: "));
   layout->addWidget(labels[0], 1, 0);

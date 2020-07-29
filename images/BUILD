@@ -21,4 +21,15 @@ genrule(
     visibility = ["//reporter/gui:__subpackages__"],
 )
 
-# TODO generate apple icns file automatically
+genrule(
+    name = "windows_logo_res",
+    srcs = [
+        ":logo",
+        "//reporter/plat/windows:logo.rc",
+    ],
+    outs = ["logo.o"],
+    cmd = "./$(location //tools:gen-windows-ico.sh) $(location //reporter/plat/windows:logo.rc) $(location :logo) $(OUTS)",
+    message = "Generating Windows logo resource file",
+    tools = ["//tools:gen-windows-ico.sh"],
+    visibility = ["//reporter/gui:__subpackages__"],
+)

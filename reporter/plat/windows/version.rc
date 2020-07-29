@@ -1,0 +1,23 @@
+1 VERSIONINFO
+FILEVERSION     0,0,1,0
+PRODUCTVERSION  0,0,1,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "080904E4"
+    BEGIN
+      VALUE "CompanyName", "The Productimon Team"
+      VALUE "FileDescription", "Productimon Reporter for Windows"
+      VALUE "FileVersion", "0.0.1"
+      VALUE "InternalName", "reporter"
+      VALUE "OriginalFilename", "reporter.exe"
+      VALUE "ProductName", "Productimon Reporter"
+      VALUE "ProductVersion", "0.0.1"
+      VALUE "LegalCopyright", "The Productimon Team"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x809, 1252
+  END
+END

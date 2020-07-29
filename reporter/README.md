@@ -48,6 +48,11 @@ See details in [https://wiki.qt.io/MSYS2](https://wiki.qt.io/MSYS2)
 
 This dependency is also needed for running our GUI since we're using a dynamic linked version of Qt now.
 
+#### imagemagick
+To generate ico icon files
+
+`pacman -S mingw-w64-x86_64-imagemagick`
+
 ## Build Instructions
 
 ### normal build

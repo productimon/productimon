@@ -10,6 +10,8 @@ cc_library(
         "@bazel_tools//src/conditions:linux_x86_64": ["@qt_linux//:qt_widgets"],
         "@bazel_tools//src/conditions:windows": ["@qt_msys//:qt_widgets"],
     }),
+    # TODO auto generate a header file containing this
+    defines = ["LOGO_IMG_PATH=\\\"/images/nucleusIcon.png\\\""],
 )
 
 qt_cc_library(
@@ -39,7 +41,7 @@ qt_cc_library(
 
 qt_resource(
     name = "images",
-    files = ["//images:nucleusIcon.png"],
+    files = ["//images:logo"],
 )
 
 cc_library(
@@ -55,20 +57,26 @@ cc_library(
 
 cc_binary(
     name = "gui-binary",
-    linkopts = select({
-        "@bazel_tools//src/conditions:windows": ["-mwindows"],
-        "//conditions:default": [],
-    }),
     deps = [
         ":gui-all",
     ],
 )
 
+cc_binary(
+    name = "gui-windows-binary",
+    srcs = [
+        "//images:windows_logo_res",
+        "//reporter/plat/windows:version_res",
+    ],
+    linkopts = ["-mwindows"],
+    deps = [":gui-all"],
+)
+
 genrule(
     name = "gui-windows",
-    srcs = [":gui-binary"],
+    srcs = [":gui-windows-binary"],
     outs = ["gui-windows.zip"],
-    cmd = "$(location //tools:bundle-win-app.sh) $(location :gui-binary) $(OUTS)",
+    cmd = "$(location //tools:bundle-win-app.sh) $(location :gui-windows-binary) $(OUTS)",
     message = "Generating Windows bundle",
     tools = ["//tools:bundle-win-app.sh"],
 )
@@ -92,6 +100,7 @@ alias(
     name = "gui",
     actual = select({
         "@bazel_tools//src/conditions:darwin": ":gui-macos",
+        "@bazel_tools//src/conditions:windows": ":gui-windows-binary",
         "//conditions:default": ":gui-binary",
     }),
     visibility = ["//reporter:__subpackages__"],

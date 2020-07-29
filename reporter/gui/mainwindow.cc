@@ -36,6 +36,7 @@ MainWindow::MainWindow() {
   trayIcon->showMessage("Productimon Data Reporter", "Authenticated");
 
   layout()->setSizeConstraint(QLayout::SetFixedSize);
+  setWindowIcon(QIcon(":" LOGO_IMG_PATH));
 }
 
 void MainWindow::setupMainLayout() {
@@ -100,7 +101,7 @@ void MainWindow::createTrayIcon() {
   trayIcon = new QSystemTrayIcon(this);
   trayIcon->setContextMenu(trayIconMenu);
 
-  trayIcon->setIcon(QIcon(":/images/nucleusIcon.png"));
+  trayIcon->setIcon(QIcon(":" LOGO_IMG_PATH));
 }
 
 void MainWindow::createCB() {
