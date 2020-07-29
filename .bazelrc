@@ -1,2 +1,2 @@
-build --stamp --workspace_status_command=./tools/workspace-status.sh
-run --stamp --workspace_status_command=./tools/workspace-status.sh
+build --stamp --workspace_status_command=./tools/workspace-status.py
+run --stamp --workspace_status_command=./tools/workspace-status.py
