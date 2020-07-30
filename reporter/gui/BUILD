@@ -55,13 +55,13 @@ cc_library(
 
 cc_binary(
     name = "gui-binary",
-    deps = [
-        ":gui-all",
-    ],
     linkopts = select({
         "@bazel_tools//src/conditions:windows": ["-mwindows"],
         "//conditions:default": [],
     }),
+    deps = [
+        ":gui-all",
+    ],
 )
 
 genrule(
