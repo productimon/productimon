@@ -6,23 +6,37 @@ import "proto/common/common.proto";
 import "proto/common/events.proto";
 
 service DataAggregator {
+  /* status */
   rpc Ping(DataAggregatorPingRequest) returns (DataAggregatorPingResponse);
+
+  /* login */
   rpc Login(DataAggregatorLoginRequest) returns (DataAggregatorLoginResponse);
   rpc Signup(DataAggregatorSignupRequest) returns (DataAggregatorLoginResponse);
   rpc ExtendToken(common.Empty) returns (DataAggregatorLoginResponse);
   rpc UserDetails(common.Empty) returns (DataAggregatorUserDetailsResponse);
   rpc DeviceSignin(DataAggregatorDeviceSigninRequest)
       returns (DataAggregatorDeviceSigninResponse);
+
+  /* events */
   rpc PushEvent(stream common.Event) returns (DataAggregatorPushEventResponse);
   rpc GetEvent(DataAggregatorGetEventRequest) returns (stream common.Event);
+
+  /* analysis */
   rpc GetTime(DataAggregatorGetTimeRequest)
       returns (DataAggregatorGetTimeResponse);
+
+  /* goals */
   rpc AddGoal(common.Goal) returns (common.Empty);
   rpc DeleteGoal(common.Goal) returns (common.Empty);
   rpc EditGoal(common.Goal) returns (common.Empty);
   // TODO: add filters
   rpc GetGoals(common.Empty) returns (DataAggregatorGetGoalsResponse);
-  rpc DeleteAccount(common.Empty) returns (common.Empty);
+
+  /* admin */
+  rpc DeleteAccount(common.Empty)
+      returns (common.Empty);  // this deletes the currently-logged in account
+  rpc PromoteAccount(common.User) returns (common.Empty);
+  rpc DemoteAccount(common.User) returns (common.Empty);
 }
 
 message DataAggregatorPingRequest {

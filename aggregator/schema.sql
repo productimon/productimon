@@ -2,7 +2,8 @@ CREATE TABLE users (
   id CHAR(36) PRIMARY KEY,
   email VARCHAR(255) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
-  verified BOOLEAN NOT NULL DEFAULT FALSE
+  verified BOOLEAN NOT NULL DEFAULT FALSE,
+  admin BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE devices (
@@ -68,4 +69,4 @@ CREATE TABLE activity_events (
   FOREIGN KEY (uid, did, id) REFERENCES events(uid, did, id) ON DELETE CASCADE
 );
 
-INSERT INTO users VALUES('9e9b23c8-8cf1-4891-b201-5bc0467ba535','test@productimon.com','$2a$10$18SpmyR9yo4pegsfy/a1W.SuYTmgYSMNoNmuS0T9EQE6OQPh40rLK', TRUE); -- password: test
+INSERT INTO users VALUES('9e9b23c8-8cf1-4891-b201-5bc0467ba535','test@productimon.com','$2a$10$18SpmyR9yo4pegsfy/a1W.SuYTmgYSMNoNmuS0T9EQE6OQPh40rLK', TRUE, TRUE); -- password: test

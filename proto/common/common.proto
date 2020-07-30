@@ -20,6 +20,7 @@ message User {
   string id = 1;
   string email = 2;
   string password = 3;
+  bool admin = 4;
 }
 
 message Device {
