@@ -735,3 +735,10 @@ go_repository(
     sum = "h1:n6qGwyHG61v3ABce1rPVZklEYRT8NFpCMrpZdBUbYGM=",
     version = "v1.1.0",
 )
+
+go_repository(
+    name = "com_github_sethvargo_go_password",
+    importpath = "github.com/sethvargo/go-password",
+    sum = "h1:BTDl4CC/gjf/axHMaDQtw507ogrXLci6XRiLc7i/UHI=",
+    version = "v0.2.0",
+)

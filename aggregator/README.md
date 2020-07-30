@@ -1,7 +1,5 @@
 # aggregator
 
-## running
-
 ### compile
 
 This bundles the frontend as well.
@@ -18,36 +16,13 @@ bazel build //aggregator
 bazel build -c dbg //aggregator
 ```
 
-### init db
-
-```
-sqlite3 db.sqlite3 < schema.sql
-```
-
 ### run
 
 ```
 bazel-bin/aggregator/aggregator_/aggregator --help
 ```
 
+When running for the first time, server certificate is automatically generated. Database is also automatically initiated.
+The credentials for the initial admin user will be printed out in console.
+
 Visit `http://127.0.0.1:4201/`
-
-## testing
-
-### login
-
-```
-grpcurl -d '{"email":"test@productimon.com","password":"test"}' -plaintext 127.0.0.1:4200 productimon.svc.DataAggregator.Login
-```
-
-### extend token
-
-```
-grpcurl -H 'Authorization: {{token}}' -plaintext 127.0.0.1:4200 productimon.svc.DataAggregator.ExtendToken
-```
-
-### check logged in user details
-
-```
-grpcurl -H 'Authorization: {{token}}' -plaintext 127.0.0.1:4200 productimon.svc.DataAggregator.UserDetails
-```

@@ -68,5 +68,3 @@ CREATE TABLE activity_events (
   PRIMARY KEY(uid, did, id),
   FOREIGN KEY (uid, did, id) REFERENCES events(uid, did, id) ON DELETE CASCADE
 );
-
-INSERT INTO users VALUES('9e9b23c8-8cf1-4891-b201-5bc0467ba535','test@productimon.com','$2a$10$18SpmyR9yo4pegsfy/a1W.SuYTmgYSMNoNmuS0T9EQE6OQPh40rLK', TRUE, TRUE); -- password: test

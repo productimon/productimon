@@ -42,6 +42,7 @@ var (
 	flagSMTPUsername      string
 	flagSMTPPasswordFile  string
 	flagSMTPSender        string
+	flagFirstUser         string
 	jsFilename            string
 	mapFilename           string
 	logger                *zap.Logger
@@ -54,11 +55,12 @@ func init() {
 	flag.IntVar(&flagGRPCPublicPort, "grpc_public_port", 4200, "gRPC public-facing port (this usually needs to be the same port as grpc_listen_address, unless you have some fancy NAT infra)")
 	flag.StringVar(&flagPublicKeyPath, "ca_cert", "ca.pem", "Path to CA cert")
 	flag.StringVar(&flagPrivateKeyPath, "ca_key", "ca.key", "Path to CA key")
-	flag.StringVar(&flagDBFilePath, "db_path", "db.sqlite3", "Path to SQLite3 database file")
+	flag.StringVar(&flagDBFilePath, "db_path", "db.sqlite3", "Path to SQLite3 database file (will be automatically created for first time)")
 	flag.StringVar(&flagSMTPServer, "smtp_server", "", "SMTP server for sending email (leave empty to disable SMTP")
 	flag.StringVar(&flagSMTPUsername, "smtp_username", "", "SMTP username for authentication (this is usually the same as sender address, leave empty to disable authentication)")
 	flag.StringVar(&flagSMTPPasswordFile, "smtp_password_file", "", "Path to SMTP password file")
 	flag.StringVar(&flagSMTPSender, "smtp_sender", "", "SMTP sender address for sending emails")
+	flag.StringVar(&flagFirstUser, "first_user_email", "admin@productimon.com", "The email address of the auto-created first admin user (only used when running for first time)")
 	flag.BoolVar(&flagDebug, "debug", false, "enable debug logging")
 }
 
@@ -99,7 +101,10 @@ func main() {
 	}
 	grpcServer := grpc.NewServer(grpcCreds)
 	reflection.Register(grpcServer)
-	s := NewService(auther, db, logger)
+	s, err := NewService(auther, db, logger)
+	if err != nil {
+		logger.Fatal("can't create service", zap.Error(err))
+	}
 	spb.RegisterDataAggregatorServer(grpcServer, s)
 	wrappedGrpc := grpcweb.WrapServer(grpcServer)
 
