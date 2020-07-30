@@ -28,8 +28,11 @@ cp bazel-bin/src/bazel-dev.exe /bin/bazel
 ```
 
 10. Create `~/.bazelrc` in MinGW with the following content (you need to do this after you compile bazel because we need MSVC compiler to compile bazel itself):
+
 ```
-common --compiler=mingw-gcc
+build --compiler=mingw-gcc
+run --compiler=mingw-gcc
+test --compiler=mingw-gcc
 ```
 
 11. Clone and build productimon!
