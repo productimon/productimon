@@ -41,12 +41,7 @@ var rxEmail = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](
 // TODO: what if we recoreded out-of-order events in db and are waiting for an old event when we shutdown server
 func (s *service) lazyInitEidHandler(uid string, did int64) (int64, error) {
 	var eid int64
-	err := s.db.QueryRow("SELECT MAX(id) FROM events WHERE uid=? AND did=?", uid, did).Scan(&eid)
-	switch {
-	case err == sql.ErrNoRows:
-		eid = 0
-
-	case err != nil:
+	if err := s.db.QueryRow("SELECT COALESCE(MAX(id), 0) FROM events WHERE uid=? AND did=?", uid, did).Scan(&eid); err != nil {
 		return -1, err
 	}
 	return eid, nil
@@ -243,7 +238,7 @@ func (s *service) UserDetails(ctx context.Context, req *cpb.Empty) (*spb.DataAgg
 	}
 	var lastEid int64
 	if did != -1 {
-		if err = s.db.QueryRow("SELECT max(id) FROM events WHERE uid = ? AND did=?", uid, did).Scan(&lastEid); err != nil {
+		if err = s.db.QueryRow("SELECT COALESCE(MAX(id), 0) FROM events WHERE uid = ? AND did=?", uid, did).Scan(&lastEid); err != nil {
 			s.log.Error("Failed to get last eid", zap.Error(err), zap.String("uid", uid), zap.Int64("did", did))
 		}
 	}
