@@ -627,3 +627,25 @@ func (s *service) DemoteAccount(ctx context.Context, user *cpb.User) (*cpb.Empty
 	}
 	return &cpb.Empty{}, nil
 }
+
+func (s *service) ListAdmins(ctx context.Context, req *cpb.Empty) (*spb.DataAggregatorListAdminsResponse, error) {
+	if !s.isAdmin(ctx) {
+		return nil, status.Error(codes.Unauthenticated, "Unauthorized")
+	}
+	rsp := &spb.DataAggregatorListAdminsResponse{}
+	rows, err := s.db.Query("SELECT id, email FROM users WHERE admin = TRUE")
+	if err != nil {
+		s.log.Error("failed to query admins", zap.Error(err))
+		return nil, status.Error(codes.Internal, "something went wrong")
+	}
+	defer rows.Close()
+	for rows.Next() {
+		user := &cpb.User{Admin: true}
+		if err = rows.Scan(&user.Id, &user.Email); err != nil {
+			s.log.Error("failed to query admins", zap.Error(err))
+			return nil, status.Error(codes.Internal, "something went wrong")
+		}
+		rsp.Admins = append(rsp.Admins, user)
+	}
+	return rsp, nil
+}

@@ -37,6 +37,7 @@ service DataAggregator {
       returns (common.Empty);  // this deletes the currently-logged in account
   rpc PromoteAccount(common.User) returns (common.Empty);
   rpc DemoteAccount(common.User) returns (common.Empty);
+  rpc ListAdmins(common.Empty) returns (DataAggregatorListAdminsResponse);
 }
 
 message DataAggregatorPingRequest {
@@ -141,4 +142,10 @@ message DataAggregatorGetTimeResponse {
 
 message DataAggregatorGetGoalsResponse {
   repeated common.Goal goals = 1;
+}
+
+message DataAggregatorListAdminsResponse {
+  // TODO: change this to streaming API
+  // group admins by chunk and implement pagination
+  repeated common.User admins = 1;
 }
