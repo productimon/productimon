@@ -25,6 +25,9 @@ import BrushIcon from "@material-ui/icons/Brush";
 import BarChartIcon from "@material-ui/icons/BarChart";
 import PieChartIcon from "@material-ui/icons/PieChart";
 import TableChartIcon from "@material-ui/icons/TableChart";
+import SupervisorAccountIcon from "@material-ui/icons/SupervisorAccount";
+import StorageIcon from "@material-ui/icons/Storage";
+import TextFieldsIcon from "@material-ui/icons/TextFields";
 import ListItemText from "@material-ui/core/ListItemText";
 
 import { redirectToLogin } from "../Utils";
@@ -250,7 +253,7 @@ export default function Fixture(props) {
             selected={location.pathname == "/dashboard/adminLabels"}
           >
             <ListItemIcon>
-              <DashboardIcon />
+              <TextFieldsIcon />
             </ListItemIcon>
             <ListItemText primary="Admin Labels" />
           </ListItem>
@@ -261,10 +264,22 @@ export default function Fixture(props) {
             selected={location.pathname == "/dashboard/adminManagement"}
           >
             <ListItemIcon>
-              <DashboardIcon />
+              <SupervisorAccountIcon />
             </ListItemIcon>
             <ListItemText primary="Admin Management" />
           </ListItem>
+
+          <ListItem
+            button
+            onClick={() => gotoLink("/dashboard/adminServerStatus")}
+            selected={location.pathname == "/dashboard/adminServerStatus"}
+          >
+            <ListItemIcon>
+              <StorageIcon />
+            </ListItemIcon>
+            <ListItemText primary="Admin Server Status" />
+          </ListItem>
+
           <Divider />
         </List>
       </Drawer>
