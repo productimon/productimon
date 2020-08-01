@@ -116,3 +116,11 @@ message Goal {
     int64 device = 16;
   }
 }
+
+message Label {
+  string app = 1;
+  string label = 2;
+  // number of users of this label,
+  // only filled when admin request all labels
+  int64 used_by = 3;
+}

@@ -1,12 +1,17 @@
 package service
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
 	"git.yiad.am/productimon/aggregator/nlp"
+	cpb "git.yiad.am/productimon/proto/common"
+	spb "git.yiad.am/productimon/proto/svc"
 	lru "github.com/hashicorp/golang-lru"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -115,4 +120,68 @@ func (s *Service) RunLabelRoutine() {
 			s.scanDbToLabelQueue()
 		}
 	}
+}
+
+func (s *Service) GetLabels(ctx context.Context, req *spb.DataAggregatorGetLabelsRequest) (*spb.DataAggregatorGetLabelsResponse, error) {
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
+		return nil, status.Error(codes.Unauthenticated, "Invalid token")
+	}
+
+	var rows *sql.Rows
+	if req.AllLabels {
+		if !s.isAdmin(ctx) {
+			return nil, status.Error(codes.Unauthenticated, "You must be an admin to change system-level labels")
+		}
+		rows, err = s.db.Query("SELECT a.name, a.label, COUNT(DISTINCT i.uid) FROM default_apps a, intervals i WHERE a.name = i.app GROUP BY a.name")
+	} else {
+		rows, err = s.db.Query("SELECT i.app, COALESCE(u.label, d.label, ?), 0 FROM (SELECT DISTINCT app FROM intervals WHERE uid = ?) i LEFT JOIN user_apps u ON i.app = u.name AND u.uid = ? LEFT JOIN default_apps d ON i.app = d.name", LABEL_UNCATEGORIZED, uid, uid)
+	}
+	if err != nil {
+		s.log.Error("Failed to get labels", zap.Error(err))
+		return nil, status.Error(codes.Internal, "something went wrong")
+	}
+	defer rows.Close()
+
+	rsp := &spb.DataAggregatorGetLabelsResponse{}
+	for rows.Next() {
+		label := &cpb.Label{}
+		if err = rows.Scan(&label.App, &label.Label, &label.UsedBy); err != nil {
+			s.log.Error("failed to scan label", zap.Error(err))
+			continue
+		}
+		rsp.Labels = append(rsp.Labels, label)
+	}
+	return rsp, nil
+}
+
+func (s *Service) UpdateLabel(ctx context.Context, req *spb.DataAggregatorUpdateLabelRequest) (*cpb.Empty, error) {
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
+		return nil, status.Error(codes.Unauthenticated, "Invalid token")
+	}
+
+	if req.AllLabels {
+		if !s.isAdmin(ctx) {
+			return nil, status.Error(codes.Unauthenticated, "You must be an admin to change system-level labels")
+		}
+		_, err = s.db.Exec("UPDATE default_apps SET label = ? WHERE name = ?", req.Label.Label, req.Label.App)
+		labelCache.Remove(req.Label.App)
+	} else {
+		var result sql.Result
+		result, err = s.db.Exec("UPDATE user_apps SET label = ? WHERE name = ? AND uid = ?", req.Label.Label, req.Label.App, uid)
+		if err == nil {
+			var rows int64
+			if rows, _ = result.RowsAffected(); rows == 0 {
+				_, err = s.db.Exec("INSERT INTO user_apps (label, name, uid) VALUES (?, ?, ?)", req.Label.Label, req.Label.App, uid)
+			}
+		}
+	}
+
+	if err != nil {
+		s.log.Error("failed to update label", zap.Error(err))
+		return nil, status.Error(codes.Internal, "something went wrong")
+	}
+
+	return &cpb.Empty{}, nil
 }

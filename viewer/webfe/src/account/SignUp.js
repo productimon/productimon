@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link as RouterLink, useHistory } from "react-router-dom";
 
 import Avatar from "@material-ui/core/Avatar";
@@ -30,7 +30,13 @@ export default function SignUp(props) {
 
   // TODO do in using a customised route with redirection
   // in App.js
-  if (window.localStorage.getItem("token")) history.push("/dashboard");
+  if (window.localStorage.getItem("token")) {
+    useEffect(() => history.push("/dashboard"), []);
+  } else if (!props.userDetails) {
+    useEffect(() => {
+      props.setUserDetails(null);
+    }, []);
+  }
 
   const doSignup = function (e) {
     e.preventDefault();
@@ -49,7 +55,7 @@ export default function SignUp(props) {
           return;
         }
         window.localStorage.setItem("token", message.getToken());
-        props.setLoggedIn(true);
+        props.setUserDetails(message.getUser());
         history.push("/dashboard");
       },
       request,

@@ -117,7 +117,7 @@ export default function Fixture(props) {
   const handleLogout = () => {
     redirectToLogin(history);
     handleClose();
-    props.setLoggedIn(false);
+    props.setUserDetails(null);
   };
 
   const [open, setOpen] = React.useState(true);
@@ -139,9 +139,9 @@ export default function Fixture(props) {
       <AppBar
         position="fixed"
         className={clsx(classes.appBar, {
-          [classes.appBarShift]: props.loggedIn && open,
+          [classes.appBarShift]: props.userDetails && open,
         })}
-        style={{ backgroundColor: props.loggedIn ? "#484848" : "brown" }}
+        style={{ backgroundColor: props.userDetails ? "#484848" : "brown" }}
       >
         <Toolbar className={classes.toolbar}>
           <IconButton
@@ -149,7 +149,7 @@ export default function Fixture(props) {
             color="inherit"
             onClick={handleDrawerOpen}
             className={clsx(classes.menuButton, {
-              [classes.hide]: !props.loggedIn || open,
+              [classes.hide]: !props.userDetails || open,
             })}
           >
             <MenuIcon />
@@ -183,7 +183,7 @@ export default function Fixture(props) {
             onClick={handleClick}
             style={{ textAlign: "right", color: "white" }}
             className={clsx({
-              [classes.hide]: !props.loggedIn,
+              [classes.hide]: !props.userDetails,
             })}
           >
             Account
@@ -198,7 +198,7 @@ export default function Fixture(props) {
         className={clsx(classes.drawer, {
           [classes.drawerPaper]: open,
           [classes.drawerPaperClose]: !open,
-          [classes.hide]: !props.loggedIn,
+          [classes.hide]: !props.userDetails,
         })}
         open={open}
       >
@@ -231,6 +231,17 @@ export default function Fixture(props) {
             <ListItemText primary="Customize" />
           </ListItem>
 
+          <ListItem
+            button
+            onClick={() => gotoLink("/dashboard/labels")}
+            selected={location.pathname == "/dashboard/labels"}
+          >
+            <ListItemIcon>
+              <DashboardIcon />
+            </ListItemIcon>
+            <ListItemText primary="Labels" />
+          </ListItem>
+
           <Divider />
 
           {Object.values(props.graphs).map((graph, idx) => (
@@ -247,40 +258,44 @@ export default function Fixture(props) {
             </ListItem>
           ))}
           <Divider />
-          <ListItem
-            button
-            onClick={() => gotoLink("/dashboard/adminLabels")}
-            selected={location.pathname == "/dashboard/adminLabels"}
-          >
-            <ListItemIcon>
-              <TextFieldsIcon />
-            </ListItemIcon>
-            <ListItemText primary="Admin Labels" />
-          </ListItem>
+          {props.userDetails && props.userDetails.getAdmin() && (
+            <React.Fragment>
+              <ListItem
+                button
+                onClick={() => gotoLink("/dashboard/adminLabels")}
+                selected={location.pathname == "/dashboard/adminLabels"}
+              >
+                <ListItemIcon>
+                  <TextFieldsIcon />
+                </ListItemIcon>
+                <ListItemText primary="Admin Labels" />
+              </ListItem>
 
-          <ListItem
-            button
-            onClick={() => gotoLink("/dashboard/adminManagement")}
-            selected={location.pathname == "/dashboard/adminManagement"}
-          >
-            <ListItemIcon>
-              <SupervisorAccountIcon />
-            </ListItemIcon>
-            <ListItemText primary="Admin Management" />
-          </ListItem>
+              <ListItem
+                button
+                onClick={() => gotoLink("/dashboard/adminManagement")}
+                selected={location.pathname == "/dashboard/adminManagement"}
+              >
+                <ListItemIcon>
+                  <SupervisorAccountIcon />
+                </ListItemIcon>
+                <ListItemText primary="Admin Management" />
+              </ListItem>
 
-          <ListItem
-            button
-            onClick={() => gotoLink("/dashboard/adminServerStatus")}
-            selected={location.pathname == "/dashboard/adminServerStatus"}
-          >
-            <ListItemIcon>
-              <StorageIcon />
-            </ListItemIcon>
-            <ListItemText primary="Admin Server Status" />
-          </ListItem>
+              <ListItem
+                button
+                onClick={() => gotoLink("/dashboard/adminServerStatus")}
+                selected={location.pathname == "/dashboard/adminServerStatus"}
+              >
+                <ListItemIcon>
+                  <StorageIcon />
+                </ListItemIcon>
+                <ListItemText primary="Admin Server Status" />
+              </ListItem>
 
-          <Divider />
+              <Divider />
+            </React.Fragment>
+          )}
         </List>
       </Drawer>
     </React.Fragment>

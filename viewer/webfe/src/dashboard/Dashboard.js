@@ -21,7 +21,6 @@ import DashboardCustomizer from "./DashboardCustomizer";
 import { rpc } from "../Utils";
 import Graph from "./Graph";
 import FullScreenGraph from "./FullScreenGraph";
-
 import AdminLabelManagement from "./AdminLabelManagement";
 import AdminManagement from "./AdminManagement";
 import AdminServerStatus from "./AdminServerStatus";
@@ -96,13 +95,6 @@ export default function Dashboard(props) {
 
   // redirect user to login page if unable to get user details
   const request = new Empty();
-
-  rpc(DataAggregator.UserDetails, history, {
-    onEnd: ({ status, statusMessage, headers, message }) => {
-      console.log(`Authenticated as ${message.getUser().getEmail()}`);
-    },
-    request,
-  });
 
   const { graphs, setGraphs } = props;
   useEffect(() => {
@@ -231,12 +223,23 @@ export default function Dashboard(props) {
           </Container>
         </div>
       </Route>
+      <Route path="/dashboard/labels">
+        <div>
+          <Container maxWidth="lg" className={classes.container}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={12} lg={12}>
+                <AdminLabelManagement />
+              </Grid>
+            </Grid>
+          </Container>
+        </div>
+      </Route>
       <Route path="/dashboard/adminLabels">
         <div>
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={12} lg={12}>
-                <AdminLabelManagement/>
+                <AdminLabelManagement admin />
               </Grid>
             </Grid>
           </Container>
@@ -247,7 +250,7 @@ export default function Dashboard(props) {
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={12} lg={12}>
-                <AdminManagement/>
+                <AdminManagement />
               </Grid>
             </Grid>
           </Container>
@@ -258,12 +261,12 @@ export default function Dashboard(props) {
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={12} lg={12}>
-                <AdminServerStatus/>
+                <AdminServerStatus />
               </Grid>
             </Grid>
           </Container>
         </div>
-      </Route> 
+      </Route>
       <Route path="/dashboard/graph/:graphId">
         <FullScreenGraph
           graphs={graphs}

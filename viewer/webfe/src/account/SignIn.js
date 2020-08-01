@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link as RouterLink, useHistory } from "react-router-dom";
 
 import Avatar from "@material-ui/core/Avatar";
@@ -51,8 +51,13 @@ export default function SignIn(props) {
 
   // TODO do in using a customised route with redirection
   // in App.js
-  if (window.localStorage.getItem("token")) history.push("/dashboard");
-  else props.setLoggedIn(false);
+  if (window.localStorage.getItem("token")) {
+    useEffect(() => history.push("/dashboard"), []);
+  } else if (!props.userDetails) {
+    useEffect(() => {
+      props.setUserDetails(null);
+    }, []);
+  }
 
   const doLogin = function (e) {
     e.preventDefault();
@@ -65,12 +70,12 @@ export default function SignIn(props) {
       onEnd: ({ status, statusMessage, headers, message }) => {
         if (status != 0) {
           alert(statusMessage);
-          props.setLoggedIn(false);
+          props.setUserDetails(null);
           console.error("response ", status, statusMessage, headers, message);
           return;
         }
         window.localStorage.setItem("token", message.getToken());
-        props.setLoggedIn(true);
+        props.setUserDetails(message.getUser());
         history.push("/dashboard");
       },
       request,

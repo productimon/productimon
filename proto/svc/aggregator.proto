@@ -38,6 +38,10 @@ service DataAggregator {
   rpc PromoteAccount(common.User) returns (common.Empty);
   rpc DemoteAccount(common.User) returns (common.Empty);
   rpc ListAdmins(common.Empty) returns (DataAggregatorListAdminsResponse);
+
+  /* labels */
+  rpc GetLabels(DataAggregatorGetLabelsRequest) returns (DataAggregatorGetLabelsResponse);
+  rpc UpdateLabel(DataAggregatorUpdateLabelRequest) returns (common.Empty);
 }
 
 message DataAggregatorPingRequest {
@@ -68,6 +72,7 @@ message DataAggregatorSignupRequest {
 
 message DataAggregatorLoginResponse {
   string token = 1;
+  common.User user = 2;
 }
 
 message DataAggregatorUserDetailsResponse {
@@ -148,4 +153,18 @@ message DataAggregatorListAdminsResponse {
   // TODO: change this to streaming API
   // group admins by chunk and implement pagination
   repeated common.User admins = 1;
+}
+
+message DataAggregatorGetLabelsRequest {
+  // only admin can set this flag to get all labels for all users
+  bool all_labels = 1;
+}
+
+message DataAggregatorGetLabelsResponse {
+  repeated common.Label labels = 1;
+}
+
+message DataAggregatorUpdateLabelRequest {
+  common.Label label = 1;
+  bool all_labels = 2;
 }

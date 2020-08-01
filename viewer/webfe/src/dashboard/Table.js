@@ -13,10 +13,7 @@ import Paper from "@material-ui/core/Paper";
 
 import { rpc, humanizeDuration, calculateDate } from "../Utils";
 
-import {
-  DataAggregatorGetTimeRequest,
-  DataAggregatorGetTimeResponse,
-} from "productimon/proto/svc/aggregator_pb";
+import { DataAggregatorGetTimeRequest } from "productimon/proto/svc/aggregator_pb";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
 import { Interval, Timestamp } from "productimon/proto/common/common_pb";
 
