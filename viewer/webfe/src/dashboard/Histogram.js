@@ -21,6 +21,7 @@ import FormControl from "@material-ui/core/FormControl";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Switch from "@material-ui/core/Switch";
 import Select from "@material-ui/core/Select";
+import TextField from "@material-ui/core/TextField";
 import MenuItem from "@material-ui/core/MenuItem";
 
 import {
@@ -45,6 +46,10 @@ const useStyles = makeStyles((theme) => ({
   select: {
     margin: theme.spacing(1),
     minWidth: 120,
+  },
+  input: {
+    margin: theme.spacing(1),
+    maxWidth: 60,
   },
   formControl: {
     margin: theme.spacing(3),
@@ -105,7 +110,7 @@ function formatMiliTS(ts, span, totalSpan) {
  * getSymbol is the function to retrive the symbol out of
  * the data point passed to the returned mapping function
  */
-function transformRange(getSymbol) {
+function transformRange(getSymbol, displayedSymbols) {
   return (data) => {
     const startMili = data.getInterval().getStart().getNanos() / 10 ** 6;
     const endMili = data.getInterval().getEnd().getNanos() / 10 ** 6;
@@ -115,12 +120,18 @@ function transformRange(getSymbol) {
         const time = Math.floor(point.getTime() / 10 ** 6);
         const total = ret.Total + time;
         const active = ret.Active + Math.floor(point.getActivetime() / 10 ** 6);
+        const other = {
+          Other:
+            (ret.Other || 0) +
+            (displayedSymbols.includes(getSymbol(point)) ? 0 : time),
+        };
         return {
           ...ret,
           Total: total,
           [getSymbol(point)]: time,
           Active: active,
           Inactive: total - active,
+          ...other,
         };
       },
       {
@@ -150,6 +161,28 @@ function getUniqSymbols(response, getSymbol) {
     .reduce((result, arr) => [...result, ...arr], [])
     .filter((v, i, a) => a.indexOf(v) === i)
     .sort();
+}
+
+function getSortedSymbols(response, getSymbol, maxReturn) {
+  const symbolTimes = response.getDataList().reduce(
+    (result, range) => ({
+      ...result,
+      ...range.getDataList().reduce(
+        (rangeRet, datapoint) => ({
+          ...rangeRet,
+          [getSymbol(datapoint)]:
+            (result[getSymbol(datapoint)] || 0) + datapoint.getTime(),
+        }),
+        {}
+      ),
+    }),
+    []
+  );
+
+  return Object.entries(symbolTimes)
+    .sort(([_, a], [__, b]) => b - a)
+    .slice(0, maxReturn)
+    .map(([symbol, _]) => symbol);
 }
 
 export default function Histogram(props) {
@@ -190,12 +223,24 @@ export default function Histogram(props) {
             ? (point) => point.getApp()
             : (point) => point.getLabel();
 
+        const nSymbols = props.fullscreen
+          ? props.graphSpec.maxItem || 10
+          : props.graphSpec.maxItem && props.graphSpec.maxItem < 5
+          ? props.graphSpec.maxItem
+          : 5;
+
+        const symbols = getUniqSymbols(message, getSymbol);
+        const displayedSymbols = getSortedSymbols(message, getSymbol, nSymbols);
+
         // decide what to stack on the bars
         let displayedKeys;
         switch (props.graphSpec.stack) {
           case "application":
           case "label":
-            displayedKeys = getUniqSymbols(message, getSymbol);
+            displayedKeys =
+              symbols.length > nSymbols
+                ? [...displayedSymbols, "Other"]
+                : displayedSymbols;
             break;
           case "active":
             displayedKeys = ["Active", "Inactive"];
@@ -209,7 +254,9 @@ export default function Histogram(props) {
         const allData = message.getDataList();
 
         // format and aggregate time values
-        const data = allData.map(transformRange(getSymbol)).reverse();
+        const data = allData
+          .map(transformRange(getSymbol, displayedSymbols))
+          .reverse();
 
         /* Time span of the whole histogram, assuming backend returns data in reverse chronological order */
         let totalTimeSpan = allData.length
@@ -257,7 +304,10 @@ export default function Histogram(props) {
     };
     props.onUpdate(newGraphSpec);
   };
-  const handleChange = (e) => {
+
+  // validator is a function that takes in the new value and returns if the new value is valid or not
+  const handleChange = (e, validator) => {
+    if (validator && !validator(e.target.value)) return;
     const newGraphSpec = {
       ...props.graphSpec,
       [e.target.name]: e.target.value,
@@ -354,7 +404,7 @@ export default function Histogram(props) {
                 <Select
                   value={props.graphSpec.stack || ""}
                   name="stack"
-                  onChange={handleChange}
+                  onChange={(e) => handleChange(e)}
                   className={classes.select}
                 >
                   <MenuItem value="">None</MenuItem>
@@ -364,6 +414,20 @@ export default function Histogram(props) {
                 </Select>
               }
               label="Stack"
+            />
+            <FormControlLabel
+              labelPlacement="start"
+              control={
+                <TextField
+                  value={props.graphSpec.maxItem || 10}
+                  onChange={(e) =>
+                    handleChange(e, (val) => val >= 1 && val <= 50)
+                  }
+                  name="maxItem"
+                  className={classes.input}
+                />
+              }
+              label="Max Item"
             />
           </FormGroup>
         </FormControl>
