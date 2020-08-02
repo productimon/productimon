@@ -10,11 +10,12 @@ import LockOutlinedIcon from "@material-ui/icons/LockOutlined";
 import Typography from "@material-ui/core/Typography";
 import Container from "@material-ui/core/Container";
 
-import { formUseStyles } from "./SignIn";
-import { grpc } from "@improbable-eng/grpc-web";
 import { User } from "productimon/proto/common/common_pb";
 import { DataAggregatorSignupRequest } from "productimon/proto/svc/aggregator_pb";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
+
+import { formUseStyles } from "./SignIn";
+import { rpc } from "../Utils";
 
 export default function SignUp(props) {
   const classes = formUseStyles();
@@ -46,20 +47,15 @@ export default function SignUp(props) {
     user.setEmail(username);
     user.setPassword(password);
     request.setUser(user);
-    grpc.unary(DataAggregator.Signup, {
-      host: "/rpc",
-      onEnd: ({ status, statusMessage, headers, message }) => {
-        if (status != 0) {
-          alert(statusMessage);
-          console.error("response ", status, statusMessage, headers, message);
-          return;
-        }
-        window.localStorage.setItem("token", message.getToken());
-        props.setUserDetails(message.getUser());
+    rpc(DataAggregator.Signup, request)
+      .then((res) => {
+        window.localStorage.setItem("token", res.getToken());
+        props.setUserDetails(res.getUser());
         history.push("/dashboard");
-      },
-      request,
-    });
+      })
+      .catch((err) => {
+        alert(err); // TODO
+      });
   };
 
   return (

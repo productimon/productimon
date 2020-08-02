@@ -2,6 +2,7 @@ import moment from "moment";
 import React from "react";
 
 import { grpc } from "@improbable-eng/grpc-web";
+import { Empty } from "productimon/proto/common/common_pb";
 
 // Number of miliseconds per unit
 export const timeUnits = {
@@ -88,31 +89,26 @@ export function toSec(nanoseconds) {
   return nanoseconds / 10 ** 9;
 }
 
-export function redirectToLogin(history) {
+export function redirectToLogin() {
   window.localStorage.removeItem("token");
-  history.push("/");
-  return <p>Redirecting to login...</p>;
+  if (location.pathname != "/") location.href = "/";
 }
 
-export function rpc(methodDescriptor, history, props) {
+export function rpc(methodDescriptor, request) {
   const token = window.localStorage.getItem("token");
-  if (!token) redirectToLogin(history);
-  return grpc.unary(methodDescriptor, {
-    host: "/rpc",
-    metadata: new grpc.Metadata({ Authorization: token }),
-    ...props,
-    onEnd: (unaryOutput) => {
-      if (unaryOutput.status != 0) console.error("Error on RPC:", unaryOutput);
-      if (unaryOutput.status === grpc.Code.Unauthenticated) {
-        // TODO if this terminates current component rendering
-        // react will prints out errors
-        // this is probably not the correct way to do this
-        // TODO fix this by return promise so user defined error handler can be used
-        // we can't call this function from a render function currently
-        redirectToLogin(history);
-        return;
-      }
-      props.onEnd(unaryOutput);
-    },
+  if (!request) request = new Empty();
+  return new Promise((resolve, reject) => {
+    grpc.unary(methodDescriptor, {
+      host: "/rpc",
+      metadata: new grpc.Metadata({ Authorization: token }),
+      onEnd: ({ status, statusMessage, headers, message }) => {
+        if (status != 0) {
+          console.error("Error on RPC:", status, statusMessage);
+          reject(statusMessage);
+        }
+        resolve(message);
+      },
+      request,
+    });
   });
 }

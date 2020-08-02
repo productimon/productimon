@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useHistory } from "react-router-dom";
 import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
 
 import {
@@ -15,9 +14,8 @@ import Dashboard from "./dashboard/Dashboard";
 import Fixture from "./core/Fixture";
 
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
-import { Empty } from "productimon/proto/common/common_pb";
 
-import { rpc } from "./Utils";
+import { rpc, redirectToLogin } from "./Utils";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -37,23 +35,28 @@ export default function App() {
   const [graphs, setGraphs] = React.useState({});
   const theme = createMuiTheme();
   const classes = useStyles();
-  const history = useHistory();
 
-  if (window.localStorage.getItem("token")) {
-    const request = new Empty();
-    useEffect(() => {
-      rpc(DataAggregator.UserDetails, history, {
-        onEnd: ({ status, statusMessage, headers, message }) => {
-          console.log(`Authenticated as ${message.getUser().getEmail()}`);
-          setUserDetails(message.getUser());
-          setLoaded(true);
-        },
-        request,
-      });
-    }, []);
-  } else {
-    useEffect(() => setLoaded(true), []);
-  }
+  useEffect(() => {
+    if (window.localStorage.getItem("token")) {
+      rpc(DataAggregator.UserDetails)
+        .then((res) => {
+          console.log(`Authenticated as ${res.getUser().getEmail()}`);
+          if (!userDetails) {
+            setUserDetails(res.getUser());
+            setLoaded(true);
+          }
+        })
+        .catch((err) => {
+          alert(
+            `Error getting user details: ${err}, redirecting to login page`
+          ); // TODO better way to show error
+          redirectToLogin();
+        });
+    } else {
+      setLoaded(true);
+      redirectToLogin();
+    }
+  }, []);
 
   return loaded ? (
     <MuiThemeProvider theme={theme}>
@@ -80,7 +83,7 @@ export default function App() {
                 <Dashboard graphs={graphs} setGraphs={setGraphs} />
               </Route>
               <Route path="/settings">
-                <Settings />
+                <Settings setUserDetails={setUserDetails} />
               </Route>
             </Switch>
           </main>

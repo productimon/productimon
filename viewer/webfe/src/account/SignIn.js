@@ -13,9 +13,10 @@ import Typography from "@material-ui/core/Typography";
 import Container from "@material-ui/core/Container";
 import { makeStyles } from "@material-ui/core/styles";
 
-import { grpc } from "@improbable-eng/grpc-web";
 import { DataAggregatorLoginRequest } from "productimon/proto/svc/aggregator_pb";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
+
+import { rpc } from "../Utils";
 
 export const formUseStyles = makeStyles((theme) => ({
   paper: {
@@ -65,21 +66,16 @@ export default function SignIn(props) {
     const request = new DataAggregatorLoginRequest();
     request.setEmail(username);
     request.setPassword(password);
-    grpc.unary(DataAggregator.Login, {
-      host: "/rpc",
-      onEnd: ({ status, statusMessage, headers, message }) => {
-        if (status != 0) {
-          alert(statusMessage);
-          props.setUserDetails(null);
-          console.error("response ", status, statusMessage, headers, message);
-          return;
-        }
-        window.localStorage.setItem("token", message.getToken());
-        props.setUserDetails(message.getUser());
+    rpc(DataAggregator.Login, request)
+      .then((res) => {
+        window.localStorage.setItem("token", res.getToken());
+        props.setUserDetails(res.getUser());
         history.push("/dashboard");
-      },
-      request,
-    });
+      })
+      .catch((err) => {
+        alert(err); // TODO better way to present
+        props.setUserDetails(null);
+      });
   };
   return (
     <Container className={classes.paper} maxWidth="xs">

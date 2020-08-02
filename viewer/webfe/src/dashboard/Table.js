@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useHistory } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
 import MaterialTable from "@material-ui/core/Table";
@@ -31,7 +30,6 @@ function createData(program, hours, label) {
 
 export default function Table(props) {
   const classes = useStyles();
-  const history = useHistory();
 
   const [rows, setRows] = React.useState([createData("init", 1, 3)]);
 
@@ -60,10 +58,10 @@ export default function Table(props) {
     request.setIntervalsList([interval]);
     request.setGroupBy(DataAggregatorGetTimeRequest.GroupBy.APPLICATION);
 
-    rpc(DataAggregator.GetTime, history, {
-      onEnd: ({ status, statusMessage, headers, message }) => {
+    rpc(DataAggregator.GetTime, request)
+      .then((res) => {
         setRows(
-          message
+          res
             .getDataList()[0]
             .getDataList()
             .sort((a, b) => b.getTime() - a.getTime())
@@ -75,9 +73,10 @@ export default function Table(props) {
               )
             )
         );
-      },
-      request,
-    });
+      })
+      .catch((err) => {
+        alert(err); // TODO
+      });
   }, [props.graphSpec]);
 
   // TODO enable sort table by col

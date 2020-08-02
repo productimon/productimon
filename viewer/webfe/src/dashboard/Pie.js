@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useHistory } from "react-router-dom";
 import {
   PieChart as RechartsPieChart,
   Pie,
@@ -58,7 +57,6 @@ export default function PieChart({ graphSpec, options, fullscreen, onUpdate }) {
   const [sectors, setSectors] = React.useState([]);
   const [totalTime, setTotalTime] = React.useState(0);
 
-  const history = useHistory();
   const classes = useStyles();
 
   const localGroupBy = graphSpec.groupBy || "label";
@@ -97,15 +95,15 @@ export default function PieChart({ graphSpec, options, fullscreen, onUpdate }) {
         : DataAggregatorGetTimeRequest.GroupBy.LABEL
     );
 
-    const getSymbol =
-      graphSpec.groupBy === "application"
-        ? (point) => point.getApp()
-        : (point) => point.getLabel();
+    rpc(DataAggregator.GetTime, request)
+      .then((res) => {
+        const getSymbol =
+          graphSpec.groupBy === "application"
+            ? (point) => point.getApp()
+            : (point) => point.getLabel();
 
-    rpc(DataAggregator.GetTime, history, {
-      onEnd: ({ status, statusMessage, headers, message }) => {
         // Sort data by most used applications
-        const sorted = message
+        const sorted = res
           .getDataList()[0]
           .getDataList()
           .sort((a, b) => b.getTime() - a.getTime());
@@ -129,9 +127,10 @@ export default function PieChart({ graphSpec, options, fullscreen, onUpdate }) {
         } else {
           setSectors(entries);
         }
-      },
-      request,
-    });
+      })
+      .catch((err) => {
+        alert(err);
+      });
   }, [graphSpec]);
 
   return (

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useHistory } from "react-router-dom";
 
 import MaterialTable from "material-table";
 import TableContainer from "@material-ui/core/TableContainer";
@@ -32,7 +31,6 @@ function createData(program, label, numUsers) {
 
 export default function AdminLabelManagement(props) {
   const [data, setData] = useState([]);
-  const history = useHistory();
 
   let columns = [
     { title: "Program", field: "program", editable: "never" },
@@ -50,20 +48,17 @@ export default function AdminLabelManagement(props) {
     const request = new DataAggregatorGetLabelsRequest();
     request.setAllLabels(props.admin);
 
-    rpc(DataAggregator.GetLabels, history, {
-      onEnd: ({ status, statusMessage, headers, message }) => {
-        if (status != 0) {
-          console.error(statusMessage);
-          return;
-        }
+    rpc(DataAggregator.GetLabels, request)
+      .then((res) => {
         setData(
-          message
+          res
             .getLabelsList()
             .map((l) => createData(l.getApp(), l.getLabel(), l.getUsedBy()))
         );
-      },
-      request,
-    });
+      })
+      .catch((err) => {
+        alert(err); // TODO
+      });
   }, [props.admin]);
 
   return (
@@ -105,22 +100,10 @@ export default function AdminLabelManagement(props) {
             const request = new DataAggregatorUpdateLabelRequest();
             request.setAllLabels(props.admin);
             request.setLabel(label);
-            return new Promise((resolve, reject) => {
-              rpc(DataAggregator.UpdateLabel, history, {
-                onEnd: ({ status, statusMessage, headers, message }) => {
-                  if (status != 0) {
-                    reject();
-                    return;
-                  }
-                  setData(
-                    data.map((d) =>
-                      d.program == newData.program ? newData : d
-                    )
-                  );
-                  resolve();
-                },
-                request,
-              });
+            return rpc(DataAggregator.UpdateLabel, request).then((res) => {
+              setData(
+                data.map((d) => (d.program == newData.program ? newData : d))
+              );
             });
           },
         }}

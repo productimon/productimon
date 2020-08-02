@@ -25,22 +25,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function Settings() {
-  const history = useHistory();
-
-  // redirect user to login page if unable to get user details
-  const request = new Empty();
-  rpc(DataAggregator.UserDetails, history, {
-    onEnd: ({ status, statusMessage, headers, message }) => {
-      console.log(`Authenticated as ${message.getUser().getEmail()}`);
-    },
-    request,
-  });
-
-  return <SettingsForm />;
-}
-
-function SettingsForm() {
+export default function Settings({ setUserDetails }) {
   const history = useHistory();
 
   const [confirmationInput, setConfirmationInput] = React.useState("");
@@ -50,12 +35,13 @@ function SettingsForm() {
 
   const deleteAccount = () => {
     const request = new Empty();
-    rpc(DataAggregator.DeleteAccount, history, {
-      onEnd: ({ status, statusMessage, headers, message }) => {
-        redirectToLogin(history);
-      },
-      request,
-    });
+    rpc(DataAggregator.DeleteAccount, new Empty())
+      .then((res) => {
+        redirectToLogin();
+      })
+      .catch((err) => {
+        alert(err); // TODO
+      });
   };
 
   const classes = useStyles();

@@ -168,8 +168,19 @@ func (s *Service) returnToken(ctx context.Context, uid string) (*spb.DataAggrega
 		s.log.Error("can't sign token", zap.Error(err), zap.String("uid", uid))
 		return nil, status.Error(codes.Internal, "something went wrong with signing token")
 	}
+
+	var admin bool
+	var email string
+	if err := s.db.QueryRow("SELECT email, admin FROM users WHERE id = ? LIMIT 1", uid).Scan(&email, &admin); err != nil {
+		return nil, status.Error(codes.Internal, "something went wrong")
+	}
 	return &spb.DataAggregatorLoginResponse{
 		Token: token,
+		User: &cpb.User{
+			Id:    uid,
+			Email: email,
+			Admin: admin,
+		},
 	}, nil
 }
 

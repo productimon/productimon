@@ -115,9 +115,10 @@ export default function Fixture(props) {
   };
 
   const handleLogout = () => {
-    redirectToLogin(history);
     handleClose();
     props.setUserDetails(null);
+    window.localStorage.removeItem("token");
+    history.push("/");
   };
 
   const [open, setOpen] = React.useState(true);
