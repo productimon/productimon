@@ -3,12 +3,9 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"flag"
 	"io/ioutil"
 	"net"
-	"net/http"
-	"net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
@@ -20,20 +17,16 @@ import (
 	"git.yiad.am/productimon/aggregator/service"
 	"git.yiad.am/productimon/internal"
 	spb "git.yiad.am/productimon/proto/svc"
-	"git.yiad.am/productimon/viewer/webfe"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/productimon/wasmws"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"nhooyr.io/websocket"
 )
 
 var (
 	flagGRPCListenAddress string
-	flagHTTPListenAddress string
 	flagPublicKeyPath     string
 	flagPrivateKeyPath    string
 	flagDBFilePath        string
@@ -44,18 +37,16 @@ var (
 	flagSMTPUsername      string
 	flagSMTPPasswordFile  string
 	flagSMTPSender        string
-	jsFilename            string
-	mapFilename           string
-	logger                *zap.Logger
 )
+
+var logger *zap.Logger
 
 func init() {
 	flag.StringVar(&flagGRPCListenAddress, "grpc_listen_address", "0.0.0.0:4200", "gRPC listen address")
-	flag.StringVar(&flagHTTPListenAddress, "http_listen_address", "0.0.0.0:4201", "HTTP listen address (TODO: HTTPS only)")
-	flag.StringVar(&flagDomain, "domain", "api.productimon.com:4201", "server domain")
+	flag.StringVar(&flagDomain, "domain", "api.productimon.com", "public-facing server domain")
 	flag.IntVar(&flagGRPCPublicPort, "grpc_public_port", 4200, "gRPC public-facing port (this usually needs to be the same port as grpc_listen_address, unless you have some fancy NAT infra)")
-	flag.StringVar(&flagPublicKeyPath, "ca_cert", "ca.pem", "Path to CA cert")
-	flag.StringVar(&flagPrivateKeyPath, "ca_key", "ca.key", "Path to CA key")
+	flag.StringVar(&flagPublicKeyPath, "ca_cert", "ca.pem", "Path to auth token CA cert (auto-generated if not present)")
+	flag.StringVar(&flagPrivateKeyPath, "ca_key", "ca.key", "Path to auth token CA key (auto-generated if not present)")
 	flag.StringVar(&flagDBFilePath, "db_path", "db.sqlite3", "Path to SQLite3 database file (will be automatically created for first time)")
 	flag.StringVar(&flagSMTPServer, "smtp_server", "", "SMTP server for sending email (leave empty to disable SMTP")
 	flag.StringVar(&flagSMTPUsername, "smtp_username", "", "SMTP username for authentication (this is usually the same as sender address, leave empty to disable authentication)")
@@ -86,27 +77,34 @@ func main() {
 	if err != nil {
 		logger.Fatal("can't create authenticator", zap.Error(err))
 	}
+
 	db, err := sql.Open("sqlite3", flagDBFilePath+"?_journal_mode=wal&_txlock=immediate&_busy_timeout=5000&_foreign_keys=1")
 	if err != nil {
 		logger.Fatal("can't open database", zap.Error(err))
 	}
 	// db.SetMaxOpenConns(1)
+
 	lis, err := net.Listen("tcp", flagGRPCListenAddress)
 	if err != nil {
 		logger.Fatal("can't listen on grpc address", zap.Error(err), zap.String("grpc_listen_address", flagGRPCListenAddress))
 	}
+
 	grpcCreds, err := auther.GrpcCreds()
 	if err != nil {
 		logger.Fatal("can't create grpc credentials", zap.Error(err))
 	}
+
 	grpcServer := grpc.NewServer(grpcCreds)
 	reflection.Register(grpcServer)
+
 	s, err := service.NewService(flagDomain, auther, db, logger)
 	if err != nil {
 		logger.Fatal("can't create service", zap.Error(err))
 	}
+
 	spb.RegisterDataAggregatorServer(grpcServer, s)
 	wrappedGrpc := grpcweb.WrapServer(grpcServer)
+	httpServer, httpsServer, grpcListener := NewHTTPServer(ctx, s, auther, wrappedGrpc)
 
 	if len(flagSMTPServer) > 0 {
 		if len(flagSMTPUsername) > 0 {
@@ -121,80 +119,6 @@ func main() {
 		}
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/rpc/", http.StripPrefix("/rpc", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		wrappedGrpc.ServeHTTP(w, r)
-	})))
-
-	mux.HandleFunc("/app.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/javascript")
-		w.Write(webfe.Data[jsFilename])
-	})
-
-	mux.HandleFunc("/app.dev.js.map", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(webfe.Data[mapFilename])
-	})
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		w.Write(webfe.Data["index.html"])
-	})
-
-	mux.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request) {
-		if err := r.ParseForm(); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(err.Error()))
-			return
-		}
-		tokens := r.Form["token"]
-		if len(tokens) == 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("token missing"))
-			return
-		}
-		if err := s.VerifyAccount(tokens[0]); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(err.Error()))
-			return
-		}
-		w.Write([]byte("Account verified! You may login now"))
-	})
-
-	mux.HandleFunc("/rpc.json", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		j := json.NewEncoder(w)
-		err := j.Encode(struct {
-			Port       int
-			PublicKey  []byte
-			ServerName string
-		}{
-			flagGRPCPublicPort,
-			auther.CertPEM(),
-			"api.productimon.com",
-		})
-		if err != nil {
-			logger.Error("can't encode /rpc.json", zap.Error(err))
-		}
-	})
-	// InsecureSkipVerify means not to verify origin header
-	// because when a Chrome extension visits us, it doesn't attach the Origin header
-	// since we're doing mTLS handshake on top of raw websocket, this is safe against CSRF.
-	wsl := wasmws.NewWebSocketListener(ctx, &websocket.AcceptOptions{InsecureSkipVerify: true})
-	mux.HandleFunc("/ws", wsl.ServeHTTP)
-
-	if flagDebug {
-		mux.HandleFunc("/debug/pprof/", pprof.Index)
-		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	}
-
-	httpServer := &http.Server{Addr: flagHTTPListenAddress, Handler: mux}
-
 	go func() {
 		defer cancel()
 		if herr := httpServer.ListenAndServe(); herr != nil {
@@ -203,7 +127,13 @@ func main() {
 	}()
 	go func() {
 		defer cancel()
-		if gerr := grpcServer.Serve(wsl); gerr != nil {
+		if herr := httpsServer.ListenAndServeTLS("", ""); herr != nil {
+			logger.Error("can't listen https server", zap.Error(herr), zap.String("address", flagHTTPSListenAddress))
+		}
+	}()
+	go func() {
+		defer cancel()
+		if gerr := grpcServer.Serve(grpcListener); gerr != nil {
 			logger.Error("can't serve grpc server", zap.Error(err))
 		}
 	}()

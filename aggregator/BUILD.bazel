@@ -2,7 +2,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["main.go"],
+    srcs = [
+        "http.go",
+        "main.go",
+    ],
     importpath = "git.yiad.am/productimon/aggregator",
     visibility = ["//visibility:private"],
     x_defs = select({
@@ -27,6 +30,7 @@ go_library(
         "@io_nhooyr_websocket//:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//reflection:go_default_library",
+        "@org_golang_x_crypto//acme/autocert:go_default_library",
         "@org_uber_go_zap//:go_default_library",
         "@org_uber_go_zap//zapcore:go_default_library",
     ],

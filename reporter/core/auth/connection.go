@@ -13,7 +13,7 @@ import (
 
 // Establish a connection to the server. The server string here should be an HTTP address, not gRPC.
 func ConnectToServer(server string, cert tls.Certificate, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	rsp, err := http.Get(fmt.Sprintf("http://%s/rpc.json", server))
+	rsp, err := http.Get(fmt.Sprintf("https://%s/rpc.json", server))
 	if err != nil {
 		return nil, err
 	}

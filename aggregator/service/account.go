@@ -102,7 +102,7 @@ func (s *Service) Signup(ctx context.Context, req *spb.DataAggregatorSignupReque
 		return nil, status.Error(codes.Internal, "something went wrong with signing token")
 	}
 	if err = s.Notify("email", req.User.Email, fmt.Sprintf(
-		"Hi there! Verify your productimon email here: http://%s/verify?token=%s", s.domain, url.QueryEscape(vtoken))); err != nil {
+		"Hi there! Verify your productimon email here: https://%s/verify?token=%s", s.domain, url.QueryEscape(vtoken))); err != nil {
 		switch err {
 		case notifications.ErrNotRegistered:
 			verified = true

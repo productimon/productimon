@@ -54,11 +54,10 @@ func (opts *Options) Map() map[string]bool {
 func init() {
 	DefaultOptions.init()
 	flag.StringVar(&DefaultWorkDir, "work_dir", defaultWorkDir(), "Path to productimon working dir")
+	flag.StringVar(&DefaultServer, "server", "api.productimon.com", "Server Address (this will get overriden by config file, if exists)")
 	if internal.IsDebugBuild() {
-		flag.StringVar(&DefaultServer, "server", "127.0.0.1:4201", "Server Address (this will get overriden by config file, if exists)")
 		flag.DurationVar(&DefaultMaxInputReportingInterval, "max_input_reporting_interval", 5*time.Second, "Maximum duration to split an activity event (shorter means more accurate)")
 	} else {
-		flag.StringVar(&DefaultServer, "server", "api.productimon.com:4201", "Server Address (this will get overriden by config file, if exists)")
 		flag.DurationVar(&DefaultMaxInputReportingInterval, "max_input_reporting_interval", 60*time.Second, "Maximum duration to split an activity event (shorter means more accurate)")
 	}
 	flag.Var(&DefaultOptions, "default_options", "Default tracking options to be enabled (default "+DefaultOptions.String()+")")
