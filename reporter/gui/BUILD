@@ -68,7 +68,10 @@ cc_binary(
         "//images:windows_logo_res",
         "//reporter/plat/windows:version_res",
     ],
-    linkopts = ["-mwindows"],
+    linkopts = select({
+        "//internal:debug_build": [],
+        "//conditions:default": ["-mwindows"],
+    }),
     deps = [":gui-all"],
 )
 

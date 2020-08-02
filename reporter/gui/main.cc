@@ -11,6 +11,9 @@ int main(int argc, char *argv[]) {
   QApplication app(argc, argv);
 
   app.setQuitOnLastWindowClosed(false);
+#ifdef __MINGW64__
+  app.setFont(QFont("Segoe UI", 9, QFont::Normal));
+#endif
 
   if (init_tracking()) {
     prod_error("Failed to init tracking\n");
