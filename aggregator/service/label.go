@@ -133,9 +133,9 @@ func (s *Service) GetLabels(ctx context.Context, req *spb.DataAggregatorGetLabel
 		if !s.isAdmin(ctx) {
 			return nil, status.Error(codes.Unauthenticated, "You must be an admin to change system-level labels")
 		}
-		rows, err = s.db.Query("SELECT a.name, a.label, COUNT(DISTINCT i.uid) FROM default_apps a, intervals i WHERE a.name = i.app GROUP BY a.name")
+		rows, err = s.db.Query("SELECT a.name, a.label, COUNT(DISTINCT i.uid) FROM default_apps a, intervals i WHERE a.name = i.app GROUP BY a.name ORDER BY a.name COLLATE NOCASE ASC")
 	} else {
-		rows, err = s.db.Query("SELECT i.app, COALESCE(u.label, d.label, ?), 0 FROM (SELECT DISTINCT app FROM intervals WHERE uid = ?) i LEFT JOIN user_apps u ON i.app = u.name AND u.uid = ? LEFT JOIN default_apps d ON i.app = d.name", LABEL_UNCATEGORIZED, uid, uid)
+		rows, err = s.db.Query("SELECT i.app, COALESCE(u.label, d.label, ?), 0 FROM (SELECT DISTINCT app FROM intervals WHERE uid = ?) i LEFT JOIN user_apps u ON i.app = u.name AND u.uid = ? LEFT JOIN default_apps d ON i.app = d.name ORDER BY i.app COLLATE NOCASE ASC", LABEL_UNCATEGORIZED, uid, uid)
 	}
 	if err != nil {
 		s.log.Error("Failed to get labels", zap.Error(err))
