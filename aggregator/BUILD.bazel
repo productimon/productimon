@@ -1,24 +1,8 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
-load("@io_bazel_rules_go//extras:embed_data.bzl", "go_embed_data")
-
-go_embed_data(
-    name = "aggregator_data",
-    srcs = [
-        "schema.sql",
-    ],
-    flatten = True,
-    package = "main",
-)
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "authenticator.go",
-        "label.go",
-        "main.go",
-        "service.go",
-        ":aggregator_data",  # keep
-    ],
+    srcs = ["main.go"],
     importpath = "git.yiad.am/productimon/aggregator",
     visibility = ["//visibility:private"],
     x_defs = select({
@@ -31,33 +15,18 @@ go_library(
         },
     }),
     deps = [
-        "//aggregator/deviceState:go_default_library",
-        "//aggregator/nlp:go_default_library",
+        "//aggregator/authenticator:go_default_library",
         "//aggregator/notifications:go_default_library",
+        "//aggregator/service:go_default_library",
         "//internal:go_default_library",
-        "//proto/common:go_default_library",
         "//proto/svc:go_default_library",
         "//viewer/webfe:go_default_library",
-        "@com_github_cloudflare_cfssl//csr:go_default_library",
-        "@com_github_cloudflare_cfssl//initca:go_default_library",
-        "@com_github_cloudflare_cfssl//signer:go_default_library",
-        "@com_github_cloudflare_cfssl//signer/local:go_default_library",
-        "@com_github_dgrijalva_jwt_go//:go_default_library",
-        "@com_github_google_uuid//:go_default_library",
-        "@com_github_hashicorp_golang_lru//:go_default_library",
         "@com_github_improbable_eng_grpc_web//go/grpcweb:go_default_library",
         "@com_github_mattn_go_sqlite3//:go_default_library",
         "@com_github_productimon_wasmws//:go_default_library",
-        "@com_github_sethvargo_go_password//password:go_default_library",
         "@io_nhooyr_websocket//:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
-        "@org_golang_google_grpc//codes:go_default_library",
-        "@org_golang_google_grpc//credentials:go_default_library",
-        "@org_golang_google_grpc//metadata:go_default_library",
-        "@org_golang_google_grpc//peer:go_default_library",
         "@org_golang_google_grpc//reflection:go_default_library",
-        "@org_golang_google_grpc//status:go_default_library",
-        "@org_golang_x_crypto//bcrypt:go_default_library",
         "@org_uber_go_zap//:go_default_library",
         "@org_uber_go_zap//zapcore:go_default_library",
     ],

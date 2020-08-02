@@ -1,4 +1,4 @@
-package main
+package service
 
 import (
 	"database/sql"
@@ -22,7 +22,7 @@ var labelCache *lru.TwoQueueCache
 
 // add label to queue on best effort
 // directly return if queue is full
-func (s *service) addLabelToQueue(app string) {
+func (s *Service) addLabelToQueue(app string) {
 	select {
 	case labelChan <- app:
 	default:
@@ -31,7 +31,7 @@ func (s *service) addLabelToQueue(app string) {
 
 // get system-wide label for app
 // return LABEL_UNCATEGORIZED if it's not yet ready
-func (s *service) getDefaultLabel(app string, tx *sql.Tx) string {
+func (s *Service) getDefaultLabel(app string, tx *sql.Tx) string {
 	if label, ok := labelCache.Get(app); ok {
 		return label.(string)
 	}
@@ -44,8 +44,33 @@ func (s *service) getDefaultLabel(app string, tx *sql.Tx) string {
 	return LABEL_UNCATEGORIZED
 }
 
+func (s *Service) getLabel(uid, appname string, tx *sql.Tx) (label string) {
+	if err := tx.QueryRow("SELECT label FROM user_apps WHERE uid=? AND name=? LIMIT 1", uid, appname).Scan(&label); err == nil {
+		return
+	}
+	label = s.getDefaultLabel(appname, tx)
+	// if the current label is UNKNOWN (which means we tried to guess it but failed),
+	// and is later updated to a real label, this update is reflected to the user
+	//
+	// if the current label is not UNKNOWN but a valid tag and is later changed to a
+	// different label, i don't want it updated for users who already saw this label
+	// before (it's weird to change user data after they saw it)
+	//
+	// e.g. if zoom is unknown but later changed to videoconference, this is updated
+	// for the user. if zoom is videoconference and the user already saw it, but
+	// admin changes it to meeting later, we don't want this change to take place
+	// automatically for old users. but for new users who never used it before, they
+	// have the new label
+	if label != LABEL_UNKNOWN && label != LABEL_UNCATEGORIZED {
+		if _, err := tx.Exec("INSERT INTO user_apps (uid, name, label) VALUES(?, ?, ?)", uid, appname, label); err != nil {
+			s.log.Error("failed to insert to user_apps", zap.Error(err), zap.String("uid", uid), zap.String("appname", appname), zap.String("label", label))
+		}
+	}
+	return
+}
+
 // blocking call to ensure app is labelled
-func (s *service) ensureLabel(app string) {
+func (s *Service) ensureLabel(app string) {
 	var label string
 	if err := s.db.QueryRow("SELECT label FROM default_apps WHERE name=? LIMIT 1", app).Scan(&label); err == nil && label != LABEL_UNCATEGORIZED {
 		labelCache.Add(app, label)
@@ -61,7 +86,7 @@ func (s *service) ensureLabel(app string) {
 }
 
 // scan db for any remaining uncatogorized apps and add them to queue on best effort
-func (s *service) scanDbToLabelQueue() {
+func (s *Service) scanDbToLabelQueue() {
 	if rows, err := s.db.Query("SELECT name FROM default_apps WHERE label = ''"); err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -73,7 +98,8 @@ func (s *service) scanDbToLabelQueue() {
 }
 
 // resolve local queue and scan db periodically for uncategorized apps(in case queue if full or we reboot server)
-func (s *service) runLabelRoutine() {
+// to be run in its own goroutine
+func (s *Service) RunLabelRoutine() {
 	var err error
 	labelChan = make(chan string, labelbuffersize)
 	if labelCache, err = lru.New2Q(labelcachesize); err != nil {

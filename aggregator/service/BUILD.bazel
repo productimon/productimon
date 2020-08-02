@@ -1,0 +1,34 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "account.go",
+        "admin.go",
+        "analysis.go",
+        "events.go",
+        "goals.go",
+        "label.go",
+        "service.go",
+        "utils.go",
+    ],
+    importpath = "git.yiad.am/productimon/aggregator/service",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//aggregator/authenticator:go_default_library",
+        "//aggregator/db:go_default_library",
+        "//aggregator/deviceState:go_default_library",
+        "//aggregator/nlp:go_default_library",
+        "//aggregator/notifications:go_default_library",
+        "//internal:go_default_library",
+        "//proto/common:go_default_library",
+        "//proto/svc:go_default_library",
+        "@com_github_google_uuid//:go_default_library",
+        "@com_github_hashicorp_golang_lru//:go_default_library",
+        "@com_github_sethvargo_go_password//password:go_default_library",
+        "@org_golang_google_grpc//codes:go_default_library",
+        "@org_golang_google_grpc//status:go_default_library",
+        "@org_golang_x_crypto//bcrypt:go_default_library",
+        "@org_uber_go_zap//:go_default_library",
+    ],
+)

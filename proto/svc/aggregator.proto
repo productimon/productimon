@@ -9,7 +9,7 @@ service DataAggregator {
   /* status */
   rpc Ping(DataAggregatorPingRequest) returns (DataAggregatorPingResponse);
 
-  /* login */
+  /* account */
   rpc Login(DataAggregatorLoginRequest) returns (DataAggregatorLoginResponse);
   rpc Signup(DataAggregatorSignupRequest) returns (DataAggregatorLoginResponse);
   rpc ExtendToken(common.Empty) returns (DataAggregatorLoginResponse);

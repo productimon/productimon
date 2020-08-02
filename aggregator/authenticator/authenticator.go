@@ -1,4 +1,4 @@
-package main
+package authenticator
 
 import (
 	"context"
@@ -275,4 +275,8 @@ func (a *Authenticator) AuthenticateRequest(ctx context.Context) (uid string, di
 		return "", -1, errors.New("authorization is missing")
 	}
 	return a.VerifyToken(auth[0])
+}
+
+func (a Authenticator) CertPEM() []byte {
+	return a.certPEM
 }

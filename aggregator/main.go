@@ -15,7 +15,9 @@ import (
 	"syscall"
 	"time"
 
+	"git.yiad.am/productimon/aggregator/authenticator"
 	"git.yiad.am/productimon/aggregator/notifications"
+	"git.yiad.am/productimon/aggregator/service"
 	"git.yiad.am/productimon/internal"
 	spb "git.yiad.am/productimon/proto/svc"
 	"git.yiad.am/productimon/viewer/webfe"
@@ -42,7 +44,6 @@ var (
 	flagSMTPUsername      string
 	flagSMTPPasswordFile  string
 	flagSMTPSender        string
-	flagFirstUser         string
 	jsFilename            string
 	mapFilename           string
 	logger                *zap.Logger
@@ -60,7 +61,6 @@ func init() {
 	flag.StringVar(&flagSMTPUsername, "smtp_username", "", "SMTP username for authentication (this is usually the same as sender address, leave empty to disable authentication)")
 	flag.StringVar(&flagSMTPPasswordFile, "smtp_password_file", "", "Path to SMTP password file")
 	flag.StringVar(&flagSMTPSender, "smtp_sender", "", "SMTP sender address for sending emails")
-	flag.StringVar(&flagFirstUser, "first_user_email", "admin@productimon.com", "The email address of the auto-created first admin user (only used when running for first time)")
 	flag.BoolVar(&flagDebug, "debug", false, "enable debug logging")
 }
 
@@ -82,7 +82,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	auther, err := NewAuthenticator(flagPublicKeyPath, flagPrivateKeyPath)
+	auther, err := authenticator.NewAuthenticator(flagPublicKeyPath, flagPrivateKeyPath)
 	if err != nil {
 		logger.Fatal("can't create authenticator", zap.Error(err))
 	}
@@ -101,7 +101,7 @@ func main() {
 	}
 	grpcServer := grpc.NewServer(grpcCreds)
 	reflection.Register(grpcServer)
-	s, err := NewService(auther, db, logger)
+	s, err := service.NewService(flagDomain, auther, db, logger)
 	if err != nil {
 		logger.Fatal("can't create service", zap.Error(err))
 	}
@@ -172,7 +172,7 @@ func main() {
 			ServerName string
 		}{
 			flagGRPCPublicPort,
-			auther.certPEM,
+			auther.CertPEM(),
 			"api.productimon.com",
 		})
 		if err != nil {
@@ -215,7 +215,7 @@ func main() {
 	}()
 	go func() {
 		defer cancel()
-		s.runLabelRoutine()
+		s.RunLabelRoutine()
 	}()
 
 	// Handle signals
