@@ -30,6 +30,7 @@ type Operator interface {
 	DB() *sql.DB
 	DBLock()
 	DBUnlock()
+	UpdateGoal(uid string, gid int64)
 }
 
 func idsToKey(uid string, did int64) string {
@@ -45,7 +46,6 @@ func (ds *DeviceState) switchApp(o Operator, log *zap.Logger, app string, timest
 }
 
 func (ds *DeviceState) clearState(o Operator, log *zap.Logger, timestamp int64) {
-	// TODO: check if we need to update any goals
 	if ds.running {
 		ds.running = false
 		o.DBLock()
@@ -53,6 +53,28 @@ func (ds *DeviceState) clearState(o Operator, log *zap.Logger, timestamp int64) 
 			log.Error("error in clearState", zap.Error(err))
 		}
 		o.DBUnlock()
+		// we don't want/need event heap be blocked by goal updates, so we just spawn a goroutine to do this
+		go func() {
+			// TODO: honor device filter (we need to figure out how to store device list in schema as well)
+			goals, err := o.DB().Query("SELECT id FROM goals WHERE uid = ? AND starttime <= ? AND endtime >= ? "+
+				"AND ((is_label = FALSE AND item = ?) OR "+
+				"(is_label = TRUE AND item = "+
+				"COALESCE((SELECT label FROM user_apps WHERE uid = ? AND name = ?), (SELECT label FROM default_apps WHERE name = ?), 'Unknown')))",
+				ds.uid, timestamp, ds.startTime, ds.app, ds.uid, ds.app, ds.app)
+			switch {
+			case err == sql.ErrNoRows:
+				return
+			case err != nil:
+				log.Error("error getting affected goals", zap.Error(err))
+			default:
+				defer goals.Close()
+				for goals.Next() {
+					var gid int64
+					goals.Scan(&gid)
+					o.UpdateGoal(ds.uid, gid)
+				}
+			}
+		}()
 	}
 }
 

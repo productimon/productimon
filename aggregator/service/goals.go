@@ -101,6 +101,28 @@ func (s *Service) getGoalProgress(uid, dFilter string, isLabel bool, item string
 	return int64(result * 1000), nil
 }
 
+// calculate and update goal progress
+func (s *Service) UpdateGoal(uid string, gid int64) {
+	var isLabel bool
+	var item string
+	var baseDuration, targetDuration, startTime, endTime, progress int64
+	var err error
+	s.dbWLock.Lock()
+	defer s.dbWLock.Unlock()
+	if err = s.db.QueryRow("SELECT is_label, item, base_duration, target_duration, starttime, endtime FROM goals WHERE uid = ? AND id = ?", uid, gid).Scan(&isLabel, &item, &baseDuration, &targetDuration, &startTime, &endTime); err != nil {
+		s.log.Error("Error updating goal", zap.Error(err), zap.String("uid", uid), zap.Int64("gid", gid))
+		return
+	}
+	if progress, err = s.getGoalProgress(uid, "" /* TODO: get device filter */, isLabel, item, baseDuration, targetDuration, startTime, endTime); err != nil {
+		s.log.Error("error getting goal progress", zap.Error(err), zap.String("uid", uid), zap.Int64("gid", gid))
+		return
+	}
+	if _, err = s.db.Exec("UPDATE goals SET progress = ? WHERE uid = ? AND id = ?", progress, uid, gid); err != nil {
+		s.log.Error("error setting goal progress", zap.Error(err), zap.String("uid", uid), zap.Int64("gid", gid))
+	}
+	// TODO: check if we want to send notification here :)
+}
+
 func (s *Service) AddGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, error) {
 	uid, did, err := s.auther.AuthenticateRequest(ctx)
 	if err != nil || did != -1 {
@@ -124,6 +146,7 @@ func (s *Service) AddGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, erro
 		s.log.Error("error getting goal progress", zap.Error(err))
 		return nil, status.Error(codes.Internal, "error adding goal")
 	}
+	// TODO: store devices to db
 	if _, err = s.db.Exec("INSERT INTO goals VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ",
 		goal.Uid, goal.Id, isLabel, item, isPercent, goalDuration, targetDuration, baseDuration, goal.GoalInterval.Start.Nanos, goal.GoalInterval.End.Nanos, goal.GetCompareInterval().GetStart().GetNanos(), goal.GetCompareInterval().GetEnd().GetNanos(), goal.DaysOfWeek, goal.CompareEqualized, progress); err != nil {
 		s.log.Error("insert goal failed", zap.Error(err))
