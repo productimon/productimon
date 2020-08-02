@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sync"
 
 	"git.yiad.am/productimon/aggregator/deviceState"
 	cpb "git.yiad.am/productimon/proto/common"
@@ -39,8 +38,8 @@ func (s *Service) addGeneralEvent(uid string, did int64, e *cpb.Event, kind cpb.
 	return
 }
 
-func (s *Service) eventUpdateState(uid string, did int64, e *cpb.Event, eg func(e *cpb.Event) func(ds *deviceState.DeviceState, db *sql.DB, dblock *sync.Mutex, logger *zap.Logger)) error {
-	err := s.ds.RunEvent(s.db, s.dbWLock, s.log, uid, did, e.Id, eg(e))
+func (s *Service) eventUpdateState(uid string, did int64, e *cpb.Event, eg func(e *cpb.Event) func(*deviceState.DeviceState, deviceState.Operator, *zap.Logger)) error {
+	err := s.ds.RunEvent(s, uid, did, e.Id, eg(e))
 	if err != nil {
 		s.log.Error("RunEvent error", zap.Error(err), zap.String("uid", uid), zap.Int64("did", did), zap.Int64("eid", e.Id))
 	}

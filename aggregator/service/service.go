@@ -22,7 +22,7 @@ import (
 type Service struct {
 	domain    string
 	auther    *authenticator.Authenticator
-	dbWLock   *sync.Mutex
+	dbWLock   sync.Mutex
 	db        *sql.DB
 	log       *zap.Logger
 	notifiers map[string]notifications.Notifier
@@ -71,7 +71,6 @@ func NewService(domain string, auther *authenticator.Authenticator, db *sql.DB, 
 		domain:    domain,
 		auther:    auther,
 		db:        db,
-		dbWLock:   &sync.Mutex{},
 		log:       logger,
 		notifiers: make(map[string]notifications.Notifier),
 	}
@@ -96,4 +95,16 @@ func (s *Service) Ping(ctx context.Context, req *spb.DataAggregatorPingRequest) 
 		Payload: req.Payload,
 	}
 	return rsp, nil
+}
+
+func (s Service) DB() *sql.DB {
+	return s.db
+}
+
+func (s *Service) DBLock() {
+	s.dbWLock.Lock()
+}
+
+func (s *Service) DBUnlock() {
+	s.dbWLock.Unlock()
 }
