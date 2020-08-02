@@ -51,6 +51,7 @@ export default function App() {
             `Error getting user details: ${err}, redirecting to login page`
           ); // TODO better way to show error
           redirectToLogin();
+          setLoaded(true);
         });
     } else {
       setLoaded(true);
