@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	cpb "git.yiad.am/productimon/proto/common"
 	spb "git.yiad.am/productimon/proto/svc"
@@ -105,11 +107,11 @@ func (s *Service) getGoalProgress(uid, dFilter string, isLabel bool, item string
 func (s *Service) UpdateGoal(uid string, gid int64) {
 	var isLabel bool
 	var item string
-	var baseDuration, targetDuration, startTime, endTime, progress int64
+	var baseDuration, targetDuration, startTime, endTime, oldProgress, progress int64
 	var err error
 	s.dbWLock.Lock()
 	defer s.dbWLock.Unlock()
-	if err = s.db.QueryRow("SELECT is_label, item, base_duration, target_duration, starttime, endtime FROM goals WHERE uid = ? AND id = ?", uid, gid).Scan(&isLabel, &item, &baseDuration, &targetDuration, &startTime, &endTime); err != nil {
+	if err = s.db.QueryRow("SELECT is_label, item, base_duration, target_duration, starttime, endtime, progress FROM goals WHERE uid = ? AND id = ?", uid, gid).Scan(&isLabel, &item, &baseDuration, &targetDuration, &startTime, &endTime, &oldProgress); err != nil {
 		s.log.Error("Error updating goal", zap.Error(err), zap.String("uid", uid), zap.Int64("gid", gid))
 		return
 	}
@@ -119,8 +121,29 @@ func (s *Service) UpdateGoal(uid string, gid int64) {
 	}
 	if _, err = s.db.Exec("UPDATE goals SET progress = ? WHERE uid = ? AND id = ?", progress, uid, gid); err != nil {
 		s.log.Error("error setting goal progress", zap.Error(err), zap.String("uid", uid), zap.Int64("gid", gid))
+		return
 	}
-	// TODO: check if we want to send notification here :)
+	// TODO: differentiate aspiring/limiting goals, and make the message fancier
+	var msg string
+	switch {
+	// TODO: this looks like a nice place to allow configuration/templating. If not on a user-level, at least on a server-level
+	case oldProgress < 1000 && progress >= 1000:
+		msg = fmt.Sprintf("Congrats! You've achieved your goal in using %s from %s to %s. Check %s for more details.", item, time.Unix(0, startTime).String(), time.Unix(0, endTime).String(), s.domain)
+	case oldProgress < 850 && progress >= 850:
+		msg = fmt.Sprintf("You're almost there! You've finished %.1f%% of your goal in using %s from %s to %s. Check %s for more details.", float32(progress)/10, item, time.Unix(0, startTime).String(), time.Unix(0, endTime).String(), s.domain)
+	}
+	// TODO: add non-email notifiers
+	if len(msg) > 0 {
+		var email string
+		if err = s.db.QueryRow("SELECT email FROM users WHERE id = ? LIMIT 1", uid).Scan(&email); err != nil {
+			s.log.Error("error getting email", zap.Error(err), zap.String("uid", uid))
+			return
+		}
+		if err = s.Notify("email", email, msg); err != nil {
+			s.log.Error("error sending goal notification email", zap.Error(err), zap.String("email", email))
+			return
+		}
+	}
 }
 
 func (s *Service) AddGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, error) {
