@@ -18,8 +18,13 @@ const (
 	labelbuffersize      = 1024
 	labelcachesize       = 1024
 	labelDbCheckInterval = 5 * time.Minute
-	LABEL_UNCATEGORIZED  = "Uncatogorized" // not yet guessed
-	LABEL_UNKNOWN        = "Unknown"       // can't guess
+)
+
+const (
+	/* please make sure there are no special characters in the following constants */
+	/* we're directly putting them in sql statement without escaping in some places */
+	LABEL_UNCATEGORIZED = "Uncategorized" // not yet guessed
+	LABEL_UNKNOWN       = "Unknown"       // can't guess
 )
 
 var labelChan chan string

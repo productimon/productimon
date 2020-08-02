@@ -59,7 +59,7 @@ func (ds *DeviceState) clearState(o Operator, log *zap.Logger, timestamp int64) 
 			goals, err := o.DB().Query("SELECT id FROM goals WHERE uid = ? AND starttime <= ? AND endtime >= ? "+
 				"AND ((is_label = FALSE AND item = ?) OR "+
 				"(is_label = TRUE AND item = "+
-				"COALESCE((SELECT label FROM user_apps WHERE uid = ? AND name = ?), (SELECT label FROM default_apps WHERE name = ?), 'Unknown')))",
+				"COALESCE((SELECT label FROM user_apps WHERE uid = ? AND name = ?), (SELECT label FROM default_apps WHERE name = ?), 'Uncategorized')))",
 				ds.uid, timestamp, ds.startTime, ds.app, ds.uid, ds.app, ds.app)
 			switch {
 			case err == sql.ErrNoRows:

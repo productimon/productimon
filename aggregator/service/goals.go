@@ -25,7 +25,7 @@ func (s *Service) getGoalDuration(uid string, isLabel bool, item, dFilter string
 	}
 	st += "WHERE intervals.uid = ? AND endtime >= ? AND starttime <= ? "
 	if isLabel {
-		st += "AND COALESCE(user_apps.label, default_apps.label, 'Unknown') = ? "
+		st += "AND COALESCE(user_apps.label, default_apps.label, '" + LABEL_UNCATEGORIZED + "') = ? "
 	} else {
 		st += "AND app = ? "
 	}
