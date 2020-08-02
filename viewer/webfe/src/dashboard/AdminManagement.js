@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { useHistory } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
-
 import Button from "@material-ui/core/Button";
 import Container from "@material-ui/core/Container";
 import Grid from "@material-ui/core/Grid";
@@ -24,6 +24,9 @@ import LastPage from "@material-ui/icons/LastPage";
 import Remove from "@material-ui/icons/Remove";
 import Search from "@material-ui/icons/Search";
 
+import { rpc } from "../Utils";
+import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
+import { User, Empty } from "productimon/proto/common/common_pb";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -44,32 +47,41 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 // helper function to create dummy data
-function createData(id, userEmail) {
-  return { id, userEmail };
+function createData(email) {
+  return { email };
 }
 
-
-// dummy data for table
-const rows = [
-  createData(1, "a@x.com"),
-  createData(0, "user@gmail.com"),
-  createData(2, "admin@productimon.com"),
-  createData(3, "basicAdmin@productimon.com"),
-];
-
 // Creating a list of fields to be used in the table
-const cols = [
-  { title: "User Email", field: "userEmail", editable: "never" },
-];
+const columns = [{ title: "User Email", field: "email", editable: "never" }];
 
 export default function AdminManagement() {
   const { useState } = React;
   const classes = useStyles();
-  const [columns, setColumns] = useState(cols);
+  const history = useHistory();
 
-  // TODO get data from backend
+  const [email, setEmail] = useState("");
+  const [data, setData] = useState([]);
+  useEffect(() => {
+    const request = new Empty();
+    rpc(DataAggregator.ListAdmins, history, {
+      onEnd: ({ status, statusMessage, headers, message }) => {
+        setData(message.getAdminsList().map((a) => createData(a.getEmail())));
+      },
+      request,
+    });
+  }, []);
 
-  const [data, setData] = useState(rows);
+  const promoteAdmin = () => {
+    const request = new User();
+    request.setEmail(email);
+    rpc(DataAggregator.PromoteAccount, history, {
+      onEnd: ({ status, statusMessage, headers, message }) => {
+        setData([...data, createData(email)]);
+        setEmail("");
+      },
+      request,
+    });
+  };
 
   return (
     <Container maxWidth="lg" className={classes.container}>
@@ -95,15 +107,18 @@ export default function AdminManagement() {
                 >
                   <Grid item style={{ flexGrow: 1, marginLeft: 12 }}>
                     <TextField
-                      id="emailAddr"
                       label="Email"
                       variant="outlined"
                       fullWidth
                       margin="normal"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                     />
                   </Grid>
                   <Grid item style={{ marginRight: 12 }}>
-                    <Button variant="contained">Promote</Button>
+                    <Button onClick={promoteAdmin} variant="contained">
+                      Promote
+                    </Button>
                   </Grid>
                 </Grid>
               </Grid>
@@ -148,16 +163,23 @@ export default function AdminManagement() {
                 editable={{
                   onRowDelete: (oldData) =>
                     new Promise((resolve, reject) => {
-                      setTimeout(() => {
-                        const dataDelete = [...data];
-                        const index = oldData.tableData.id;
-                        dataDelete.splice(index, 1);
-                        setData([...dataDelete]);
-
-                        // TODO demote user in backend
-
-                        resolve();
-                      }, 1000);
+                      const request = new User();
+                      request.setEmail(oldData.email);
+                      rpc(DataAggregator.DemoteAccount, history, {
+                        onEnd: ({
+                          status,
+                          statusMessage,
+                          headers,
+                          message,
+                        }) => {
+                          const updatedData = data.filter(
+                            (a) => a.email != oldData.email
+                          );
+                          setData(updatedData);
+                          resolve();
+                        },
+                        request,
+                      });
                     }),
                 }}
               />
