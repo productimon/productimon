@@ -67,7 +67,7 @@ export default function AdminManagement() {
     const request = new Empty();
     rpc(DataAggregator.ListAdmins, request)
       .then((res) => {
-        setData(message.getAdminsList().map((a) => createData(a.getEmail())));
+        setData(res.getAdminsList().map((a) => createData(a.getEmail())));
       })
       .catch((err) => {
         enqueueSnackbar(err, { variant: "error" });
@@ -77,7 +77,7 @@ export default function AdminManagement() {
   const promoteAdmin = () => {
     const request = new User();
     request.setEmail(email);
-    rpc(DataAggregator.PromoteAdmin, request)
+    rpc(DataAggregator.PromoteAccount, request)
       .then((res) => {
         enqueueSnackbar("Successfully promoted " + email, {
           variant: "success",
@@ -174,7 +174,7 @@ export default function AdminManagement() {
                       const request = new User();
                       // TODO: shouldn't really use email. Use uid instead
                       request.setEmail(oldData.email);
-                      rpc(DataAggregator.Demote, request)
+                      rpc(DataAggregator.DemoteAccount, request)
                         .then((res) => {
                           enqueueSnackbar("Successfully demoted " + email, {
                             variant: "success",
