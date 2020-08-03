@@ -115,6 +115,12 @@ message Goal {
     string sms = 15;
     int64 device = 16;
   }
+
+  // a human-readable name for this goal
+  string title = 17;
+
+  // aspiring/limiting (TODO: ceebs change to enum)
+  string type = 18;
 }
 
 message Label {

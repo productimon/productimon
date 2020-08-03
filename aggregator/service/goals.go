@@ -90,6 +90,9 @@ func (s *Service) initGoal(g *cpb.Goal) (isLabel bool, item string, isPercent bo
 }
 
 func (s *Service) getGoalProgress(uid, dFilter string, isLabel bool, item string, baseDuration, targetDuration, startTime, endTime int64) (int64, error) {
+	// i am dumb and think too much - it makes more sense to use 0 as baseDuration
+	// TODO: remove all references to baseDuration if we won't be using it for other stuff
+	baseDuration = 0
 	actualDuration, err := s.getGoalDuration(uid, isLabel, item, dFilter, startTime, endTime)
 	if err != nil {
 		return 0, err
@@ -107,12 +110,12 @@ func (s *Service) getGoalProgress(uid, dFilter string, isLabel bool, item string
 // calculate and update goal progress
 func (s *Service) UpdateGoal(uid string, gid int64) {
 	var isLabel bool
-	var item string
+	var item, title, goaltype string
 	var baseDuration, targetDuration, startTime, endTime, oldProgress, progress int64
 	var err error
 	s.dbWLock.Lock()
 	defer s.dbWLock.Unlock()
-	if err = s.db.QueryRow("SELECT is_label, item, base_duration, target_duration, starttime, endtime, progress FROM goals WHERE uid = ? AND id = ?", uid, gid).Scan(&isLabel, &item, &baseDuration, &targetDuration, &startTime, &endTime, &oldProgress); err != nil {
+	if err = s.db.QueryRow("SELECT title, goaltype, is_label, item, base_duration, target_duration, starttime, endtime, progress FROM goals WHERE uid = ? AND id = ?", uid, gid).Scan(&title, &goaltype, isLabel, &item, &baseDuration, &targetDuration, &startTime, &endTime, &oldProgress); err != nil {
 		s.log.Error("Error updating goal", zap.Error(err), zap.String("uid", uid), zap.Int64("gid", gid))
 		return
 	}
@@ -124,14 +127,23 @@ func (s *Service) UpdateGoal(uid string, gid int64) {
 		s.log.Error("error setting goal progress", zap.Error(err), zap.String("uid", uid), zap.Int64("gid", gid))
 		return
 	}
-	// TODO: differentiate aspiring/limiting goals, and make the message fancier
 	var msg string
-	switch {
 	// TODO: this looks like a nice place to allow configuration/templating. If not on a user-level, at least on a server-level
-	case oldProgress < 1000 && progress >= 1000:
-		msg = fmt.Sprintf("Congrats! You've achieved your goal in using %s from %s to %s. Check %s for more details.", item, time.Unix(0, startTime).String(), time.Unix(0, endTime).String(), s.domain)
-	case oldProgress < 850 && progress >= 850:
-		msg = fmt.Sprintf("You're almost there! You've finished %.1f%% of your goal in using %s from %s to %s. Check %s for more details.", float32(progress)/10, item, time.Unix(0, startTime).String(), time.Unix(0, endTime).String(), s.domain)
+	switch goaltype {
+	case "aspiring":
+		switch {
+		case oldProgress < 1000 && progress >= 1000:
+			msg = fmt.Sprintf("Congrats! You've achieved your goal in using %s (%s) from %s to %s. Check %s for more details.", item, title, time.Unix(0, startTime).String(), time.Unix(0, endTime).String(), s.domain)
+		case oldProgress < 850 && progress >= 850:
+			msg = fmt.Sprintf("You're almost there! You've finished %.1f%% of your goal in using %s (%s) from %s to %s. Check %s for more details.", float32(progress)/10, item, title, time.Unix(0, startTime).String(), time.Unix(0, endTime).String(), s.domain)
+		}
+	case "limiting":
+		switch {
+		case oldProgress < 1000 && progress >= 1000:
+			msg = fmt.Sprintf("Unfortunately, you've failed your goal (%s) by using %s too much from %s to %s. Check %s for more details.", title, item, time.Unix(0, startTime).String(), time.Unix(0, endTime).String(), s.domain)
+		case oldProgress < 850 && progress >= 850:
+			msg = fmt.Sprintf("Be careful! You've used %.1f%% of all allowed time to use %s in your goal (%s) from %s to %s. Check %s for more details.", float32(progress)/10, item, title, time.Unix(0, startTime).String(), time.Unix(0, endTime).String(), s.domain)
+		}
 	}
 	// TODO: add non-email notifiers
 	if len(msg) > 0 {
@@ -153,6 +165,12 @@ func (s *Service) AddGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, erro
 		return nil, status.Error(codes.Unauthenticated, "Invalid token")
 	}
 	goal.Uid = uid
+	switch goal.Type {
+	case "aspiring":
+	case "limiting":
+	default:
+		return nil, status.Error(codes.InvalidArgument, "Invalid goal type")
+	}
 	s.dbWLock.Lock()
 	defer s.dbWLock.Unlock()
 	if err = s.db.QueryRow("SELECT COALESCE(MAX(id), -1) FROM goals WHERE uid=?", uid).Scan(&goal.Id); err != nil {
@@ -171,8 +189,8 @@ func (s *Service) AddGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, erro
 		return nil, status.Error(codes.Internal, "error adding goal")
 	}
 	// TODO: store devices to db
-	if _, err = s.db.Exec("INSERT INTO goals VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ",
-		goal.Uid, goal.Id, isLabel, item, isPercent, goalDuration, targetDuration, baseDuration, goal.GoalInterval.Start.Nanos, goal.GoalInterval.End.Nanos, goal.GetCompareInterval().GetStart().GetNanos(), goal.GetCompareInterval().GetEnd().GetNanos(), goal.DaysOfWeek, goal.CompareEqualized, progress); err != nil {
+	if _, err = s.db.Exec("INSERT INTO goals VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ",
+		goal.Uid, goal.Id, goal.Title, isLabel, item, isPercent, goalDuration, targetDuration, baseDuration, goal.GoalInterval.Start.Nanos, goal.GoalInterval.End.Nanos, goal.GetCompareInterval().GetStart().GetNanos(), goal.GetCompareInterval().GetEnd().GetNanos(), goal.DaysOfWeek, goal.CompareEqualized, progress, goal.Type); err != nil {
 		s.log.Error("insert goal failed", zap.Error(err))
 		return nil, status.Error(codes.Internal, "error adding goal")
 	}
@@ -203,7 +221,7 @@ func (s *Service) GetGoals(ctx context.Context, req *cpb.Empty) (*spb.DataAggreg
 		return nil, status.Error(codes.Unauthenticated, "Invalid token")
 	}
 
-	rows, err := s.db.Query("SELECT id, is_label, item, is_percent, goal_duration, starttime, endtime, compare_starttime, compare_endtime, equalized, progress FROM goals WHERE uid = ?", uid)
+	rows, err := s.db.Query("SELECT id, title, is_label, item, is_percent, goal_duration, starttime, endtime, compare_starttime, compare_endtime, equalized, progress, goaltype FROM goals WHERE uid = ?", uid)
 
 	rsp := &spb.DataAggregatorGetGoalsResponse{}
 	switch {
@@ -212,14 +230,15 @@ func (s *Service) GetGoals(ctx context.Context, req *cpb.Empty) (*spb.DataAggreg
 		for rows.Next() {
 			var id, goalDuration, starttime, endtime, compareStarttime, compareEndtime, progress int64
 			var isLabel, isPercent, equalized bool
-			var item string
-			if err = rows.Scan(&id, &isLabel, &item, &isPercent, &goalDuration, &starttime, &endtime, &compareStarttime, &compareEndtime, &equalized, &progress); err != nil {
+			var item, title, goaltype string
+			if err = rows.Scan(&id, &title, &isLabel, &item, &isPercent, &goalDuration, &starttime, &endtime, &compareStarttime, &compareEndtime, &equalized, &progress, &goaltype); err != nil {
 				s.log.Error("failed to scan goal", zap.Error(err))
 				continue
 			}
 			goal := &cpb.Goal{
-				Uid: uid,
-				Id:  id,
+				Uid:   uid,
+				Id:    id,
+				Title: title,
 				GoalInterval: &cpb.Interval{
 					Start: &cpb.Timestamp{Nanos: starttime},
 					End:   &cpb.Timestamp{Nanos: endtime},
@@ -231,6 +250,7 @@ func (s *Service) GetGoals(ctx context.Context, req *cpb.Empty) (*spb.DataAggreg
 				CompareEqualized: equalized,
 				Completed:        endtime < time.Now().UnixNano(),
 				Progress:         float32(progress) / 1000,
+				Type:             goaltype,
 			}
 			if isPercent {
 				goal.Amount = &cpb.Goal_PercentAmount{PercentAmount: float32(goalDuration) / 1000}

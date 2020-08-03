@@ -72,19 +72,21 @@ CREATE TABLE activity_events (
 CREATE TABLE goals (
   uid CHAR(36) NOT NULL,
   id INTEGER NOT NULL,
+  title VARCHAR(255) NOT NULL,
   is_label BOOLEAN NOT NULL,
   item VARCHAR(255) NOT NULL,
   is_percent BOOLEAN NOT NULL,
   goal_duration INTEGER NOT NULL, -- raw goal duration by user. if percent, out of 1000
   target_duration INTEGER NOT NULL, -- target duration (100% completion line)
-  base_duration INTEGER NOT NULL, -- base duration (0% completion line)
+  base_duration INTEGER NOT NULL, -- base duration (i am dumb, we should use 0 as baseline completion instead)
   starttime INTEGER NOT NULL,
   endtime INTEGER NOT NULL,
   compare_starttime INTEGER,
   compare_endtime INTEGER,
   days_of_week INTEGER,
   equalized BOOLEAN NOT NULL,
-  progress INTEGER, -- out of 1000
+  progress INTEGER NOT NULL, -- out of 1000
+  goaltype CHAR(8) CHECK(goaltype IN ('aspiring', 'limiting')) NOT NULL,
   -- TODO: different notification methods
   PRIMARY KEY(uid, id),
   FOREIGN KEY (uid) REFERENCES users(id) ON DELETE CASCADE
