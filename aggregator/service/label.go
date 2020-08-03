@@ -142,20 +142,23 @@ func (s *Service) GetLabels(ctx context.Context, req *spb.DataAggregatorGetLabel
 	} else {
 		rows, err = s.db.Query("SELECT i.app, COALESCE(u.label, d.label, ?), 0 FROM (SELECT DISTINCT app FROM intervals WHERE uid = ?) i LEFT JOIN user_apps u ON i.app = u.name AND u.uid = ? LEFT JOIN default_apps d ON i.app = d.name ORDER BY i.app COLLATE NOCASE ASC", LABEL_UNCATEGORIZED, uid, uid)
 	}
-	if err != nil {
+	rsp := &spb.DataAggregatorGetLabelsResponse{}
+
+	switch {
+	case err == nil:
+		defer rows.Close()
+		for rows.Next() {
+			label := &cpb.Label{}
+			if err = rows.Scan(&label.App, &label.Label, &label.UsedBy); err != nil {
+				s.log.Error("failed to scan label", zap.Error(err))
+				continue
+			}
+			rsp.Labels = append(rsp.Labels, label)
+		}
+	case err == sql.ErrNoRows:
+	default:
 		s.log.Error("Failed to get labels", zap.Error(err))
 		return nil, status.Error(codes.Internal, "something went wrong")
-	}
-	defer rows.Close()
-
-	rsp := &spb.DataAggregatorGetLabelsResponse{}
-	for rows.Next() {
-		label := &cpb.Label{}
-		if err = rows.Scan(&label.App, &label.Label, &label.UsedBy); err != nil {
-			s.log.Error("failed to scan label", zap.Error(err))
-			continue
-		}
-		rsp.Labels = append(rsp.Labels, label)
 	}
 	return rsp, nil
 }
