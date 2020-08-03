@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -187,5 +188,57 @@ func (s *Service) EditGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, err
 }
 
 func (s *Service) GetGoals(ctx context.Context, req *cpb.Empty) (*spb.DataAggregatorGetGoalsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
+		return nil, status.Error(codes.Unauthenticated, "Invalid token")
+	}
+
+	rows, err := s.db.Query("SELECT id, is_label, item, is_percent, goal_duration, starttime, endtime, compare_starttime, compare_endtime, equalized, progress FROM goals WHERE uid = ?", uid)
+
+	rsp := &spb.DataAggregatorGetGoalsResponse{}
+	switch {
+	case err == nil:
+		defer rows.Close()
+		for rows.Next() {
+			var id, goalDuration, starttime, endtime, compareStarttime, compareEndtime, progress int64
+			var isLabel, isPercent, equalized bool
+			var item string
+			if err = rows.Scan(&id, &isLabel, &item, &isPercent, &goalDuration, &starttime, &endtime, &compareStarttime, &compareEndtime, &equalized, &progress); err != nil {
+				s.log.Error("failed to scan goal", zap.Error(err))
+				continue
+			}
+			goal := &cpb.Goal{
+				Uid: uid,
+				Id:  id,
+				GoalInterval: &cpb.Interval{
+					Start: &cpb.Timestamp{Nanos: starttime},
+					End:   &cpb.Timestamp{Nanos: endtime},
+				},
+				CompareInterval: &cpb.Interval{
+					Start: &cpb.Timestamp{Nanos: compareStarttime},
+					End:   &cpb.Timestamp{Nanos: compareEndtime},
+				},
+				CompareEqualized: equalized,
+				Completed:        endtime < time.Now().UnixNano(),
+				Progress:         float32(progress) / 1000,
+			}
+			if isPercent {
+				goal.Amount = &cpb.Goal_PercentAmount{PercentAmount: float32(goalDuration) / 1000}
+			} else {
+				goal.Amount = &cpb.Goal_FixedAmount{FixedAmount: goalDuration}
+			}
+			if isLabel {
+				goal.Item = &cpb.Goal_Label{Label: item}
+			} else {
+				goal.Item = &cpb.Goal_Application{Application: item}
+			}
+			rsp.Goals = append(rsp.Goals, goal)
+		}
+	case err == sql.ErrNoRows:
+	default:
+		s.log.Error("Failed to get goals", zap.Error(err))
+		return nil, status.Error(codes.Internal, "something went wrong")
+	}
+
+	return rsp, nil
 }
