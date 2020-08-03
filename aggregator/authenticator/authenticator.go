@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -41,13 +42,16 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
-// validity duration of a token
-const TokenDuration = 1 * time.Hour
-
 const (
 	TokenVerifyType = "verify"
 	TokenAuthType   = "auth"
 )
+
+var TokenDuration time.Duration
+
+func init() {
+	flag.DurationVar(&TokenDuration, "token_duration", 3*time.Hour, "validity duration of a token")
+}
 
 // read or create root CA. This populates a.keyPEM and a.certPEM
 func (a *Authenticator) initCert(certPath, keyPath string) error {
