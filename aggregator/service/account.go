@@ -215,3 +215,32 @@ func (s *Service) DeleteAccount(ctx context.Context, req *cpb.Empty) (*cpb.Empty
 	s.log.Info("deleted user", zap.String("uid", uid))
 	return &cpb.Empty{}, nil
 }
+
+func (s *Service) GetDevices(ctx context.Context, req *cpb.Empty) (*spb.DataAggregatorGetDevicesResponse, error) {
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
+		return nil, status.Error(codes.Unauthenticated, "Invalid token")
+	}
+
+	rows, err := s.db.Query("SELECT id, name FROM devices WHERE uid = ?", uid)
+
+	rsp := &spb.DataAggregatorGetDevicesResponse{}
+	switch {
+	case err == nil:
+		defer rows.Close()
+		for rows.Next() {
+			device := &cpb.Device{}
+			if err = rows.Scan(&device.Id, &device.Name); err != nil {
+				s.log.Error("failed to scan device", zap.Error(err))
+				continue
+			}
+			rsp.Devices = append(rsp.Devices, device)
+		}
+	case err == sql.ErrNoRows:
+	default:
+		s.log.Error("Failed to get devices", zap.Error(err))
+		return nil, status.Error(codes.Internal, "something went wrong")
+	}
+
+	return rsp, nil
+}

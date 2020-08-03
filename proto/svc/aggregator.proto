@@ -16,6 +16,7 @@ service DataAggregator {
   rpc UserDetails(common.Empty) returns (DataAggregatorUserDetailsResponse);
   rpc DeviceSignin(DataAggregatorDeviceSigninRequest)
       returns (DataAggregatorDeviceSigninResponse);
+  rpc GetDevices(common.Empty) returns (DataAggregatorGetDevicesResponse);
 
   /* events */
   rpc PushEvent(stream common.Event) returns (DataAggregatorPushEventResponse);
@@ -40,7 +41,8 @@ service DataAggregator {
   rpc ListAdmins(common.Empty) returns (DataAggregatorListAdminsResponse);
 
   /* labels */
-  rpc GetLabels(DataAggregatorGetLabelsRequest) returns (DataAggregatorGetLabelsResponse);
+  rpc GetLabels(DataAggregatorGetLabelsRequest)
+      returns (DataAggregatorGetLabelsResponse);
   rpc UpdateLabel(DataAggregatorUpdateLabelRequest) returns (common.Empty);
 }
 
@@ -167,4 +169,8 @@ message DataAggregatorGetLabelsResponse {
 message DataAggregatorUpdateLabelRequest {
   common.Label label = 1;
   bool all_labels = 2;
+}
+
+message DataAggregatorGetDevicesResponse {
+  repeated common.Device devices = 1;
 }
