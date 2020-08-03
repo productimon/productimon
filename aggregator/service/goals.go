@@ -180,7 +180,17 @@ func (s *Service) AddGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, erro
 }
 
 func (s *Service) DeleteGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
+		return nil, status.Error(codes.Unauthenticated, "Invalid token")
+	}
+	// once again we're happily settled with silent failure if id doesn't exist
+	_, err = s.db.Exec("DELETE FROM goals WHERE uid = ? AND id = ?", uid, goal.Id)
+	if err != nil {
+		s.log.Error("delete goal failed", zap.Error(err))
+		return nil, status.Error(codes.Internal, "something went wrong")
+	}
+	return &cpb.Empty{}, nil
 }
 
 func (s *Service) EditGoal(ctx context.Context, goal *cpb.Goal) (*cpb.Empty, error) {
