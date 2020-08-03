@@ -138,6 +138,7 @@ export default function AdminManagement() {
                     editRow: {
                       deleteText: "Are you sure you want to demote this admin?",
                     },
+                    deleteTooltip: "Demote",
                     emptyDataSourceMessage: "No current Admins",
                   },
                 }}
