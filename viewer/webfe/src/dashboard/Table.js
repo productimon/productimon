@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useSnackbar } from "notistack";
 
 import { makeStyles } from "@material-ui/core/styles";
 import MaterialTable from "@material-ui/core/Table";
@@ -30,6 +31,7 @@ function createData(program, hours, label) {
 
 export default function Table(props) {
   const classes = useStyles();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const [rows, setRows] = React.useState([createData("init", 1, 3)]);
 
@@ -75,7 +77,7 @@ export default function Table(props) {
         );
       })
       .catch((err) => {
-        alert(err); // TODO
+        enqueueSnackbar(err, { variant: "error" });
       });
   }, [props.graphSpec]);
 

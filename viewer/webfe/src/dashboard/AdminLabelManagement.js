@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useSnackbar } from "notistack";
 
 import { makeStyles } from "@material-ui/core/styles";
 
@@ -43,6 +44,7 @@ function createData(program, label, numUsers) {
 export default function AdminLabelManagement(props) {
   const [data, setData] = useState([]);
   const classes = useStyles();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   let columns = [
     { title: "Program", field: "program", editable: "never" },
@@ -69,7 +71,7 @@ export default function AdminLabelManagement(props) {
         );
       })
       .catch((err) => {
-        alert(err); // TODO
+        enqueueSnackbar(err, { variant: "error" });
       });
   }, [props.admin]);
 
@@ -113,11 +115,20 @@ export default function AdminLabelManagement(props) {
               const request = new DataAggregatorUpdateLabelRequest();
               request.setAllLabels(props.admin);
               request.setLabel(label);
-              return rpc(DataAggregator.UpdateLabel, request).then((res) => {
-                setData(
-                  data.map((d) => (d.program == newData.program ? newData : d))
-                );
-              });
+              return rpc(DataAggregator.UpdateLabel, request)
+                .then((res) => {
+                  setData(
+                    data.map((d) =>
+                      d.program == newData.program ? newData : d
+                    )
+                  );
+                  enqueueSnackbar("Success fully updated " + newData.program, {
+                    variant: "success",
+                  });
+                })
+                .catch((err) => {
+                  enqueueSnackbar(err, { variant: "error" });
+                });
             },
           }}
         />

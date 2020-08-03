@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import clsx from "clsx";
 import { useHistory } from "react-router-dom";
+import { useSnackbar } from "notistack";
 import { makeStyles } from "@material-ui/core/styles";
 import Container from "@material-ui/core/Container";
 import Grid from "@material-ui/core/Grid";
@@ -27,6 +28,7 @@ const useStyles = makeStyles((theme) => ({
 
 export default function Settings({ setUserDetails }) {
   const history = useHistory();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const [confirmationInput, setConfirmationInput] = React.useState("");
   const handleSetConfirmationInput = (event) => {
@@ -37,10 +39,11 @@ export default function Settings({ setUserDetails }) {
     const request = new Empty();
     rpc(DataAggregator.DeleteAccount, new Empty())
       .then((res) => {
+        enqueueSnackbar("Successfully deleted account", { variant: "success" });
         redirectToLogin();
       })
       .catch((err) => {
-        alert(err); // TODO
+        enqueueSnackbar(err, { variant: "error" });
       });
   };
 

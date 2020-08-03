@@ -12,6 +12,7 @@ import {
   Label,
   ReferenceLine,
 } from "recharts";
+import { useSnackbar } from "notistack";
 
 import { makeStyles } from "@material-ui/core/styles";
 import FormGroup from "@material-ui/core/FormGroup";
@@ -189,6 +190,7 @@ export default function Histogram(props) {
   const [dataKeys, setDataKeys] = useState([]);
   const [unitLabel, setUnitLabel] = useState("");
   const [totalTimeSpan, setTotalTimeSpan] = useState(0);
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const classes = useStyles();
 
@@ -213,83 +215,87 @@ export default function Histogram(props) {
         : DataAggregatorGetTimeRequest.GroupBy.LABEL
     );
 
-    rpc(DataAggregator.GetTime, request).then((res) => {
-      // get all symbols (label/application)
-      const getSymbol =
-        props.graphSpec.stack === "application"
-          ? (point) => point.getApp()
-          : (point) => point.getLabel();
+    rpc(DataAggregator.GetTime, request)
+      .then((res) => {
+        // get all symbols (label/application)
+        const getSymbol =
+          props.graphSpec.stack === "application"
+            ? (point) => point.getApp()
+            : (point) => point.getLabel();
 
-      const nSymbols = props.fullscreen
-        ? props.graphSpec.maxItem || 10
-        : props.graphSpec.maxItem && props.graphSpec.maxItem < 5
-        ? props.graphSpec.maxItem
-        : 5;
+        const nSymbols = props.fullscreen
+          ? props.graphSpec.maxItem || 10
+          : props.graphSpec.maxItem && props.graphSpec.maxItem < 5
+          ? props.graphSpec.maxItem
+          : 5;
 
-      const symbols = getUniqSymbols(res, getSymbol);
-      const displayedSymbols = getSortedSymbols(res, getSymbol, nSymbols);
+        const symbols = getUniqSymbols(res, getSymbol);
+        const displayedSymbols = getSortedSymbols(res, getSymbol, nSymbols);
 
-      // decide what to stack on the bars
-      let displayedKeys;
-      switch (props.graphSpec.stack) {
-        case "application":
-        case "label":
-          displayedKeys =
-            symbols.length > nSymbols
-              ? [...displayedSymbols, "Other"]
-              : displayedSymbols;
-          break;
-        case "active":
-          displayedKeys = ["Active", "Inactive"];
-          break;
-        default:
-          displayedKeys = ["Total"];
-          break;
-      }
-      setDataKeys(displayedKeys);
+        // decide what to stack on the bars
+        let displayedKeys;
+        switch (props.graphSpec.stack) {
+          case "application":
+          case "label":
+            displayedKeys =
+              symbols.length > nSymbols
+                ? [...displayedSymbols, "Other"]
+                : displayedSymbols;
+            break;
+          case "active":
+            displayedKeys = ["Active", "Inactive"];
+            break;
+          default:
+            displayedKeys = ["Total"];
+            break;
+        }
+        setDataKeys(displayedKeys);
 
-      const allData = res.getDataList();
+        const allData = res.getDataList();
 
-      // format and aggregate time values
-      const data = allData
-        .map(transformRange(getSymbol, displayedSymbols))
-        .reverse();
+        // format and aggregate time values
+        const data = allData
+          .map(transformRange(getSymbol, displayedSymbols))
+          .reverse();
 
-      /* Time span of the whole histogram, assuming backend returns data in reverse chronological order */
-      let totalTimeSpan = allData.length
-        ? allData[0].getInterval().getEnd().getNanos() -
-          allData[allData.length - 1].getInterval().getStart().getNanos()
-        : 0;
-      totalTimeSpan /= 10 ** 6;
-      setTotalTimeSpan(totalTimeSpan);
+        /* Time span of the whole histogram, assuming backend returns data in reverse chronological order */
+        let totalTimeSpan = allData.length
+          ? allData[0].getInterval().getEnd().getNanos() -
+            allData[allData.length - 1].getInterval().getStart().getNanos()
+          : 0;
+        totalTimeSpan /= 10 ** 6;
+        setTotalTimeSpan(totalTimeSpan);
 
-      // adaptive unit for y-axis
-      // get the fisrt unit less than the largest unit that can cover our max timeval
-      const [unit, factor] = Object.entries(timeUnits)
-        .reverse()
-        .find(
-          ([unit, factor]) =>
-            factor < Math.max(...data.map((ent) => ent.Total), 0) ||
-            unit == "Seconds"
+        // adaptive unit for y-axis
+        // get the fisrt unit less than the largest unit that can cover our max timeval
+        const [unit, factor] = Object.entries(timeUnits)
+          .reverse()
+          .find(
+            ([unit, factor]) =>
+              factor < Math.max(...data.map((ent) => ent.Total), 0) ||
+              unit == "Seconds"
+          );
+        setUnitLabel(unit);
+
+        // normalise the displayedKeys and Total (which is used for the Average overlay)
+        setData(
+          data.map((ent) => ({
+            ...ent,
+            ...["Total", ...displayedKeys].reduce(
+              (obj, key) => ({
+                ...obj,
+                // for each field we normalise, we preserve the raw value to be used in a formatter for the tooltip
+                [`${key}-raw`]: ent[key] || null,
+                [key]: parseFloat((ent[key] / factor).toFixed(2)) || null,
+              }),
+              {}
+            ),
+          }))
         );
-      setUnitLabel(unit);
-
-      // normalise the displayedKeys and Total (which is used for the Average overlay)
-      setData(
-        data.map((ent) => ({
-          ...ent,
-          ...["Total", ...displayedKeys].reduce(
-            (obj, key) => ({
-              ...obj,
-              // for each field we normalise, we preserve the raw value to be used in a formatter for the tooltip
-              [`${key}-raw`]: ent[key] || null,
-              [key]: parseFloat((ent[key] / factor).toFixed(2)) || null,
-            }),
-            {}
-          ),
-        }))
-      );
-    });
+      })
+      .catch((err) => {
+        enqueueSnackbar(err, { variant: "error" });
+      });
   }, [props.graphSpec]);
 
   const handleCheckbox = (e) => {

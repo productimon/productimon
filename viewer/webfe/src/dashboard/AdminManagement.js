@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { useHistory } from "react-router-dom";
+import { useSnackbar } from "notistack";
 
 import { makeStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
@@ -58,29 +59,35 @@ export default function AdminManagement() {
   const { useState } = React;
   const classes = useStyles();
   const history = useHistory();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const [email, setEmail] = useState("");
   const [data, setData] = useState([]);
   useEffect(() => {
     const request = new Empty();
-    rpc(DataAggregator.ListAdmins, history, {
-      onEnd: ({ status, statusMessage, headers, message }) => {
+    rpc(DataAggregator.ListAdmins, request)
+      .then((res) => {
         setData(message.getAdminsList().map((a) => createData(a.getEmail())));
-      },
-      request,
-    });
+      })
+      .catch((err) => {
+        enqueueSnackbar(err, { variant: "error" });
+      });
   }, []);
 
   const promoteAdmin = () => {
     const request = new User();
     request.setEmail(email);
-    rpc(DataAggregator.PromoteAccount, history, {
-      onEnd: ({ status, statusMessage, headers, message }) => {
+    rpc(DataAggregator.PromoteAdmin, request)
+      .then((res) => {
+        enqueueSnackbar("Successfully promoted " + email, {
+          variant: "success",
+        });
         setData([...data, createData(email)]);
         setEmail("");
-      },
-      request,
-    });
+      })
+      .catch((err) => {
+        enqueueSnackbar(err, { variant: "error" });
+      });
   };
 
   return (
@@ -165,22 +172,23 @@ export default function AdminManagement() {
                   onRowDelete: (oldData) =>
                     new Promise((resolve, reject) => {
                       const request = new User();
+                      // TODO: shouldn't really use email. Use uid instead
                       request.setEmail(oldData.email);
-                      rpc(DataAggregator.DemoteAccount, history, {
-                        onEnd: ({
-                          status,
-                          statusMessage,
-                          headers,
-                          message,
-                        }) => {
+                      rpc(DataAggregator.Demote, request)
+                        .then((res) => {
+                          enqueueSnackbar("Successfully demoted " + email, {
+                            variant: "success",
+                          });
                           const updatedData = data.filter(
                             (a) => a.email != oldData.email
                           );
                           setData(updatedData);
                           resolve();
-                        },
-                        request,
-                      });
+                        })
+                        .catch((err) => {
+                          enqueueSnackbar(err, { variant: "error" });
+                          reject();
+                        });
                     }),
                 }}
               />

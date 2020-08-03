@@ -19,6 +19,7 @@
     "google-protobuf": "^3.6.1",
     "material-table": "^1.66.0",
     "moment": "^2.27.0",
+    "notistack": "^0.9.17",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-router-dom": "^5.2.0",

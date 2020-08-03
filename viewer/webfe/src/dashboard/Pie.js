@@ -7,6 +7,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import { useSnackbar } from "notistack";
 
 import { makeStyles } from "@material-ui/core/styles";
 import FormGroup from "@material-ui/core/FormGroup";
@@ -58,6 +59,7 @@ export default function PieChart({ graphSpec, options, fullscreen, onUpdate }) {
   const [totalTime, setTotalTime] = React.useState(0);
 
   const classes = useStyles();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const localGroupBy = graphSpec.groupBy || "label";
   const numItems = graphSpec.numItems || 5;
@@ -129,7 +131,7 @@ export default function PieChart({ graphSpec, options, fullscreen, onUpdate }) {
         }
       })
       .catch((err) => {
-        alert(err);
+        enqueueSnackbar(err, { variant: "error" });
       });
   }, [graphSpec]);
 

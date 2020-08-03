@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Switch, Route, useHistory } from "react-router-dom";
 import clsx from "clsx";
 import { SortableContainer, SortableElement } from "react-sortable-hoc";
+import { useSnackbar } from "notistack";
 
 import {
   MuiThemeProvider,
@@ -18,15 +19,11 @@ import EditIcon from "@material-ui/icons/Edit";
 import SaveIcon from "@material-ui/icons/Save";
 
 import DashboardCustomizer from "./DashboardCustomizer";
-import { rpc } from "../Utils";
 import Graph from "./Graph";
 import FullScreenGraph from "./FullScreenGraph";
 import AdminLabelManagement from "./AdminLabelManagement";
 import AdminManagement from "./AdminManagement";
 import AdminServerStatus from "./AdminServerStatus";
-
-import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
-import { Empty } from "productimon/proto/common/common_pb";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -92,9 +89,7 @@ const initialGraphs = {
 
 export default function Dashboard(props) {
   const history = useHistory();
-
-  // redirect user to login page if unable to get user details
-  const request = new Empty();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const { graphs, setGraphs } = props;
   useEffect(() => {
@@ -120,6 +115,7 @@ export default function Dashboard(props) {
 
     setGraphs(newGraphs);
     window.localStorage.setItem("graphs", JSON.stringify(newGraphs));
+    enqueueSnackbar("Graph added", { variant: "success" });
   };
 
   const updateGraph = (graphSpec) => {
@@ -129,6 +125,7 @@ export default function Dashboard(props) {
     };
     setGraphs(newGraphs);
     window.localStorage.setItem("graphs", JSON.stringify(newGraphs));
+    enqueueSnackbar("Graph updated", { variant: "success" });
   };
 
   const removeGraph = (graphSpec) => {
@@ -137,6 +134,7 @@ export default function Dashboard(props) {
       .reduce((ret, graphId) => ({ ...ret, [graphId]: graphs[graphId] }), {});
     setGraphs(newGraphs);
     window.localStorage.setItem("graphs", JSON.stringify(newGraphs));
+    enqueueSnackbar("Graph deleted", { variant: "success" });
     history.push("/dashboard");
   };
 

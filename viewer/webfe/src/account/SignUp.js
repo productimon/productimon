@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { Link as RouterLink, useHistory } from "react-router-dom";
+import { useSnackbar } from "notistack";
 
 import Avatar from "@material-ui/core/Avatar";
 import Button from "@material-ui/core/Button";
@@ -19,6 +20,7 @@ import { rpc } from "../Utils";
 
 export default function SignUp(props) {
   const classes = formUseStyles();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const [username, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -51,10 +53,11 @@ export default function SignUp(props) {
       .then((res) => {
         window.localStorage.setItem("token", res.getToken());
         props.setUserDetails(res.getUser());
+        enqueueSnackbar("Signed up successfully", { variant: "success" });
         history.push("/dashboard");
       })
       .catch((err) => {
-        alert(err); // TODO
+        enqueueSnackbar(err, { variant: "error" });
       });
   };
 

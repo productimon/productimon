@@ -6,6 +6,7 @@ import {
   createMuiTheme,
   makeStyles,
 } from "@material-ui/core/styles";
+import { SnackbarProvider } from "notistack";
 
 import SignIn from "./account/SignIn";
 import SignUp from "./account/SignUp";
@@ -47,9 +48,7 @@ export default function App() {
           }
         })
         .catch((err) => {
-          alert(
-            `Error getting user details: ${err}, redirecting to login page`
-          ); // TODO better way to show error
+          // alert(`Error getting user details: ${err}, redirecting to login page`);
           redirectToLogin();
           setLoaded(true);
         });
@@ -61,35 +60,37 @@ export default function App() {
 
   return loaded ? (
     <MuiThemeProvider theme={theme}>
-      <div className={classes.root}>
-        <Router>
-          <Fixture
-            graphs={graphs}
-            userDetails={userDetails}
-            setUserDetails={setUserDetails}
-          />
-          <main className={classes.content}>
-            <div className={classes.appBarSpacer} />
-            <Switch>
-              <Route path="/" exact>
-                <SignIn
-                  userDetails={userDetails}
-                  setUserDetails={setUserDetails}
-                />
-              </Route>
-              <Route path="/signup">
-                <SignUp setUserDetails={setUserDetails} />
-              </Route>
-              <Route path="/dashboard">
-                <Dashboard graphs={graphs} setGraphs={setGraphs} />
-              </Route>
-              <Route path="/settings">
-                <Settings setUserDetails={setUserDetails} />
-              </Route>
-            </Switch>
-          </main>
-        </Router>
-      </div>
+      <SnackbarProvider maxSnack={3} autoHideDuration={2000}>
+        <div className={classes.root}>
+          <Router>
+            <Fixture
+              graphs={graphs}
+              userDetails={userDetails}
+              setUserDetails={setUserDetails}
+            />
+            <main className={classes.content}>
+              <div className={classes.appBarSpacer} />
+              <Switch>
+                <Route path="/" exact>
+                  <SignIn
+                    userDetails={userDetails}
+                    setUserDetails={setUserDetails}
+                  />
+                </Route>
+                <Route path="/signup">
+                  <SignUp setUserDetails={setUserDetails} />
+                </Route>
+                <Route path="/dashboard">
+                  <Dashboard graphs={graphs} setGraphs={setGraphs} />
+                </Route>
+                <Route path="/settings">
+                  <Settings setUserDetails={setUserDetails} />
+                </Route>
+              </Switch>
+            </main>
+          </Router>
+        </div>
+      </SnackbarProvider>
     </MuiThemeProvider>
   ) : (
     <p>loading...</p>
