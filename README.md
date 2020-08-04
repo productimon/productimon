@@ -1,5 +1,8 @@
 # Productimon
 
+![logo](images/productimon.png?s=100)
+
+
 This monorepo contains all code and documentation for Productimon, a cross-platform activity/usage/screen time tracking
 and analytics tool.
 

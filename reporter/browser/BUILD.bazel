@@ -39,7 +39,7 @@ pkg_tar(
         "popup.css",
         "popup.html",
         ":productimon.wasm",
-        "//images:nucleusIcon.png",
+        "//images:logo",
         "//reporter/browser/popup:popup.js",
         "//reporter/plat/chrome:chrome.js",
         "//third_party:wasm_exec.js",

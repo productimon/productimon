@@ -5,7 +5,13 @@ exports_files(
 
 alias(
     name = "logo",
-    actual = ":nucleusIcon.png",
+    actual = ":productimon.png",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "white-logo",
+    actual = ":productimon_white.png",
     visibility = ["//visibility:public"],
 )
 

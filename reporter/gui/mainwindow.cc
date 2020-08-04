@@ -101,7 +101,7 @@ void MainWindow::createTrayIcon() {
   trayIcon = new QSystemTrayIcon(this);
   trayIcon->setContextMenu(trayIconMenu);
 
-  trayIcon->setIcon(QIcon(":" LOGO_IMG_PATH));
+  trayIcon->setIcon(QIcon(":" SYSTRAY_IMG_PATH));
 }
 
 void MainWindow::createCB() {
