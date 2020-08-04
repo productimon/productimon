@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"time"
 
-	"git.yiad.am/productimon/aggregator/nlp"
+	"git.yiad.am/productimon/analyzer/nlp"
 	cpb "git.yiad.am/productimon/proto/common"
 	spb "git.yiad.am/productimon/proto/svc"
 	lru "github.com/hashicorp/golang-lru"

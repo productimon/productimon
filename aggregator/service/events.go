@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"git.yiad.am/productimon/aggregator/deviceState"
+	"git.yiad.am/productimon/analyzer/deviceState"
 	cpb "git.yiad.am/productimon/proto/common"
 	spb "git.yiad.am/productimon/proto/svc"
 	"go.uber.org/zap"

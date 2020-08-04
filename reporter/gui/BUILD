@@ -8,7 +8,7 @@ cc_library(
     # TODO auto generate a header file containing this
     defines = [
         "LOGO_IMG_PATH=\\\"/images/productimon.png\\\"",
-        "SYSTRAY_IMG_PATH=\\\"/images/productimon_white.png\\\""
+        "SYSTRAY_IMG_PATH=\\\"/images/productimon_white.png\\\"",
     ],
     deps = select({
         "@bazel_tools//src/conditions:darwin": ["@qt_mac_headers//:qt_widgets"],
@@ -45,7 +45,10 @@ qt_cc_library(
 
 qt_resource(
     name = "images",
-    files = ["//images:logo", "//images:white-logo"],
+    files = [
+        "//images:logo",
+        "//images:white-logo",
+    ],
 )
 
 cc_library(

@@ -9,8 +9,8 @@ import (
 
 	"git.yiad.am/productimon/aggregator/authenticator"
 	schema "git.yiad.am/productimon/aggregator/db"
-	"git.yiad.am/productimon/aggregator/deviceState"
 	"git.yiad.am/productimon/aggregator/notifications"
+	"git.yiad.am/productimon/analyzer/deviceState"
 	"git.yiad.am/productimon/internal"
 	spb "git.yiad.am/productimon/proto/svc"
 	"github.com/google/uuid"

@@ -6,7 +6,7 @@ go_library(
         "nlp.go",
         "wikipedia.go",
     ],
-    importpath = "git.yiad.am/productimon/aggregator/nlp",
+    importpath = "git.yiad.am/productimon/analyzer/nlp",
     visibility = ["//visibility:public"],
     deps = ["@com_github_agnivade_levenshtein//:go_default_library"],
 )
