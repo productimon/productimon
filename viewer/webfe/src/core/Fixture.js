@@ -28,7 +28,7 @@ import TableChartIcon from "@material-ui/icons/TableChart";
 import SupervisorAccountIcon from "@material-ui/icons/SupervisorAccount";
 import StorageIcon from "@material-ui/icons/Storage";
 import TextFieldsIcon from "@material-ui/icons/TextFields";
-import AlarmIcon from '@material-ui/icons/Alarm';
+import AlarmIcon from "@material-ui/icons/Alarm";
 import ListItemText from "@material-ui/core/ListItemText";
 
 import { redirectToLogin } from "../Utils";
@@ -156,7 +156,7 @@ export default function Fixture(props) {
           >
             <MenuIcon />
           </IconButton>
-          <img src="logo-white.svg" style={{height: 30, marginRight: 3}}/>
+          <img src="/logo-white.svg" style={{ height: 30, marginRight: 3 }} />
           <Typography
             component="h1"
             variant="h6"
