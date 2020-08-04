@@ -56,11 +56,11 @@ void MainWindow::quit() {
   QApplication::quit();
 }
 
-void MainWindow::startStopRecorder() {
+void MainWindow::startStopReporter() {
   if (ProdCoreIsTracking()) {
     stop_tracking();
     trayIcon->showMessage("Productimon Data Reporter", "Tracking stopped");
-    startStopAction->setText(tr("Start Recorder"));
+    startStopAction->setText(tr("Start Reporter"));
   } else {
     if (start_tracking()) {
       // TODO use a message box instead?
@@ -71,14 +71,14 @@ void MainWindow::startStopRecorder() {
       return;
     }
     trayIcon->showMessage("Productimon Data Reporter", "Tracking started");
-    startStopAction->setText(tr("Stop Recorder"));
+    startStopAction->setText(tr("Stop Reporter"));
   }
 }
 
 void MainWindow::createActions() {
-  startStopAction = new QAction(tr("&Start Recorder"), this);
+  startStopAction = new QAction(tr("&Start Reporter"), this);
   connect(startStopAction, &QAction::triggered, this,
-          &MainWindow::startStopRecorder);
+          &MainWindow::startStopReporter);
 
   settings = new QAction(tr("&Settings"), this);
   connect(settings, &QAction::triggered, this, &MainWindow::showSettingWindow);

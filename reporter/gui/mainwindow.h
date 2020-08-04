@@ -29,7 +29,7 @@ class MainWindow : public QMainWindow {
   void createTrayIcon();
 
   void quit();
-  void startStopRecorder();
+  void startStopReporter();
 
   void showSettingWindow();
 
