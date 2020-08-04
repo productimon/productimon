@@ -92,8 +92,8 @@ export default function DisplayGoal(props) {
   const pieColor = goalSpec.type === "limiting" ? "red" : "green";
 
   const pieData = [
-    { name: "completed", value: goalSpec.progress },
-    { name: "remaining", value: 1 - goalSpec.progress },
+    { name: "completed", value: goalSpec.progress, color: pieColor },
+    { name: "remaining", value: 1 - goalSpec.progress, color: "#f0f0f0" },
   ];
 
   return (
@@ -136,12 +136,7 @@ export default function DisplayGoal(props) {
               position="center"
             />
             {pieData.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={
-                  entry.name === "completed" ? pieColor : "rgba(0, 0, 0, 0)"
-                }
-              />
+              <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Pie>
         </PieChart>
