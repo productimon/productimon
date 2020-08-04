@@ -24,8 +24,22 @@ func (s *Service) isAdmin(ctx context.Context) bool {
 	return admin
 }
 
+func (s *Service) isRootAdmin(ctx context.Context) bool {
+	uid, did, err := s.auther.AuthenticateRequest(ctx)
+	if err != nil || did != -1 {
+		return false
+	}
+	var admin bool
+	var email string
+	if s.db.QueryRow("SELECT email, admin FROM users WHERE id = ? LIMIT 1", uid).Scan(&email, &admin); err != nil {
+		s.log.Error("failed to get admin status", zap.Error(err), zap.String("uid", uid))
+		return false
+	}
+	return admin && email == flagFirstUser
+}
+
 func (s *Service) PromoteAccount(ctx context.Context, user *cpb.User) (*cpb.Empty, error) {
-	if !s.isAdmin(ctx) {
+	if !s.isRootAdmin(ctx) {
 		return nil, status.Error(codes.Unauthenticated, "Unauthorized")
 	}
 	s.dbWLock.Lock()
@@ -56,7 +70,7 @@ func (s *Service) PromoteAccount(ctx context.Context, user *cpb.User) (*cpb.Empt
 }
 
 func (s *Service) DemoteAccount(ctx context.Context, user *cpb.User) (*cpb.Empty, error) {
-	if !s.isAdmin(ctx) {
+	if !s.isRootAdmin(ctx) {
 		return nil, status.Error(codes.Unauthenticated, "Unauthorized")
 	}
 	s.dbWLock.Lock()
@@ -68,6 +82,9 @@ func (s *Service) DemoteAccount(ctx context.Context, user *cpb.User) (*cpb.Empty
 			return nil, status.Error(codes.Internal, "something went wrong")
 		}
 	} else if user.Email != "" {
+		if user.Email == flagFirstUser {
+			return nil, status.Error(codes.Internal, "Cannot demote root admin")
+		}
 		if _, err := s.db.Exec("UPDATE users SET admin = FALSE WHERE email = ?", user.Email); err != nil {
 			s.log.Error("failed to demote account", zap.Error(err), zap.String("email", user.Email))
 			return nil, status.Error(codes.Internal, "something went wrong")
