@@ -123,9 +123,7 @@ export default function SignIn(props) {
         </Button>
 
         <Grid container>
-          <Grid item xs>
-            <Link href="#">Forgot password?</Link>
-          </Grid>
+          <Grid item xs />
           <Grid item>
             <RouterLink to="/signup" style={{ textDecoration: "none" }}>
               Don't have an account? Sign Up
