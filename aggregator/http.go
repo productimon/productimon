@@ -36,7 +36,7 @@ var (
 func init() {
 	flag.StringVar(&flagHTTPListenAddress, "http_listen_address", "0.0.0.0:80", "HTTP listen address")
 	flag.StringVar(&flagHTTPSListenAddress, "https_listen_address", "0.0.0.0:443", "HTTPS listen address")
-	flag.StringVar(&flagCertDir, "cert_cache_dir", ".certs", "Path to directory to store HTTPS certificates. Concatenate your key and cert to a single file and put it in this directory with your domain name as filename without any extra file extension (e.g., .certs/api.productimon.com). If you don't provide a certificate, one will be provisioned automatically for you via Let's Encrypt")
+	flag.StringVar(&flagCertDir, "cert_cache_dir", ".certs", "Path to directory to store HTTPS certificates. Concatenate your key and cert to a single file and put it in this directory with your domain name as filename without any extra file extension (e.g., .certs/my.productimon.com). If you don't provide a certificate, one will be provisioned automatically for you via Let's Encrypt")
 	flag.BoolVar(&flagTOSAccepted, "accept_acme_tos", false, "Accept Let's Encrypt Terms of Service (you don't have to pass this if you provided your own certificate)")
 }
 
@@ -103,7 +103,7 @@ func buildHandlers(ctx context.Context, s *service.Service, auther *authenticato
 		}{
 			flagGRPCPublicPort,
 			auther.CertPEM(),
-			"api.productimon.com",
+			strings.Split(flagDomain, ":")[0],
 			internal.GitVersion,
 		})
 		if err != nil {

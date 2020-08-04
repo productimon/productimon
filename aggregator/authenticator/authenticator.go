@@ -54,7 +54,7 @@ func init() {
 }
 
 // read or create root CA. This populates a.keyPEM and a.certPEM
-func (a *Authenticator) initCert(certPath, keyPath string) error {
+func (a *Authenticator) initCert(certPath, keyPath, domain string) error {
 	var err error
 	if a.certPEM, err = ioutil.ReadFile(certPath); err == nil {
 		if a.keyPEM, err = ioutil.ReadFile(keyPath); err == nil {
@@ -64,7 +64,7 @@ func (a *Authenticator) initCert(certPath, keyPath string) error {
 	log.Println("Initiating new certificate")
 
 	mycsr := &csr.CertificateRequest{
-		CN: "api.productimon.com",
+		CN: domain,
 		KeyRequest: &csr.KeyRequest{
 			A: "rsa",
 			S: 2048,
@@ -91,10 +91,10 @@ func (a *Authenticator) initCert(certPath, keyPath string) error {
 }
 
 // Create a new Authenticator with given key pair location (create them if they don't exist)
-func NewAuthenticator(publicKeyPath, privateKeyPath string) (*Authenticator, error) {
+func NewAuthenticator(publicKeyPath, privateKeyPath, domain string) (*Authenticator, error) {
 	var err error
 	a := &Authenticator{}
-	if err := a.initCert(publicKeyPath, privateKeyPath); err != nil {
+	if err := a.initCert(publicKeyPath, privateKeyPath, domain); err != nil {
 		return nil, err
 	}
 	block, _ := pem.Decode(a.certPEM)

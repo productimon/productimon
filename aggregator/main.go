@@ -43,7 +43,7 @@ var logger *zap.Logger
 
 func init() {
 	flag.StringVar(&flagGRPCListenAddress, "grpc_listen_address", "0.0.0.0:4200", "gRPC listen address")
-	flag.StringVar(&flagDomain, "domain", "api.productimon.com", "public-facing server domain")
+	flag.StringVar(&flagDomain, "domain", "my.productimon.com", "public-facing server domain")
 	flag.IntVar(&flagGRPCPublicPort, "grpc_public_port", 4200, "gRPC public-facing port (this usually needs to be the same port as grpc_listen_address, unless you have some fancy NAT infra)")
 	flag.StringVar(&flagPublicKeyPath, "ca_cert", "ca.pem", "Path to auth token CA cert (auto-generated if not present)")
 	flag.StringVar(&flagPrivateKeyPath, "ca_key", "ca.key", "Path to auth token CA key (auto-generated if not present)")
@@ -73,7 +73,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	auther, err := authenticator.NewAuthenticator(flagPublicKeyPath, flagPrivateKeyPath)
+	auther, err := authenticator.NewAuthenticator(flagPublicKeyPath, flagPrivateKeyPath, strings.Split(flagDomain, ":")[0])
 	if err != nil {
 		logger.Fatal("can't create authenticator", zap.Error(err))
 	}
