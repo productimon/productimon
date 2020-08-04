@@ -89,7 +89,7 @@ export default function DisplayGoal(props) {
   const goalSpec = props.spec;
   const title = goalSpec.title || "No title given";
 
-  const pieColor = goalSpec.type === "limiting" ? "red" : "green";
+  const pieColor = goalSpec.type === "limiting" ? "#d21417" : "green";
 
   const pieData = [
     { name: "completed", value: goalSpec.progress, color: pieColor },
