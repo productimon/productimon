@@ -4,54 +4,22 @@
 
 ### Linux
 
-#### xlib headers
-
-`sudo apt install libx11-dev`
-
-#### x input headers
-
-`sudo apt install libxi-dev`
-
-#### cmake
-
-`sudo apt install cmake`
-
-#### libexpat headers
-
-`sudo apt install libexpat1-dev`
-
-#### Qt
-
-`sudo apt install qt5-default`
+`sudo apt install gcc g++ python libx11-dev libxi-dev cmake libexpat1-dev qt5-default`
 
 ### macOS
 
-#### xcode build tools
-
+```
 xcode-select --install
-
-#### Qt
-
-`brew install qt`
+brew install qt
+```
 
 After installing qt, make sure to update your PATH to include qt's bin. For me it was `echo 'export PATH="/usr/local/opt/qt/bin:$PATH"' >> ~/.bashrc`
 
 ### Windows
 
-#### Qt in MSYS
+Follow docs/windows.md first.
 
-See docs/windows.md for more details.
-
-`pacman -S mingw-w64-x86_64-qt-creator`
-
-See details in [https://wiki.qt.io/MSYS2](https://wiki.qt.io/MSYS2)
-
-This dependency is also needed for running our GUI since we're using a dynamic linked version of Qt now.
-
-#### imagemagick
-To generate ico icon files
-
-`pacman -S mingw-w64-x86_64-imagemagick`
+Then run `pacman -S mingw-w64-x86_64-qt-creator mingw-w64-x86_64-imagemagick`
 
 ## Build Instructions
 
@@ -69,31 +37,13 @@ To generate ico icon files
 
 ### Linux
 
-It is assumed some of the common packages come with your distribution like libc and libstdc++
-
-#### xlib client
-
-`sudo apt install libx11-6`
-
-#### x input extension
-
-`sudo apt install libxi6`
-
-#### dbus
-
-`sudo apt install libdbus-1-3`
-
-#### Qt libs
-
-`sudo apt install libqt5widgets5 libqt5gui5 libqt5core5a`
+`sudo apt install libstdc++6 libc6 libx11-6 libxi6 libdbus-1-3 libqt5widgets5 libqt5gui5 libqt5core5a`
 
 ### macOS
 
 It should work on lastest macOS without any runtime dependencies
 
 ## Running Instructions
-
-### CLI
 
 Usually, you don't need any CLI argument. Just run `bazel run //reporter/cli` or `bazel run //reporter/gui`
 

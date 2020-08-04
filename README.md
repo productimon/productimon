@@ -2,13 +2,49 @@
 
 # Productimon
 
-This monorepo contains all code and documentation for Productimon, a cross-platform activity/usage/screen time tracking
-and analytics tool.
+This monorepo contains all code and documentation for Productimon, a cross-platform activity/usage/screen time tracking and analytics tool. It currently supports Linux, Windows, macOS, and Chrome OS/Chromium OS, with a cross-platform core codebase that's easy to extend to other platforms.
 
+<img src="images/screenshot.png" width="100%">
+
+
+## Architecture
+
+Productimon is composed of 4 modules:
+
+- [**DataAggregator**](aggregator), key component to connect everything together, serves as RPC server and store all data;
+- [**DataAnalyzer**](analyzer), analytical pipeline to predict app label and transform raw event stream to interval index (bundled in DataAggregator);
+- [**DataReporter**](reporter), cross-platform native app as well as browser extension to report activities to designated server;
+- [**DataViewer**](viewer), front-end to view activity analytics and metrics (bundled in DataAggregator).
 
 ## Installing
 
+We are releasing a set of compiled binaries on GitHub for your convenience.
+
 TBA
+
+We are hosting a public DataAggregator instance at [my.productimon.com](https://my.productimon.com), but
+you can also deploy your own server to fully customize it and keep your data in your own hands.
+
+## Building
+
+Check the README.md file under each directory to check more details and required dev/runtime dependencies.
+
+DataAggregator, DataAnalyzer, and DataViewer are bundled into a single binary:
+
+```
+bazel build //aggregator
+```
+
+For DataReporter,
+```
+bazel build //reporter/cli
+bazel build //reporter/gui
+bazel build //reporter/gui:gui-windows
+bazel build //reporter/gui:gui-linux-deb
+bazel build //reporter/browser:chrome_extension
+```
+
+Insert `-c dbg` after `bazel build` to get a debug build.
 
 ## Development
 
@@ -45,3 +81,25 @@ All submissions, including submissions by project members, require review.
 ## LICENSE
 
 Open-sourced with 💗 under [Apache 2.0 License](LICENSE).
+
+```
+Copyright 2020 The Productimon Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
+
+## Disclaimer
+
+This is still alpha-quality software. All APIs are subject to breaking changes. Use at your own risk.
+
+There's no SLA guarantee for the public instance at [my.productimon.com](https://my.productimon.com). If you use this public instance, you agree to our [Privacy Policy](PRIVACY_POLICY.md). You don't have to agree to it if you deploy your own server.
