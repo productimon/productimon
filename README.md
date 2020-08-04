@@ -20,7 +20,14 @@ Productimon is composed of 4 modules:
 
 We are releasing a set of compiled binaries on GitHub for your convenience.
 
-TBA
+On Windows: unzip our binary release [productimon-reporter-windows-x86_64.zip](https://github.com/productimon/productimon/releases/download/v0.1/productimon-reporter-windows-x86_64.zip) and run reporter.exe within the unzipped folder
+
+On Linux: install the deb package [productimon-reporter-linux-x86_64.deb](https://github.com/productimon/productimon/releases/download/v0.1/productimon-reporter-linux-x86_64.deb) and run productimon-reporter in your terminal. Alternatively, download the executable [productimon-reporter-linux-x86_64](https://github.com/productimon/productimon/releases/download/v0.1/productimon-reporter-linux-x86_64) and run it directly. NOTE you might need to install runtime dependencies before running the program, see details in [reporter/README.md](reporter/README.md)
+
+On macOS: unzip our binary release [productimon-reporter-darwin-x86_64.zip](https://github.com/productimon/productimon/releases/download/v0.1/productimon-reporter-darwin-x86_64.zip) and install the unzipped app to /Applications after which you can find it and run it in LaunchPad.
+
+On Google Chrome: unzip the release [productimon-reporter-chrome_extension.zip](https://github.com/productimon/productimon/releases/download/v0.1/productimon-reporter-chrome_extension.zip) and navigate to chrome://extensions/, enable developer mode in the top right corner and click load unpacked button to select the unzipped extension folder to install it.
+
 
 We are hosting a public DataAggregator instance at [my.productimon.com](https://my.productimon.com), but
 you can also deploy your own server to fully customize it and keep your data in your own hands.
