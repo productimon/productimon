@@ -594,13 +594,11 @@ function Form(props) {
             enqueueSnackbar(err, { variant: "error" });
             return;
           }
-          console.log(goalSpec);
           const request = createGoalRequest(goalSpec);
-          console.log(request);
           rpc(DataAggregator.AddGoal, request)
             .then((res) => {
               console.log(res);
-              props.onAdd(goalSpec);
+              props.onAdd();
               history.push("/dashboard/goals/view");
             })
             .catch((err) => {

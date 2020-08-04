@@ -23,7 +23,7 @@ import {
 } from "@material-ui/core/styles";
 
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
-import { Empty } from "productimon/proto/common/common_pb";
+import { Goal, Empty } from "productimon/proto/common/common_pb";
 
 import DisplayGoal from "./DisplayGoal";
 import AddGoal from "./AddGoal";
@@ -64,37 +64,6 @@ const useStyles = makeStyles((theme) => ({
     float: "right",
   },
 }));
-
-const testGoals = [
-  {
-    id: 0,
-    isPercent: true,
-    type: "limiting",
-    title: "Reduce Firefox by 20 Percent",
-    amount: 20,
-    itemType: "app",
-    item: "Firefox",
-    start: 1596357824000000000,
-    end: 1596359824000000000,
-    compareStart: 1596357723000000000,
-    compareEnd: 1596359723000000000,
-    progress: 0.2,
-  },
-  {
-    id: 1,
-    isPercent: false,
-    type: "aspiring",
-    title: "Use Browser for 100 seconds",
-    amount: 100000000000,
-    itemType: "label",
-    item: "browser",
-    start: 1596357824000000000,
-    end: 1596359824000000000,
-    compareStart: 0,
-    compareEnd: 0,
-    progress: 0.7,
-  },
-];
 
 export default function Goals(props) {
   const classes = useStyles();
@@ -187,11 +156,22 @@ function Display(props) {
       });
   }, [refresh, showOld]);
 
-  const addGoal = (goalSpec) => {
+  const addGoal = () => {
     setRefresh(refresh + 1);
   };
 
   const removeGoal = (goalSpec) => {
+    const goal = new Goal();
+    goal.setId(goalSpec.id);
+    rpc(DataAggregator.DeleteGoal, goal)
+      .then((res) => {
+        setRefresh(refresh + 1);
+      })
+      .catch((err) => {
+        console.error(err);
+        enqueueSnackbar(err, { variant: "error" });
+      });
+
     // TODO
     const newGoals = goals.filter((g) => g.id != goalSpec.goalId);
     setGoals(newGoals);
