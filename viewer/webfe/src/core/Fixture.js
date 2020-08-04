@@ -28,8 +28,8 @@ import TableChartIcon from "@material-ui/icons/TableChart";
 import SupervisorAccountIcon from "@material-ui/icons/SupervisorAccount";
 import StorageIcon from "@material-ui/icons/Storage";
 import TextFieldsIcon from "@material-ui/icons/TextFields";
+import AlarmIcon from '@material-ui/icons/Alarm';
 import ListItemText from "@material-ui/core/ListItemText";
-import FormatListBulletedIcon from "@material-ui/icons/FormatListBulleted";
 
 import { redirectToLogin } from "../Utils";
 import { graphTitle } from "../dashboard/Graph";
@@ -239,7 +239,7 @@ export default function Fixture(props) {
             selected={location.pathname == "/dashboard/labels"}
           >
             <ListItemIcon>
-              <DashboardIcon />
+              <TextFieldsIcon />
             </ListItemIcon>
             <ListItemText primary="Labels" />
           </ListItem>
@@ -250,7 +250,7 @@ export default function Fixture(props) {
             selected={location.pathname.startsWith("/dashboard/goals")}
           >
             <ListItemIcon>
-              <FormatListBulletedIcon />
+              <AlarmIcon />
             </ListItemIcon>
             <ListItemText primary="Goals" />
           </ListItem>
