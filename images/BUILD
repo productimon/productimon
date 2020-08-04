@@ -28,6 +28,18 @@ genrule(
 )
 
 genrule(
+    name = "webfe_ico",
+    srcs = [":logo"],
+    outs = ["favicon.ico"],
+    cmd = select({
+        "@bazel_tools//src/conditions:windows": "magick convert $(location :logo) -define icon:auto-resize=\"128,64,32,16\" $(OUTS)",
+        "//conditions:default": "convert $(location :logo) -define icon:auto-resize=\"128,64,32,16\" $(OUTS)",
+    }),
+    message = "Generating favicon.ico",
+    visibility = ["//viewer/webfe:__subpackages__"],
+)
+
+genrule(
     name = "windows_logo_res",
     srcs = [
         ":logo",

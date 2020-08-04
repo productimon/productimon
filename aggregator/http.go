@@ -67,6 +67,9 @@ func buildHandlers(ctx context.Context, s *service.Service, auther *authenticato
 	mux.HandleFunc("/app.js", webfeServeStaticFile("text/javascript", jsFilename))
 	mux.HandleFunc("/app.dev.js.map", webfeServeStaticFile("application/json", mapFilename))
 	mux.HandleFunc("/", webfeServeStaticFile("text/html", "index.html"))
+	mux.HandleFunc("/favicon.ico", webfeServeStaticFile("image/x-icon", "favicon.ico"))
+	mux.HandleFunc("/logo.svg", webfeServeStaticFile("image/svg+xml", "productimon.svg"))
+	mux.HandleFunc("/logo-white.svg", webfeServeStaticFile("image/svg+xml", "productimon_white.svg"))
 
 	mux.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {

@@ -52,6 +52,9 @@ go_embed_data(
         "//conditions:default": [":bundle"],
     }) + [
         ":index.html",
+        "//images:webfe_ico",
+        "//images:productimon.svg",
+        "//images:productimon_white.svg",
     ],
     flatten = True,
     package = "webfe",

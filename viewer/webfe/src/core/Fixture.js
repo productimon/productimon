@@ -156,6 +156,7 @@ export default function Fixture(props) {
           >
             <MenuIcon />
           </IconButton>
+          <img src="logo-white.svg" style={{height: 30, marginRight: 3}}/>
           <Typography
             component="h1"
             variant="h6"
@@ -163,7 +164,7 @@ export default function Fixture(props) {
             noWrap
             className={classes.title}
           >
-            Productimon
+            roductimon
           </Typography>
           <Menu
             anchorEl={anchorEl}
