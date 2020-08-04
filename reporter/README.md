@@ -4,13 +4,13 @@
 
 ### Linux
 
-`sudo apt install gcc g++ python libx11-dev libxi-dev cmake libexpat1-dev qt5-default`
+`sudo apt install gcc g++ python libx11-dev libxi-dev cmake libexpat1-dev qt5-default imagemagick`
 
 ### macOS
 
 ```
 xcode-select --install
-brew install qt
+brew install qt imagemagick
 ```
 
 After installing qt, make sure to update your PATH to include qt's bin. For me it was `echo 'export PATH="/usr/local/opt/qt/bin:$PATH"' >> ~/.bashrc`

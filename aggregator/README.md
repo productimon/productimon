@@ -32,7 +32,9 @@ Aggregator listens on three different ports: HTTP, HTTPS, and gRPC (with mTLS en
 The HTTP port is used for redirecting to HTTPS. None of your personal data is transmitted over HTTP or without encryption.
 
 You can provide your own HTTPS certificate. If not provided, one will be automatically provisioned with Let's Encrypt.
-See help for more details. HTTP is also used for ACME protocol to automatically provision your certificate from Let's Encrypt.
+To do this, have your domain name point to your server and run the aggregator with the `-accept_acme_tos`
+flag on to accept Let's Encrypt Terms of Service. The aggregator will try to get a certificate
+using ACME protocol from Let's Encrypt when the first user access its HTTPs port.
 
 Aggregator provides three ways to access its APIs:
 
