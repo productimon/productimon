@@ -6,6 +6,9 @@ const LABEL_UNKNOWN = "Unknown"
 // we currently rely solely on wikipedia articles with software infobox
 // TODO: add google knowledge api, wikidata, and potentially self-trained word embeddings
 func GuessLabel(app string) string {
+	if label := listLabel(app); label != "" {
+		return label
+	}
 	if label := wikipediaLabel(app); label != "" {
 		return label
 	}
