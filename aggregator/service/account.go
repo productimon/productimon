@@ -207,6 +207,17 @@ func (s *Service) DeleteAccount(ctx context.Context, req *cpb.Empty) (*cpb.Empty
 	s.dbWLock.Lock()
 	defer s.dbWLock.Unlock()
 
+	var email string
+	err = s.db.QueryRow("SELECT email FROM users WHERE id = ?", uid).Scan(&email)
+	if err != nil {
+		s.log.Error("failed to scan email", zap.Error(err))
+		return nil, status.Error(codes.Internal, "error deleting user")
+	}
+
+	if email == flagFirstUser {
+		return nil, status.Error(codes.Internal, "Cannot remove root admin")
+	}
+
 	if _, err = s.db.Exec("DELETE FROM users WHERE id = ?", uid); err != nil {
 		s.log.Error("failed to delete user", zap.Error(err), zap.String("uid", uid))
 		return nil, status.Error(codes.Internal, "error deleting user")
