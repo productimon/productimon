@@ -63,6 +63,7 @@ const initialGraphs = {
     endTimeUnit: "Seconds",
     endTimeVal: "0",
     intervals: "10",
+    device: "all",
   },
   1: {
     graphId: 1,
@@ -74,6 +75,7 @@ const initialGraphs = {
     endTimeUnit: "Seconds",
     endTimeVal: "0",
     numItems: "5",
+    device: "all",
   },
   2: {
     graphId: 2,
@@ -84,6 +86,7 @@ const initialGraphs = {
     startTimeVal: "10",
     endTimeUnit: "Seconds",
     endTimeVal: "0",
+    device: "all",
   },
 };
 

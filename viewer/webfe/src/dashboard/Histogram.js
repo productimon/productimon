@@ -29,7 +29,7 @@ import {
   DataAggregatorGetTimeResponse,
 } from "productimon/proto/svc/aggregator_pb";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
-import { Interval, Timestamp } from "productimon/proto/common/common_pb";
+import { Device, Interval, Timestamp } from "productimon/proto/common/common_pb";
 
 import {
   rpc,
@@ -214,6 +214,11 @@ export default function Histogram(props) {
         ? DataAggregatorGetTimeRequest.GroupBy.APPLICATION
         : DataAggregatorGetTimeRequest.GroupBy.LABEL
     );
+    if (props.graphSpec.device != "all") {
+      const device = new Device();
+      device.setId(props.graphSpec.device.split("-")[1]);
+      request.setDevicesList([device]);
+    }
 
     rpc(DataAggregator.GetTime, request)
       .then((res) => {
@@ -294,6 +299,7 @@ export default function Histogram(props) {
         );
       })
       .catch((err) => {
+        console.error(err);
         enqueueSnackbar(err, { variant: "error" });
       });
   }, [props.graphSpec]);

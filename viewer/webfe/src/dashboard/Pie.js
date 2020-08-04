@@ -19,7 +19,11 @@ import MenuItem from "@material-ui/core/MenuItem";
 
 import { DataAggregatorGetTimeRequest } from "productimon/proto/svc/aggregator_pb";
 import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
-import { Interval, Timestamp } from "productimon/proto/common/common_pb";
+import {
+  Device,
+  Interval,
+  Timestamp,
+} from "productimon/proto/common/common_pb";
 
 import {
   rpc,
@@ -96,6 +100,11 @@ export default function PieChart({ graphSpec, options, fullscreen, onUpdate }) {
         ? DataAggregatorGetTimeRequest.GroupBy.APPLICATION
         : DataAggregatorGetTimeRequest.GroupBy.LABEL
     );
+    if (graphSpec.device != "all") {
+      const device = new Device();
+      device.setId(graphSpec.device.split("-")[1]);
+      request.setDevicesList([device]);
+    }
 
     rpc(DataAggregator.GetTime, request)
       .then((res) => {

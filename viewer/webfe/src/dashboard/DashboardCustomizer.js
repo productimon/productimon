@@ -15,7 +15,10 @@ import Select from "@material-ui/core/Select";
 import Box from "@material-ui/core/Box";
 import Button from "@material-ui/core/Button";
 
-import { timeUnits, calculateDate } from "../Utils";
+import { DataAggregator } from "productimon/proto/svc/aggregator_pb_service";
+import { Empty } from "productimon/proto/common/common_pb";
+
+import { rpc, timeUnits, calculateDate } from "../Utils";
 import Graph, { graphTypes } from "./Graph";
 
 const useStyles = makeStyles((theme) => ({
@@ -96,6 +99,7 @@ export default function DashboardCustomizer(props) {
     endTimeVal: "0",
     intervals: "5",
     numItems: "3",
+    device: "all",
   });
 
   const updateGraph = (newGraphSpec) => {
@@ -156,6 +160,14 @@ function SimpleForm(props) {
   const classes = useStyles();
   const { graphSpec, setGraphSpec } = props;
   const history = useHistory();
+
+  const [deviceList, setDeviceList] = React.useState([]);
+
+  React.useEffect(() => {
+    rpc(DataAggregator.GetDevices, new Empty()).then((res) => {
+      setDeviceList(res.getDevicesList());
+    });
+  }, []);
 
   const handleInputChange = (event) => {
     setGraphSpec({ ...graphSpec, [event.target.name]: event.target.value });
@@ -239,20 +251,19 @@ function SimpleForm(props) {
       <div className={classes.container}>
         <Box my={3}>Devices:</Box>
         <FormControl variant="filled" className={classes.formControl}>
-          <Select value="">
-            <MenuItem value="">
+          <Select
+            name="device"
+            value={graphSpec.device || ""}
+            onChange={handleInputChange}
+          >
+            <MenuItem value="all">
               <em>All</em>
             </MenuItem>
-          </Select>
-        </FormControl>
-      </div>
-      <div className={classes.container}>
-        <Box my={3}>Categories:</Box>
-        <FormControl variant="filled" className={classes.formControl}>
-          <Select value="">
-            <MenuItem value="">
-              <em>All</em>
-            </MenuItem>
+            {deviceList.map((d) => (
+              <MenuItem key={d.getId()} value={`device-${d.getId()}`}>
+                <em>{d.getName()}</em>
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
       </div>
