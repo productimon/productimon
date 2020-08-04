@@ -283,17 +283,6 @@ export default function Fixture(props) {
                 <ListItemText primary="Admin Management" />
               </ListItem>
 
-              <ListItem
-                button
-                onClick={() => gotoLink("/dashboard/adminServerStatus")}
-                selected={location.pathname == "/dashboard/adminServerStatus"}
-              >
-                <ListItemIcon>
-                  <StorageIcon />
-                </ListItemIcon>
-                <ListItemText primary="Admin Server Status" />
-              </ListItem>
-
               <Divider />
             </React.Fragment>
           )}
